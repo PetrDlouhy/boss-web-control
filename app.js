@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Full Mixer Interface
 // Complete parameter control with dual Bluetooth support
 
-const APP_VERSION = '2.13.2';
+const VERSION = '2.16.1';
 
 let bossCubeController = null;
 let currentParameterKey = 'masterVolume';
@@ -22,26 +22,51 @@ let connectBtn, connectPedalBtn, debugBtn, readValuesBtn;
 let mixerControlsEl, effectsControlsEl;
 let versionTextEl, refreshBtn;
 
+// Settings management
+let settings = {
+    pedalCCCodes: {
+        previousParameter: 80,  // Default CC for previous parameter (left footswitch)
+        nextParameter: 81,      // Default CC for next parameter (right footswitch)
+        pedalControl: 127       // Default CC for pedal control (expression pedal)
+    },
+    footswitchPolarity: 'normally_open' // 'normally_open' (Boss) or 'normally_closed' (others)
+};
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Get UI elements
+    // Get DOM elements
     statusEl = document.getElementById('status');
     pedalStatusEl = document.getElementById('pedalStatus');
     logEl = document.getElementById('log');
-    
     connectBtn = document.getElementById('connectBtn');
     connectPedalBtn = document.getElementById('connectPedalBtn');
     debugBtn = document.getElementById('debugBtn');
     readValuesBtn = document.getElementById('readValuesBtn');
-    
     mixerControlsEl = document.getElementById('mixerControls');
     effectsControlsEl = document.getElementById('effectsControls');
-    
     versionTextEl = document.getElementById('versionText');
     refreshBtn = document.getElementById('refreshBtn');
     
+    // Initialize settings modal
+    initializeSettingsModal();
+    
+    // Set up event listeners
+    connectBtn.addEventListener('click', connectToBossCube);
+    connectPedalBtn.addEventListener('click', handlePedalUIButton);
+    debugBtn.addEventListener('click', runDebugSequence);
+    readValuesBtn.addEventListener('click', readValuesFromCube);
+    refreshBtn.addEventListener('click', () => {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
+            window.location.reload();
+        }
+    });
+    
     // Initialize controller
     bossCubeController = new BossCubeController();
+    
+    // Apply current settings to controller
+    applySettingsToController();
     
     // Set up event listeners
     setupEventListeners();
@@ -60,37 +85,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize version checking and updates
     initializeVersioning();
     
-    log(`Boss Cube Web Control v${APP_VERSION} initialized`, 'success');
+    // Load settings from localStorage
+    loadSettings();
+    
+    log(`Boss Cube Web Control v${VERSION} initialized`, 'success');
 });
 
 function initializeVersioning() {
     // Display current version
     if (versionTextEl) {
-        versionTextEl.textContent = `v${APP_VERSION}`;
-    }
-    
-    // Set up refresh button handler
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
-            try {
-                refreshBtn.disabled = true;
-                refreshBtn.textContent = '🔄 Updating...';
-                
-                // Force service worker update
-                if ('serviceWorker' in navigator) {
-                    const registration = await navigator.serviceWorker.getRegistration();
-                    if (registration) {
-                        await registration.update();
-                        // Force page reload after update
-                        window.location.reload();
-                    }
-                }
-            } catch (error) {
-                console.error('Update failed:', error);
-                refreshBtn.disabled = false;
-                refreshBtn.textContent = '🔄 Update Available';
-            }
-        });
+        versionTextEl.textContent = `v${VERSION}`;
     }
     
     // Register service worker and check for updates
@@ -219,7 +223,7 @@ function handlePedalVolumeChange(event) {
         // Just update the visual pedal indicator
     } else {
         // Normal mode - update parameter value
-        updateParameterDisplayFast(parameterKey, value);
+    updateParameterDisplayFast(parameterKey, value);
     }
     
     // Throttled logging to prevent console spam during fast movement
@@ -315,18 +319,175 @@ function createParameterControls() {
         mixerControlsEl.appendChild(control);
     });
     
-    // Create effects controls
-    const effectsParams = bossCubeController.getParametersByCategory('effects');
-    Object.entries(effectsParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
-        effectsControlsEl.appendChild(control);
+    // Create effects interface with selectors and controls
+    createEffectsInterface();
+}
+
+function createEffectsInterface() {
+    effectsControlsEl.innerHTML = `
+        <div class="effects-section">
+            <h4>🎸 Guitar Effects</h4>
+            <div class="effect-buttons">
+                <button class="effect-btn" data-effect="phaser">Phaser</button>
+                <button class="effect-btn" data-effect="chorus">Chorus</button>
+                <button class="effect-btn" data-effect="tremolo">Tremolo</button>
+                <button class="effect-btn" data-effect="twah">T.WAH</button>
+                <button class="effect-btn" data-effect="flanger">Flanger</button>
+            </div>
+            <div id="guitarEffectControls" class="parameter-grid"></div>
+        </div>
+        
+        <div class="effects-section">
+            <h4>🎸 Guitar Reverb</h4>
+            <div id="guitarReverbControls" class="parameter-grid"></div>
+        </div>
+        
+        <div class="effects-section">
+            <h4>🎸 Guitar Delay</h4>
+            <div id="guitarDelayControls" class="parameter-grid"></div>
+        </div>
+        
+        <div class="effects-section">
+            <h4>🎤 Mic/Inst Effects</h4>
+            <div class="effect-buttons">
+                <button class="effect-btn" data-effect="harmony">Harmony</button>
+                <button class="effect-btn" data-effect="chorus">Chorus</button>
+                <button class="effect-btn" data-effect="phaser">Phaser</button>
+                <button class="effect-btn" data-effect="flanger">Flanger</button>
+                <button class="effect-btn" data-effect="tremolo">Tremolo</button>
+                <button class="effect-btn" data-effect="twah">T.WAH</button>
+            </div>
+            <div id="micInstEffectControls" class="parameter-grid"></div>
+        </div>
+        
+        <div class="effects-section">
+            <h4>🎤 Mic/Inst Reverb</h4>
+            <div id="micInstReverbControls" class="parameter-grid"></div>
+        </div>
+    `;
+    
+    // Set up effect selectors
+    setupEffectSelectors();
+    
+    // Initially populate all effect controls
+    updateGuitarEffectControls();
+    updateMicInstEffectControls();
+    updateReverbDelayControls();
+}
+
+function setupEffectSelectors() {
+    // Guitar effect buttons (first effect-buttons container)
+    const guitarEffectContainer = document.querySelector('.effects-section .effect-buttons');
+    const guitarEffectButtons = guitarEffectContainer.querySelectorAll('.effect-btn');
+    
+    // Mic/Inst effect buttons (fourth effect-buttons container)
+    const micInstEffectContainer = document.querySelectorAll('.effects-section .effect-buttons')[1];
+    const micInstEffectButtons = micInstEffectContainer.querySelectorAll('.effect-btn');
+    
+    guitarEffectButtons.forEach((button) => {
+        button.addEventListener('click', async (e) => {
+            const effectType = e.target.getAttribute('data-effect');
+            try {
+                await bossCubeController.switchGuitarEffect(effectType);
+                updateGuitarEffectControls();
+                updateGuitarEffectButtonHighlight(effectType);
+                log(`Switched to guitar effect: ${effectType}`, 'info');
+            } catch (error) {
+                log(`Failed to switch guitar effect: ${error.message}`, 'error');
+            }
+        });
     });
+    
+    micInstEffectButtons.forEach((button) => {
+        button.addEventListener('click', async (e) => {
+            const effectType = e.target.getAttribute('data-effect');
+            await bossCubeController.switchMicInstEffect(effectType);
+            updateMicInstEffectControls();
+            updateMicInstEffectButtonHighlight(effectType);
+            log(`Switched to mic/inst effect: ${effectType}`, 'info');
+        });
+    });
+    
+    // Set initial highlights
+    updateGuitarEffectButtonHighlight(bossCubeController.currentGuitarEffect);
+    updateMicInstEffectButtonHighlight(bossCubeController.currentMicInstEffect);
+}
+
+function updateGuitarEffectControls() {
+    const container = document.getElementById('guitarEffectControls');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const effectParams = bossCubeController.getCurrentGuitarEffectParameters();
+    
+    Object.entries(effectParams).forEach(([key, param]) => {
+        const control = createParameterControl(param, key);
+        container.appendChild(control);
+    });
+}
+
+function updateMicInstEffectControls() {
+    const container = document.getElementById('micInstEffectControls');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const effectParams = bossCubeController.getCurrentMicInstEffectParameters();
+    
+    Object.entries(effectParams).forEach(([key, param]) => {
+        const control = createParameterControl(param, key);
+        container.appendChild(control);
+    });
+}
+
+function updateReverbDelayControls() {
+    // Guitar Reverb
+    const guitarReverbContainer = document.getElementById('guitarReverbControls');
+    if (guitarReverbContainer) {
+        guitarReverbContainer.innerHTML = '';
+        const guitarReverbParams = bossCubeController.getParametersByCategory('guitarReverb');
+        Object.entries(guitarReverbParams).forEach(([key, param]) => {
+            const control = createParameterControl(param, key);
+            guitarReverbContainer.appendChild(control);
+        });
+    }
+    
+    // Guitar Delay
+    const guitarDelayContainer = document.getElementById('guitarDelayControls');
+    if (guitarDelayContainer) {
+        guitarDelayContainer.innerHTML = '';
+        const guitarDelayParams = bossCubeController.getParametersByCategory('guitarDelay');
+        Object.entries(guitarDelayParams).forEach(([key, param]) => {
+            const control = createParameterControl(param, key);
+            guitarDelayContainer.appendChild(control);
+        });
+    }
+    
+    // Mic/Inst Reverb
+    const micInstReverbContainer = document.getElementById('micInstReverbControls');
+    if (micInstReverbContainer) {
+        micInstReverbContainer.innerHTML = '';
+        const micInstReverbParams = bossCubeController.getParametersByCategory('micInstReverb');
+        Object.entries(micInstReverbParams).forEach(([key, param]) => {
+            const control = createParameterControl(param, key);
+            micInstReverbContainer.appendChild(control);
+        });
+    }
 }
 
 function createParameterControl(param, key) {
     const control = document.createElement('div');
     control.className = 'parameter-control';
     control.setAttribute('data-param-key', key);
+    
+    // Get initial display value
+    let initialDisplayValue;
+    if (param.valueLabels && param.valueLabels[param.current] !== undefined) {
+        initialDisplayValue = param.valueLabels[param.current];
+    } else if (param.displayValue && typeof param.displayValue === 'function') {
+        initialDisplayValue = param.displayValue(param.current);
+    } else {
+        initialDisplayValue = `${param.current}/${param.max}`;
+    }
     
     // Create the interactive structure with visual fill
     control.innerHTML = `
@@ -340,7 +501,7 @@ function createParameterControl(param, key) {
                value="${param.current}"
                data-param-key="${key}"
                aria-label="${param.name}">
-        <div class="parameter-value">${param.current}/${param.max}</div>
+        <div class="parameter-value">${initialDisplayValue}</div>
     `;
     
     // Set initial visual fill
@@ -543,10 +704,16 @@ function selectParameter(key) {
 function updateParameterSelection() {
     // Update visual selection
     const allControls = document.querySelectorAll('.parameter-control');
+    
     allControls.forEach((control) => {
         const key = control.getAttribute('data-param-key');
         if (key === currentParameterKey) {
             control.classList.add('current');
+            // Scroll to the mixer section containing this control
+            const mixerSection = control.closest('.mixer-section');
+            if (mixerSection) {
+                mixerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         } else {
             control.classList.remove('current');
         }
@@ -599,7 +766,21 @@ function updateParameterDisplay(key, value) {
         const param = bossCubeController.parameters[key];
         
         slider.value = value;
-        valueDisplay.textContent = `${value}/${param.max}`;
+        
+        // Display meaningful labels or formatted values
+        let displayText;
+        if (param.valueLabels && param.valueLabels[value] !== undefined) {
+            // Use value labels for discrete parameters
+            displayText = param.valueLabels[value];
+        } else if (param.displayValue && typeof param.displayValue === 'function') {
+            // Use custom display function
+            displayText = param.displayValue(value);
+        } else {
+            // Default numeric display
+            displayText = `${value}/${param.max}`;
+        }
+        
+        valueDisplay.textContent = displayText;
         
         // Update visual fill
         updateParameterFill(key, value, param.min, param.max);
@@ -646,11 +827,24 @@ function updateParameterDisplayFast(key, value) {
         requestAnimationFrame(processPendingAnimationUpdates);
     }
     
-    // Update value display and slider immediately (these are less expensive)
-    const newText = `${value}/${param.max}`;
+    // Display meaningful labels or formatted values
+    let newText;
+    if (param.valueLabels && param.valueLabels[value] !== undefined) {
+        // Use value labels for discrete parameters
+        newText = param.valueLabels[value];
+    } else if (param.displayValue && typeof param.displayValue === 'function') {
+        // Use custom display function
+        newText = param.displayValue(value);
+    } else {
+        // Default numeric display
+        newText = `${value}/${param.max}`;
+    }
+    
     if (valueDisplay.textContent !== newText) {
         valueDisplay.textContent = newText;
     }
+    
+    // Update value display and slider immediately (these are less expensive)
     slider.value = value;
 }
 
@@ -1012,3 +1206,163 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
         log(`🎛️ Physical knob change detected - pickup mode reset`, 'info');
     }
 }
+
+function updateGuitarEffectButtonHighlight(activeEffect) {
+    const guitarEffectContainer = document.querySelector('.effects-section .effect-buttons');
+    const buttons = guitarEffectContainer.querySelectorAll('.effect-btn');
+    
+    buttons.forEach(button => {
+        if (button.getAttribute('data-effect') === activeEffect) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+function updateMicInstEffectButtonHighlight(activeEffect) {
+    const micInstEffectContainer = document.querySelectorAll('.effects-section .effect-buttons')[1];
+    const buttons = micInstEffectContainer.querySelectorAll('.effect-btn');
+    
+    buttons.forEach(button => {
+        if (button.getAttribute('data-effect') === activeEffect) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+// Load settings from localStorage
+function loadSettings() {
+    try {
+        const savedSettings = localStorage.getItem('bossCubeSettings');
+        if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            settings = { ...settings, ...parsed };
+            log('Settings loaded from storage', 'info');
+        }
+    } catch (error) {
+        log('Failed to load settings, using defaults', 'warning');
+    }
+}
+
+// Save settings to localStorage
+function saveSettings() {
+    try {
+        localStorage.setItem('bossCubeSettings', JSON.stringify(settings));
+        log('Settings saved to storage', 'success');
+    } catch (error) {
+        log('Failed to save settings', 'error');
+    }
+}
+
+function initializeSettingsModal() {
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+    
+    // Settings form elements
+    const prevParamCC = document.getElementById('prevParamCC');
+    const nextParamCC = document.getElementById('nextParamCC');
+    const pedalControlCC = document.getElementById('pedalControlCC');
+    const footswitchRadios = document.querySelectorAll('input[name="footswitchPolarity"]');
+    
+    // Open settings modal
+    settingsBtn.addEventListener('click', () => {
+        loadSettingsIntoForm();
+        settingsModal.style.display = 'flex';
+    });
+    
+    // Close modal handlers
+    closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.style.display = 'none';
+    });
+    
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.style.display = 'none';
+        }
+    });
+    
+    // Save settings
+    saveSettingsBtn.addEventListener('click', () => {
+        // Update settings object
+        settings.pedalCCCodes.previousParameter = parseInt(prevParamCC.value);
+        settings.pedalCCCodes.nextParameter = parseInt(nextParamCC.value);
+        settings.pedalCCCodes.pedalControl = parseInt(pedalControlCC.value);
+        
+        // Get selected footswitch polarity
+        const selectedPolarity = document.querySelector('input[name="footswitchPolarity"]:checked');
+        if (selectedPolarity) {
+            settings.footswitchPolarity = selectedPolarity.value;
+        }
+        
+        // Save to localStorage
+        saveSettings();
+        
+        // Apply settings to controller if connected
+        if (bossCubeController) {
+            applySettingsToController();
+        }
+        
+        // Close modal
+        settingsModal.style.display = 'none';
+        
+        log('Settings saved and applied', 'success');
+    });
+    
+    // Reset to defaults
+    resetSettingsBtn.addEventListener('click', () => {
+        if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+            settings = {
+                pedalCCCodes: {
+                    previousParameter: 80,
+                    nextParameter: 81,
+                    pedalControl: 127
+                },
+                footswitchPolarity: 'normally_open'
+            };
+            
+            loadSettingsIntoForm();
+            saveSettings();
+            
+            if (bossCubeController) {
+                applySettingsToController();
+            }
+            
+            log('Settings reset to defaults', 'info');
+        }
+    });
+    
+    // Load current settings into form
+    function loadSettingsIntoForm() {
+        prevParamCC.value = settings.pedalCCCodes.previousParameter;
+        nextParamCC.value = settings.pedalCCCodes.nextParameter;
+        pedalControlCC.value = settings.pedalCCCodes.pedalControl;
+        
+        // Set footswitch polarity radio
+        footswitchRadios.forEach(radio => {
+            radio.checked = radio.value === settings.footswitchPolarity;
+        });
+    }
+}
+
+// Apply current settings to the controller
+function applySettingsToController() {
+    if (!bossCubeController) return;
+    
+    // Apply pedal CC codes
+    bossCubeController.setPedalCCCodes(
+        settings.pedalCCCodes.previousParameter,
+        settings.pedalCCCodes.nextParameter,
+        settings.pedalCCCodes.pedalControl
+    );
+    
+    // Apply footswitch polarity
+    bossCubeController.setFootswitchPolarity(settings.footswitchPolarity);
+    
+    log(`Settings applied: CC codes [${settings.pedalCCCodes.previousParameter}, ${settings.pedalCCCodes.nextParameter}, ${settings.pedalCCCodes.pedalControl}], Polarity: ${settings.footswitchPolarity}`, 'info');
+} 

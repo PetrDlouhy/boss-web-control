@@ -62,15 +62,9 @@ class BossCubeController {
         
         // Parameters from Python script - complete set
         this.parameters = {
-            // Mixer volumes
-            masterVolume: { 
-                name: 'Master Volume', 
-                address: [0x20, 0x00, 0x00, 0x04], 
-                min: 0, max: 100, current: 50,
-                category: 'mixer'
-            },
-            micInstrumentVolume: { 
-                name: 'Mic/Instrument Volume', 
+            // Mixer controls
+            micInstVolume: { 
+                name: 'Mic/Inst Volume', 
                 address: [0x20, 0x00, 0x00, 0x00], 
                 min: 0, max: 100, current: 50,
                 category: 'mixer'
@@ -81,110 +75,592 @@ class BossCubeController {
                 min: 0, max: 100, current: 50,
                 category: 'mixer'
             },
-            iCubeLinkVolume: { 
-                name: 'iCube Link/Aux/BT Volume', 
+            auxBluetoothVolume: { 
+                name: 'Aux/Bluetooth Volume', 
                 address: [0x20, 0x00, 0x00, 0x02], 
                 min: 0, max: 100, current: 50,
                 category: 'mixer'
             },
-            iCubeLinkOutVolume: { 
-                name: 'iCube Link Out Volume', 
+            iCubeLinkOut: { 
+                name: 'i-CUBE LINK Out', 
                 address: [0x20, 0x00, 0x00, 0x03], 
                 min: 0, max: 100, current: 50,
                 category: 'mixer'
             },
+            masterVolume: { 
+                name: 'Master Volume', 
+                address: [0x20, 0x00, 0x00, 0x04], 
+                min: 0, max: 100, current: 50,
+                category: 'mixer'
+            },
+
+            // Guitar Effects - Phaser
+            guitarPhaserRate: { 
+                name: 'Phaser Rate', 
+                address: [0x10, 0x00, 0x00, 0x47], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'phaser'
+            },
+            guitarPhaserDepth: { 
+                name: 'Phaser Depth', 
+                address: [0x10, 0x00, 0x00, 0x48], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'phaser'
+            },
+            guitarPhaserResonance: { 
+                name: 'Phaser Resonance', 
+                address: [0x10, 0x00, 0x00, 0x49], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'phaser'
+            },
+            guitarPhaserManual: { 
+                name: 'Phaser Manual', 
+                address: [0x10, 0x00, 0x00, 0x4a], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'phaser'
+            },
+            guitarPhaserLevel: { 
+                name: 'Phaser Level', 
+                address: [0x10, 0x00, 0x00, 0x4b], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'phaser'
+            },
+            guitarPhaserType: { 
+                name: 'Phaser Type', 
+                address: [0x10, 0x00, 0x00, 0x46], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['4stage', '8stage', '12stage', 'BiPHASE'],
+                category: 'guitarEffects',
+                effectType: 'phaser'
+            },
             
-            // Additional mixer addresses (experimental)
-            mixerAddress05: { 
-                name: 'Mixer Address 05', 
-                address: [0x20, 0x00, 0x00, 0x05], 
+            // Guitar Effects - Chorus
+            guitarChorusLowRate: { 
+                name: 'Chorus Low Rate', 
+                address: [0x10, 0x00, 0x00, 0x3b], 
                 min: 0, max: 100, current: 50,
-                category: 'mixer'
+                category: 'guitarEffects',
+                effectType: 'chorus'
             },
-            mixerAddress06: { 
-                name: 'Mixer Address 06', 
-                address: [0x20, 0x00, 0x00, 0x06], 
+            guitarChorusLowDepth: { 
+                name: 'Chorus Low Depth', 
+                address: [0x10, 0x00, 0x00, 0x3c], 
                 min: 0, max: 100, current: 50,
-                category: 'mixer'
+                category: 'guitarEffects',
+                effectType: 'chorus'
             },
-            mixerAddress07: { 
-                name: 'Mixer Address 07', 
-                address: [0x20, 0x00, 0x00, 0x07], 
+            guitarChorusLowPreDelay: { 
+                name: 'Chorus Low Pre Delay', 
+                address: [0x10, 0x00, 0x00, 0x3d], 
+                min: 0, max: 80, current: 50,
+                unit: 'ms',
+                displayValue: (value) => `${(value * 0.5).toFixed(1)}ms`,
+                category: 'guitarEffects',
+                effectType: 'chorus'
+            },
+            guitarChorusLowLevel: { 
+                name: 'Chorus Low Level', 
+                address: [0x10, 0x00, 0x00, 0x3e], 
                 min: 0, max: 100, current: 50,
-                category: 'mixer'
+                category: 'guitarEffects',
+                effectType: 'chorus'
             },
-            mixerAddress08: { 
-                name: 'Mixer Address 08', 
-                address: [0x20, 0x00, 0x00, 0x08], 
+            guitarChorusDirectMix: { 
+                name: 'Chorus Direct Mix', 
+                address: [0x10, 0x00, 0x00, 0x3f], 
                 min: 0, max: 100, current: 50,
-                category: 'mixer'
+                category: 'guitarEffects',
+                effectType: 'chorus'
             },
-            mixerAddress09: { 
-                name: 'Mixer Address 09', 
-                address: [0x20, 0x00, 0x00, 0x09], 
+            guitarChorusHighRate: { 
+                name: 'Chorus High Rate', 
+                address: [0x10, 0x00, 0x00, 0x40], 
                 min: 0, max: 100, current: 50,
-                category: 'mixer'
+                category: 'guitarEffects',
+                effectType: 'chorus'
             },
-            mixerAddress0A: { 
-                name: 'Mixer Address 0A', 
-                address: [0x20, 0x00, 0x00, 0x0a], 
+            guitarChorusHighDepth: { 
+                name: 'Chorus High Depth', 
+                address: [0x10, 0x00, 0x00, 0x41], 
                 min: 0, max: 100, current: 50,
-                category: 'mixer'
+                category: 'guitarEffects',
+                effectType: 'chorus'
             },
-            
-            // Guitar effects and reverb
+            guitarChorusHighPreDelay: { 
+                name: 'Chorus High Pre Delay', 
+                address: [0x10, 0x00, 0x00, 0x42], 
+                min: 0, max: 80, current: 50,
+                unit: 'ms',
+                displayValue: (value) => `${(value * 0.5).toFixed(1)}ms`,
+                category: 'guitarEffects',
+                effectType: 'chorus'
+            },
+            guitarChorusHighLevel: { 
+                name: 'Chorus High Level', 
+                address: [0x10, 0x00, 0x00, 0x43], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'chorus'
+            },
+            guitarChorusXoverFreq: { 
+                name: 'Chorus Xover Frequency', 
+                address: [0x10, 0x00, 0x00, 0x44], 
+                min: 0, max: 16, current: 8,
+                category: 'guitarEffects',
+                effectType: 'chorus'
+            },
+
+            // Guitar Effects - Tremolo
+            guitarTremoloWaveShape: { 
+                name: 'Tremolo Wave Shape', 
+                address: [0x10, 0x00, 0x00, 0x54], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'tremolo'
+            },
+            guitarTremoloRate: { 
+                name: 'Tremolo Rate', 
+                address: [0x10, 0x00, 0x00, 0x55], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'tremolo'
+            },
+            guitarTremoloDepth: { 
+                name: 'Tremolo Depth', 
+                address: [0x10, 0x00, 0x00, 0x56], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'tremolo'
+            },
+            guitarTremoloLevel: { 
+                name: 'Tremolo Level', 
+                address: [0x10, 0x00, 0x00, 0x57], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'tremolo'
+            },
+
+            // Guitar Effects - T.WAH
+            guitarTWahMode: { 
+                name: 'T.WAH Mode', 
+                address: [0x10, 0x00, 0x00, 0x59], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['LPF', 'BPF'],
+                category: 'guitarEffects',
+                effectType: 'twah'
+            },
+            guitarTWahPolarity: { 
+                name: 'T.WAH Polarity', 
+                address: [0x10, 0x00, 0x00, 0x5a], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['UP', 'DOWN'],
+                category: 'guitarEffects',
+                effectType: 'twah'
+            },
+            guitarTWahSens: { 
+                name: 'T.WAH Sens', 
+                address: [0x10, 0x00, 0x00, 0x5b], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'twah'
+            },
+            guitarTWahFrequency: { 
+                name: 'T.WAH Frequency', 
+                address: [0x10, 0x00, 0x00, 0x5c], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'twah'
+            },
+            guitarTWahPeak: { 
+                name: 'T.WAH Peak', 
+                address: [0x10, 0x00, 0x00, 0x5d], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'twah'
+            },
+            guitarTWahLevel: { 
+                name: 'T.WAH Level', 
+                address: [0x10, 0x00, 0x00, 0x5e], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'twah'
+            },
+
+            // Guitar Effects - Flanger
+            guitarFlangerRate: { 
+                name: 'Flanger Rate', 
+                address: [0x10, 0x00, 0x00, 0x4d], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'flanger'
+            },
+            guitarFlangerDepth: { 
+                name: 'Flanger Depth', 
+                address: [0x10, 0x00, 0x00, 0x4e], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'flanger'
+            },
+            guitarFlangerResonance: { 
+                name: 'Flanger Resonance', 
+                address: [0x10, 0x00, 0x00, 0x4f], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'flanger'
+            },
+            guitarFlangerManual: { 
+                name: 'Flanger Manual', 
+                address: [0x10, 0x00, 0x00, 0x50], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'flanger'
+            },
+            guitarFlangerLevel: { 
+                name: 'Flanger Level', 
+                address: [0x10, 0x00, 0x00, 0x51], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEffects',
+                effectType: 'flanger'
+            },
+            guitarFlangerLowCut: { 
+                name: 'Flanger Low Cut', 
+                address: [0x10, 0x00, 0x00, 0x52], 
+                min: 0, max: 10, current: 0,
+                valueLabels: ['FLAT', '55Hz', '110Hz', '165Hz', '200Hz', '280Hz', '340Hz', '400Hz', '500Hz', '530Hz', '800Hz'],
+                category: 'guitarEffects',
+                effectType: 'flanger'
+            },
+
+            // Guitar Reverb (separate section)
+            guitarReverbType: { 
+                name: 'Guitar Reverb Type', 
+                address: [0x10, 0x00, 0x00, 0x2d], 
+                min: 0, max: 2, current: 0,
+                valueLabels: ['ROOM', 'HALL', 'PLATE'],
+                category: 'guitarReverb'
+            },
             guitarReverbTime: { 
                 name: 'Guitar Reverb Time', 
                 address: [0x10, 0x00, 0x00, 0x2e], 
-                min: 0, max: 49, current: 10,
-                category: 'effects',
-                unit: 'sec'
+                min: 0, max: 49, current: 25,
+                unit: 's',
+                step: 0.1,
+                displayValue: (value) => `${(value * 0.1 + 0.1).toFixed(1)}s`,
+                category: 'guitarReverb'
+            },
+            guitarReverbPreDelay: { 
+                name: 'Guitar Reverb Pre-Delay', 
+                address: [0x10, 0x00, 0x00, 0x2f], 
+                min: 0, max: 200, current: 100,
+                unit: 'ms',
+                displayValue: (value) => `${value}ms`,
+                category: 'guitarReverb',
+                is16Bit: true
             },
             guitarReverbLevel: { 
                 name: 'Guitar Reverb Level', 
                 address: [0x10, 0x00, 0x00, 0x67], 
+                min: 0, max: 100, current: 25,
+                category: 'guitarReverb'
+            },
+            guitarReverbLowCut: { 
+                name: 'Guitar Reverb Low Cut', 
+                address: [0x10, 0x00, 0x00, 0x32], 
+                min: 0, max: 12, current: 0,
+                category: 'guitarReverb'
+            },
+            guitarReverbHighCut: { 
+                name: 'Guitar Reverb High Cut', 
+                address: [0x10, 0x00, 0x00, 0x33], 
+                min: 0, max: 10, current: 10,
+                category: 'guitarReverb'
+            },
+            guitarReverbDensity: { 
+                name: 'Guitar Reverb Density', 
+                address: [0x10, 0x00, 0x00, 0x34], 
+                min: 0, max: 10, current: 5,
+                category: 'guitarReverb'
+            },
+            guitarReverbKnobAssign: { 
+                name: 'Guitar Reverb Knob Assign', 
+                address: [0x10, 0x00, 0x00, 0x35], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['rev time', 'fx level'],
+                category: 'guitarReverb'
+            },
+
+            // Guitar Delay (separate section)
+            guitarDelayType: { 
+                name: 'Guitar Delay Type', 
+                address: [0x10, 0x00, 0x00, 0x60], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['Digital', 'Reverse', 'Analog', 'Tape Echo'],
+                category: 'guitarDelay'
+            },
+            guitarDelayTime: { 
+                name: 'Guitar Delay Time', 
+                address: [0x10, 0x00, 0x00, 0x61], 
+                min: 1, max: 1000, current: 500,
+                unit: 'ms',
+                displayValue: (value) => `${value}ms`,
+                category: 'guitarDelay',
+                is16Bit: true
+            },
+            guitarDelayFeedback: { 
+                name: 'Guitar Delay Feedback', 
+                address: [0x10, 0x00, 0x00, 0x63], 
                 min: 0, max: 100, current: 30,
-                category: 'effects'
+                category: 'guitarDelay'
             },
-            guitarPhaserLevel: { 
-                name: 'Guitar Phaser Level', 
-                address: [0x10, 0x00, 0x00, 0x4b], 
-                min: 0, max: 100, current: 25,
-                category: 'effects',
-                effectSwitchCommands: [
-                    [0x10, 0x00, 0x00, 0x39, 0x01],  // Switch to phaser
-                    [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f, 0x7c]  // Effect activation
-                ]
+            guitarDelayHighCut: { 
+                name: 'Guitar Delay High Cut', 
+                address: [0x10, 0x00, 0x00, 0x64], 
+                min: 0, max: 14, current: 14,
+                category: 'guitarDelay'
             },
-            guitarChorusLevel: { 
-                name: 'Guitar Chorus Level', 
-                address: [0x10, 0x00, 0x00, 0x43], 
+            guitarDelayLevel: { 
+                name: 'Guitar Delay Level', 
+                address: [0x10, 0x00, 0x00, 0x65], 
                 min: 0, max: 100, current: 25,
-                category: 'effects',
-                effectSwitchCommands: [
-                    [0x10, 0x00, 0x00, 0x39, 0x00],  // Switch to chorus
-                    [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f, 0x7c]  // Effect activation
-                ]
+                category: 'guitarDelay'
             },
-            guitarTremoloLevel: { 
-                name: 'Guitar Tremolo Level', 
-                address: [0x10, 0x00, 0x00, 0x57], 
-                min: 0, max: 100, current: 25,
-                category: 'effects',
-                effectSwitchCommands: [
-                    [0x10, 0x00, 0x00, 0x39, 0x03],  // Switch to tremolo
-                    [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f, 0x7c]  // Effect activation
-                ]
+            guitarDelayKnobAssign: { 
+                name: 'Guitar Delay Knob Assign', 
+                address: [0x10, 0x00, 0x00, 0x66], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['Default', 'Delay Time', 'Feedback', 'FX Level'],
+                category: 'guitarDelay'
             },
-            guitarTWahLevel: { 
-                name: 'Guitar T.WAH Level', 
-                address: [0x10, 0x00, 0x00, 0x5e], 
+
+            // Mic/Inst Effects - Harmony (estimated addresses)
+            micInstHarmonyVoice1: { 
+                name: 'Harmony Voice 1', 
+                address: [0x10, 0x00, 0x01, 0x00], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'harmony'
+            },
+            micInstHarmonyVoice2: { 
+                name: 'Harmony Voice 2', 
+                address: [0x10, 0x00, 0x01, 0x01], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'harmony'
+            },
+            micInstHarmonyLevel: { 
+                name: 'Harmony Level', 
+                address: [0x10, 0x00, 0x01, 0x02], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'harmony'
+            },
+
+            // Mic/Inst Effects - Chorus (estimated addresses)
+            micInstChorusRate: { 
+                name: 'Mic/Inst Chorus Rate', 
+                address: [0x10, 0x00, 0x01, 0x10], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusDepth: { 
+                name: 'Mic/Inst Chorus Depth', 
+                address: [0x10, 0x00, 0x01, 0x11], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusLevel: { 
+                name: 'Mic/Inst Chorus Level', 
+                address: [0x10, 0x00, 0x01, 0x12], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+
+            // Mic/Inst Effects - Phaser (estimated addresses)
+            micInstPhaserRate: { 
+                name: 'Mic/Inst Phaser Rate', 
+                address: [0x10, 0x00, 0x01, 0x20], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'phaser'
+            },
+            micInstPhaserDepth: { 
+                name: 'Mic/Inst Phaser Depth', 
+                address: [0x10, 0x00, 0x01, 0x21], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'phaser'
+            },
+            micInstPhaserResonance: { 
+                name: 'Mic/Inst Phaser Resonance', 
+                address: [0x10, 0x00, 0x01, 0x22], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'phaser'
+            },
+            micInstPhaserLevel: { 
+                name: 'Mic/Inst Phaser Level', 
+                address: [0x10, 0x00, 0x01, 0x23], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'phaser'
+            },
+
+            // Mic/Inst Effects - Flanger (estimated addresses)
+            micInstFlangerRate: { 
+                name: 'Mic/Inst Flanger Rate', 
+                address: [0x10, 0x00, 0x01, 0x30], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'flanger'
+            },
+            micInstFlangerDepth: { 
+                name: 'Mic/Inst Flanger Depth', 
+                address: [0x10, 0x00, 0x01, 0x31], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'flanger'
+            },
+            micInstFlangerResonance: { 
+                name: 'Mic/Inst Flanger Resonance', 
+                address: [0x10, 0x00, 0x01, 0x32], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'flanger'
+            },
+            micInstFlangerLevel: { 
+                name: 'Mic/Inst Flanger Level', 
+                address: [0x10, 0x00, 0x01, 0x33], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'flanger'
+            },
+
+            // Mic/Inst Effects - Tremolo (estimated addresses)
+            micInstTremoloRate: { 
+                name: 'Mic/Inst Tremolo Rate', 
+                address: [0x10, 0x00, 0x01, 0x40], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'tremolo'
+            },
+            micInstTremoloDepth: { 
+                name: 'Mic/Inst Tremolo Depth', 
+                address: [0x10, 0x00, 0x01, 0x41], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'tremolo'
+            },
+            micInstTremoloLevel: { 
+                name: 'Mic/Inst Tremolo Level', 
+                address: [0x10, 0x00, 0x01, 0x42], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'tremolo'
+            },
+
+            // Mic/Inst Effects - T.WAH
+            micInstTWahMode: { 
+                name: 'Mic/Inst T.WAH Mode', 
+                address: [0x10, 0x00, 0x00, 0x26], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['LPF', 'BPF'],
+                category: 'micInstEffects',
+                effectType: 'twah'
+            },
+            micInstTWahPolarity: { 
+                name: 'Mic/Inst T.WAH Polarity', 
+                address: [0x10, 0x00, 0x00, 0x27], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['UP', 'DOWN'],
+                category: 'micInstEffects',
+                effectType: 'twah'
+            },
+            micInstTWahSens: { 
+                name: 'Mic/Inst T.WAH Sens', 
+                address: [0x10, 0x00, 0x00, 0x28], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'twah'
+            },
+            micInstTWahFrequency: { 
+                name: 'Mic/Inst T.WAH Frequency', 
+                address: [0x10, 0x00, 0x00, 0x29], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'twah'
+            },
+            micInstTWahPeak: { 
+                name: 'Mic/Inst T.WAH Peak', 
+                address: [0x10, 0x00, 0x00, 0x2a], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'twah'
+            },
+            micInstTWahLevel: { 
+                name: 'Mic/Inst T.WAH Level', 
+                address: [0x10, 0x00, 0x00, 0x2b], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'twah'
+            },
+
+            // Mic/Inst Reverb (separate section)
+            micInstReverbType: { 
+                name: 'Mic/Inst Reverb Type', 
+                address: [0x10, 0x00, 0x00, 0x2d], 
+                min: 0, max: 2, current: 0,
+                category: 'micInstReverb'
+            },
+            micInstReverbTime: { 
+                name: 'Mic/Inst Reverb Time', 
+                address: [0x10, 0x00, 0x00, 0x2e], 
+                min: 0, max: 49, current: 25,
+                category: 'micInstReverb'
+            },
+            micInstReverbPreDelay: { 
+                name: 'Mic/Inst Reverb Pre-Delay', 
+                address: [0x10, 0x00, 0x00, 0x2f], 
+                min: 0, max: 328, current: 100,
+                category: 'micInstReverb',
+                is16Bit: true
+            },
+            micInstReverbLevel: { 
+                name: 'Mic/Inst Reverb Level', 
+                address: [0x10, 0x00, 0x00, 0x31], 
                 min: 0, max: 100, current: 25,
-                category: 'effects',
-                effectSwitchCommands: [
-                    [0x10, 0x00, 0x00, 0x39, 0x04],  // Switch to T.WAH
-                    [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f, 0x7c]  // Effect activation
-                ]
+                category: 'micInstReverb'
+            },
+            micInstReverbLowCut: { 
+                name: 'Mic/Inst Reverb Low Cut', 
+                address: [0x10, 0x00, 0x00, 0x32], 
+                min: 0, max: 12, current: 0,
+                category: 'micInstReverb'
+            },
+            micInstReverbHighCut: { 
+                name: 'Mic/Inst Reverb High Cut', 
+                address: [0x10, 0x00, 0x00, 0x33], 
+                min: 0, max: 10, current: 10,
+                category: 'micInstReverb'
+            },
+            micInstReverbDensity: { 
+                name: 'Mic/Inst Reverb Density', 
+                address: [0x10, 0x00, 0x00, 0x34], 
+                min: 0, max: 10, current: 5,
+                category: 'micInstReverb'
+            },
+            micInstReverbKnobAssign: { 
+                name: 'Mic/Inst Reverb Knob Assign', 
+                address: [0x10, 0x00, 0x00, 0x35], 
+                min: 0, max: 1, current: 0,
+                category: 'micInstReverb'
             }
         };
         
@@ -192,11 +668,69 @@ class BossCubeController {
         this.currentParameterKey = 'masterVolume';
         this.parameterKeys = Object.keys(this.parameters);
 
+        // Effect state management
+        this.currentGuitarEffect = 'phaser'; // phaser, chorus, tremolo, twah, flanger
+        this.currentMicInstEffect = 'harmony'; // harmony, chorus, phaser, flanger, tremolo, twah
+        
+        // Effect switching commands from README
+        this.effectSwitchCommands = {
+            guitar: {
+                phaser: {
+                    switch: [0x10, 0x00, 0x00, 0x39, 0x01],
+                    activate: [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f]
+                },
+                chorus: {
+                    switch: [0x10, 0x00, 0x00, 0x39, 0x00],
+                    activate: [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f]
+                },
+                tremolo: {
+                    switch: [0x10, 0x00, 0x00, 0x39, 0x03],
+                    activate: [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f]
+                },
+                twah: {
+                    switch: [0x10, 0x00, 0x00, 0x39, 0x04],
+                    activate: [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f]
+                },
+                flanger: {
+                    switch: [0x10, 0x00, 0x00, 0x39, 0x02],
+                    activate: [0x7f, 0x01, 0x02, 0x04, 0x7f, 0x7f]
+                }
+            },
+            micInst: {
+                harmony: {
+                    switch: [0x10, 0x00, 0x00, 0x00, 0x00]
+                },
+                chorus: {
+                    switch: [0x10, 0x00, 0x00, 0x00, 0x01]
+                },
+                phaser: {
+                    switch: [0x10, 0x00, 0x00, 0x00, 0x02]
+                },
+                flanger: {
+                    switch: [0x10, 0x00, 0x00, 0x00, 0x03]
+                },
+                tremolo: {
+                    switch: [0x10, 0x00, 0x00, 0x00, 0x04]
+                },
+                twah: {
+                    switch: [0x10, 0x00, 0x00, 0x00, 0x05]
+                }
+            }
+        };
+
         // Event callbacks
         this.onLog = null;
         this.onStatusChange = null;
         this.onParameterUpdate = null; // Callback for when Boss Cube sends parameter updates
         this.onPhysicalKnobChange = null; // Callback specifically for physical knob changes
+        
+        // Settings
+        this.pedalCCCodes = {
+            previousParameter: 80,
+            nextParameter: 81,
+            pedalControl: 127
+        };
+        this.footswitchPolarity = 'normally_open'; // 'normally_open' or 'normally_closed'
     }
 
     /**
@@ -389,6 +923,22 @@ class BossCubeController {
     }
 
     /**
+     * Handle pedal button CC messages
+     */
+    handlePedalButtonCC(ccValue, direction) {
+        // Apply footswitch polarity
+        const isPressed = this.footswitchPolarity === 'normally_open' ? ccValue === 127 : ccValue === 0;
+        
+        if (isPressed) {
+            if (direction === 'previous') {
+                this.handlePedalButton('left');
+            } else if (direction === 'next') {
+                this.handlePedalButton('right');
+            }
+        }
+    }
+
+    /**
      * Handle pedal button press
      */
     handlePedalButton(button) {
@@ -400,7 +950,11 @@ class BossCubeController {
         
         // Notify callbacks
         this.pedalCallbacks.forEach(callback => {
-            callback({ type: 'button', button, currentParameter: this.getCurrentParameter() });
+            try {
+                callback({ type: 'button', button, currentParameter: this.getCurrentParameter() });
+            } catch (error) {
+                console.error('Error in pedal button callback:', error);
+            }
         });
     }
 
@@ -421,7 +975,7 @@ class BossCubeController {
         
         // Notify callbacks about parameter change
         this.pedalCallbacks.forEach((callback, index) => {
-            callback({ type: 'parameterChange', parameter: param });
+                callback({ type: 'parameterChange', parameter: param });
         });
     }
 
@@ -442,7 +996,7 @@ class BossCubeController {
         
         // Notify callbacks about parameter change
         this.pedalCallbacks.forEach((callback, index) => {
-            callback({ type: 'parameterChange', parameter: param });
+                callback({ type: 'parameterChange', parameter: param });
         });
     }
 
@@ -517,7 +1071,7 @@ class BossCubeController {
                 callback({ 
                     type: 'status', 
                     connected: this.isPedalConnected,
-                    pedalName: this.pedalInput?.name || null
+                    pedalName: this.pedalDevice?.name || null
                 });
             } catch (error) {
                 console.error('Error in pedal status callback:', error);
@@ -647,24 +1201,30 @@ class BossCubeController {
      */
     handlePedalMIDIData(value) {
         const data = new Uint8Array(value.buffer);
+        
         // Parse BLE MIDI format - look for Control Change messages
         for (let i = 0; i < data.length - 2; i++) {
             const status = data[i];
             const control = data[i + 1];
-            const value = data[i + 2];
+            const ccValue = data[i + 2];
             
             // Check if this is a Control Change message (0xB0-0xBF)
-            if ((status & 0xF0) === 0xB0 && control < 0x80 && value < 0x80) {
-                // Volume control (CC 127 from EV-1-WL pedal)
-                if (control === 127) {
-                    this.handlePedalVolumeChange(value);
+            if ((status & 0xF0) === 0xB0 && control < 0x80 && ccValue < 0x80) {
+                // Volume control (configurable CC for pedal control)
+                if (control === this.pedalCCCodes.pedalControl) {
+                    this.handlePedalVolumeChange(ccValue);
                 }
-                // Footswitch controls (CC 80 and 81)
-                else if (control === 80 && value === 127) {
-                    this.handlePedalButton('right');
+                // Previous parameter button (configurable CC)
+                else if (control === this.pedalCCCodes.previousParameter) {
+                    this.handlePedalButtonCC(ccValue, 'previous');
                 }
-                else if (control === 81 && value === 127) {
-                    this.handlePedalButton('left');
+                // Next parameter button (configurable CC)
+                else if (control === this.pedalCCCodes.nextParameter) {
+                    this.handlePedalButtonCC(ccValue, 'next');
+                }
+                // Log unhandled CC codes for debugging
+                else {
+                    this.log(`Unknown pedal CC: CC${control} = ${ccValue}`, 'warn');
                 }
             }
         }
@@ -1005,28 +1565,38 @@ class BossCubeController {
      * Send parameter command to Boss Cube
      */
     async sendParameterCommand(address, value) {
-        if (!this.isCubeConnected || !this.cubeCharacteristic) {
-            throw new Error('Not connected to Boss Cube');
+        if (!this.isCubeConnected) {
+            throw new Error('Boss Cube not connected');
         }
 
+        // Handle 16-bit values
+        let valueBytes;
+        if (Array.isArray(value)) {
+            // Already an array of bytes
+            valueBytes = value;
+        } else if (value > 127) {
+            // 16-bit value: split into two bytes (high, low)
+            const high = Math.floor(value / 128);
+            const low = value % 128;
+            valueBytes = [high, low];
+        } else {
+            // 8-bit value
+            valueBytes = [value];
+        }
+        
+        // Create SysEx command: F0 41 10 00 00 00 00 09 12 [address] [value_bytes] [checksum] F7
+        const baseCommand = [0x41, 0x10, 0x00, 0x00, 0x00, 0x00, 0x09, 0x12];
+        const dataBytes = [...address, ...valueBytes];
+        const checksum = this.rolandChecksum([...baseCommand.slice(1), ...dataBytes]);
+        const sysexData = [...baseCommand, ...dataBytes, checksum];
+            
+        const command = this.createBLEMidiCommand(sysexData);
+            
         try {
-            // Create SysEx message
-            const data = [...this.BOSS_CUBE_HEADER, ...address, value];
-            const checksum = this.calculateChecksum([...address, value]);
-            const sysexData = [...data, checksum];
-            
-            // Create BLE MIDI command
-            const command = this.createBLEMIDICommand(sysexData);
-            
-            console.log('Sending command to Boss Cube:', Array.from(command).map(b => b.toString(16).padStart(2, '0')).join(' '));
-            
-            // Send via Web Bluetooth
-            await this.cubeCharacteristic.writeValueWithoutResponse(command);
-            
-            return true;
-            
+            await this.cubeCharacteristic.writeValue(command);
+            this.log(`Sent parameter command: ${address.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')} = ${valueBytes.join(', ')}`, 'info');
         } catch (error) {
-            console.error('Failed to send command to Boss Cube:', error);
+            this.log(`Failed to send parameter command: ${error.message}`, 'error');
             throw error;
         }
     }
@@ -1153,22 +1723,31 @@ class BossCubeController {
      * Set any parameter by key
      */
     async setParameter(paramKey, value) {
-        const param = this.parameters[paramKey];
-        if (!param) {
+        if (!this.parameters[paramKey]) {
             throw new Error(`Unknown parameter: ${paramKey}`);
         }
         
-        const clampedValue = Math.max(param.min, Math.min(param.max, Math.round(value)));
-        param.current = clampedValue;
+        const param = this.parameters[paramKey];
         
-        try {
-            await this.sendParameterCommand(param.address, clampedValue);
-            console.log(`${param.name} set to ${clampedValue}${param.unit ? ' ' + param.unit : ''}`);
-            return true;
-        } catch (error) {
-            console.error(`Failed to set ${param.name}:`, error);
-            return false;
+        // Clamp value to parameter range
+        value = Math.max(param.min, Math.min(param.max, value));
+        
+        // Update internal value
+        param.current = value;
+
+        // Handle 16-bit parameters
+        let sendValue = value;
+        if (param.is16Bit) {
+            // For 16-bit parameters, send as two bytes
+            const high = Math.floor(value / 128);
+            const low = value % 128;
+            sendValue = [high, low];
         }
+        
+        // Send to Boss Cube
+        await this.sendParameterCommand(param.address, sendValue);
+        
+        this.log(`Set ${param.name} to ${value}`, 'success');
     }
 
     /**
@@ -1259,13 +1838,15 @@ class BossCubeController {
     /**
      * Get parameters by category
      */
-    getParametersByCategory(category) {
-        return Object.entries(this.parameters)
-            .filter(([key, param]) => param.category === category)
-            .reduce((obj, [key, param]) => {
-                obj[key] = param;
-                return obj;
-            }, {});
+    getParametersByCategory(category, effectType = null) {
+        const filtered = {};
+        for (const [key, param] of Object.entries(this.parameters)) {
+            if (param.category === category && 
+                (effectType === null || param.effectType === effectType)) {
+                filtered[key] = param;
+            }
+        }
+        return filtered;
     }
 
     /**
@@ -1481,5 +2062,89 @@ class BossCubeController {
             this.notificationMaintenanceTimer = null;
             console.log('⏹️ Stopped notification maintenance');
         }
+    }
+
+    /**
+     * Switch guitar effect type
+     */
+    async switchGuitarEffect(effectType) {
+        if (!this.effectSwitchCommands.guitar[effectType]) {
+            throw new Error(`Unknown guitar effect type: ${effectType}`);
+        }
+        
+        this.currentGuitarEffect = effectType;
+        const commands = this.effectSwitchCommands.guitar[effectType];
+        
+        try {
+            // Send switch command
+            await this.sendSpecialCommand(commands.switch.slice(0, 4), commands.switch.slice(4));
+            
+            // Small delay between commands
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Send activation command
+            await this.sendSpecialCommand(commands.activate.slice(0, 4), commands.activate.slice(4));
+            
+            this.log(`Switched to guitar effect: ${effectType}`, 'info');
+        } catch (error) {
+            this.log(`Failed to switch guitar effect: ${error.message}`, 'error');
+            throw error;
+        }
+    }
+    
+    /**
+     * Switch mic/inst effect type
+     */
+    async switchMicInstEffect(effectType) {
+        if (!this.effectSwitchCommands.micInst[effectType]) {
+            throw new Error(`Unknown mic/inst effect type: ${effectType}`);
+        }
+        
+        this.currentMicInstEffect = effectType;
+        const commands = this.effectSwitchCommands.micInst[effectType];
+        
+        try {
+            // Send switch command (mic/inst effects only need one command)
+            await this.sendSpecialCommand(commands.switch.slice(0, 4), commands.switch.slice(4));
+            
+            this.log(`Switched to mic/inst effect: ${effectType}`, 'info');
+        } catch (error) {
+            this.log(`Failed to switch mic/inst effect: ${error.message}`, 'error');
+            throw error;
+        }
+    }
+    
+    /**
+     * Get parameters for current guitar effect
+     */
+    getCurrentGuitarEffectParameters() {
+        return this.getParametersByCategory('guitarEffects', this.currentGuitarEffect);
+    }
+    
+    /**
+     * Get parameters for current mic/inst effect
+     */
+    getCurrentMicInstEffectParameters() {
+        return this.getParametersByCategory('micInstEffects', this.currentMicInstEffect);
+    }
+    
+    /**
+     * Set pedal CC codes
+     */
+    setPedalCCCodes(previousParameter, nextParameter, pedalControl) {
+        this.pedalCCCodes = {
+            previousParameter: previousParameter,
+            nextParameter: nextParameter,
+            pedalControl: pedalControl
+        };
+        this.log(`Pedal CC codes updated: Previous=${previousParameter}, Next=${nextParameter}, Control=${pedalControl}`, 'info');
+    }
+    
+    /**
+     * Set footswitch polarity
+     */
+    setFootswitchPolarity(polarity) {
+        this.footswitchPolarity = polarity;
+        this.log(`Footswitch polarity set to: ${polarity}`, 'info');
     }
 } 
