@@ -21,6 +21,12 @@ class BossCubeController {
         this.lastPedalValue = -1;
         this.pedalCallbacks = [];
         
+        // Pickup mode state
+        this.pickupMode = {
+            enabled: false,
+            suppressHardwareUpdates: false
+        };
+        
         // Pedal throttling and debouncing for smooth performance
         this.pedalThrottle = {
             lastSentTime: 0,
@@ -49,7 +55,10 @@ class BossCubeController {
         // Physical knob change detection
         this.pendingReadRequests = new Map(); // Track pending read requests
         this.lastReadRequestTime = 0;
-        this.readRequestTimeout = 2000; // 2 seconds to consider a read request expired
+        this.readRequestTimeout = 2000;
+        
+        // Notification maintenance
+        this.notificationMaintenanceTimer = null;
         
         // Parameters from Python script - complete set
         this.parameters = {
@@ -317,6 +326,11 @@ class BossCubeController {
      * Throttled sending to prevent BLE overflow and ensure final values
      */
     throttledSendToHardware() {
+        // Don't send to hardware if pickup mode is suppressing updates
+        if (this.pickupMode.suppressHardwareUpdates) {
+            return;
+        }
+        
         const now = Date.now();
         const timeSinceLastSend = now - this.pedalThrottle.lastSentTime;
         
@@ -378,8 +392,6 @@ class BossCubeController {
      * Handle pedal button press
      */
     handlePedalButton(button) {
-        console.log(`Pedal button pressed: ${button}`);
-        
         if (button === 'right') {
             this.nextParameter();
         } else if (button === 'left') {
@@ -388,11 +400,7 @@ class BossCubeController {
         
         // Notify callbacks
         this.pedalCallbacks.forEach(callback => {
-            try {
-                callback({ type: 'button', button, currentParameter: this.getCurrentParameter() });
-            } catch (error) {
-                console.error('Error in pedal callback:', error);
-            }
+            callback({ type: 'button', button, currentParameter: this.getCurrentParameter() });
         });
     }
 
@@ -405,7 +413,6 @@ class BossCubeController {
         this.currentParameterKey = this.parameterKeys[nextIndex];
         
         const param = this.getCurrentParameter();
-        console.log(`Pedal switched to: ${param.name}`);
         
         // Send effect switch commands if this parameter has them
         if (param.effectSwitchCommands) {
@@ -413,12 +420,8 @@ class BossCubeController {
         }
         
         // Notify callbacks about parameter change
-        this.pedalCallbacks.forEach(callback => {
-            try {
-                callback({ type: 'parameterChange', parameter: param });
-            } catch (error) {
-                console.error('Error in parameter change callback:', error);
-            }
+        this.pedalCallbacks.forEach((callback, index) => {
+            callback({ type: 'parameterChange', parameter: param });
         });
     }
 
@@ -431,7 +434,6 @@ class BossCubeController {
         this.currentParameterKey = this.parameterKeys[prevIndex];
         
         const param = this.getCurrentParameter();
-        console.log(`Pedal switched to: ${param.name}`);
         
         // Send effect switch commands if this parameter has them
         if (param.effectSwitchCommands) {
@@ -439,12 +441,8 @@ class BossCubeController {
         }
         
         // Notify callbacks about parameter change
-        this.pedalCallbacks.forEach(callback => {
-            try {
-                callback({ type: 'parameterChange', parameter: param });
-            } catch (error) {
-                console.error('Error in parameter change callback:', error);
-            }
+        this.pedalCallbacks.forEach((callback, index) => {
+            callback({ type: 'parameterChange', parameter: param });
         });
     }
 
@@ -468,6 +466,29 @@ class BossCubeController {
                 this.sendEffectSwitchCommands(param.effectSwitchCommands);
             }
         }
+    }
+
+    /**
+     * Enable pickup mode - suppresses hardware updates from pedal
+     */
+    enablePickupMode() {
+        this.pickupMode.enabled = true;
+        this.pickupMode.suppressHardwareUpdates = true;
+    }
+
+    /**
+     * Disable pickup mode - allows hardware updates from pedal
+     */
+    disablePickupMode() {
+        this.pickupMode.enabled = false;
+        this.pickupMode.suppressHardwareUpdates = false;
+    }
+
+    /**
+     * Check if pickup mode is active
+     */
+    isPickupModeActive() {
+        return this.pickupMode.enabled;
     }
 
     /**
@@ -600,6 +621,12 @@ class BossCubeController {
                 this.handlePedalMIDIData(event.target.value);
             });
             
+            // Add disconnect event listener
+            this.pedalDevice.addEventListener('gattserverdisconnected', () => {
+                this.isPedalConnected = false;
+                this.notifyPedalStatusChange();
+            });
+            
             this.isPedalConnected = true;
             console.log('✓ EV-1-WL pedal connected successfully!');
             
@@ -620,54 +647,25 @@ class BossCubeController {
      */
     handlePedalMIDIData(value) {
         const data = new Uint8Array(value.buffer);
-        console.log('Received pedal MIDI data:', Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' '));
-        
-        // Parse BLE MIDI format properly
-        // BLE MIDI: [header(0x80+), timestamp_low(0x80+), status, data1, data2, ...]
-        // Header/timestamps: 0x80-0xFF (high bit set)
-        // MIDI status bytes: 0x80-0xFF (but these are actual MIDI, not timestamps)
-        // MIDI data bytes: 0x00-0x7F (high bit clear)
-        
-        let i = 0;
-        while (i < data.length) {
-            // Skip initial header/timestamp bytes (0x80+ that aren't MIDI status)
-            // We know timestamps come first, so skip until we find a potential MIDI status
-            while (i < data.length && data[i] >= 0x80 && (data[i] < 0xB0 || data[i] > 0xBF)) {
-                i++;
-            }
-            
-            // Check if we have enough bytes for a complete MIDI message
-            if (i + 2 >= data.length) break;
-            
+        // Parse BLE MIDI format - look for Control Change messages
+        for (let i = 0; i < data.length - 2; i++) {
             const status = data[i];
-            const data1 = data[i + 1];
-            const data2 = data[i + 2];
-            
-            // Verify data bytes are valid (high bit clear)
-            if (data1 >= 0x80 || data2 >= 0x80) {
-                i++; // Invalid MIDI message, try next byte
-                continue;
-            }
+            const control = data[i + 1];
+            const value = data[i + 2];
             
             // Check if this is a Control Change message (0xB0-0xBF)
-            if ((status & 0xF0) === 0xB0) {
-                console.log(`Pedal MIDI CC: control=${data1}, value=${data2}`);
-                
+            if ((status & 0xF0) === 0xB0 && control < 0x80 && value < 0x80) {
                 // Volume control (CC 127 from EV-1-WL pedal)
-                if (data1 === 127) {
-                    this.handlePedalVolumeChange(data2);
+                if (control === 127) {
+                    this.handlePedalVolumeChange(value);
                 }
                 // Footswitch controls (CC 80 and 81)
-                else if (data1 === 80 && data2 === 127) {
+                else if (control === 80 && value === 127) {
                     this.handlePedalButton('right');
                 }
-                else if (data1 === 81 && data2 === 127) {
+                else if (control === 81 && value === 127) {
                     this.handlePedalButton('left');
                 }
-                
-                i += 3; // Move past this MIDI message
-            } else {
-                i++; // Skip unknown byte
             }
         }
     }
@@ -702,6 +700,9 @@ class BossCubeController {
     async disconnectBossCube() {
         try {
             console.log('Disconnecting from Boss Cube...');
+            
+            // Stop notification maintenance
+            this.stopNotificationMaintenance();
             
             // Disconnect from Boss Cube
             if (this.cubeServer) {
@@ -1408,6 +1409,77 @@ class BossCubeController {
         } catch (error) {
             console.error('Failed to enable GATT notifications:', error);
             throw error;
+        }
+    }
+
+    // Enable continuous notifications (key command from btsnoop analysis)
+    async enableContinuousNotifications() {
+        if (!this.isCubeConnected || !this.cubeCharacteristic) {
+            throw new Error('Boss Cube not connected');
+        }
+        
+        try {
+            // The key command found in btsnoop: SET command to address 7F 00 00 01 with value 01
+            // This enables continuous physical knob notifications
+            const sysex = [
+                0x41, 0x10, 0x00, 0x00, 0x00, 0x00, 0x09, // Roland header
+                0x12, // SET command (not read!)
+                0x7F, 0x00, 0x00, 0x01, // Address: notification enable register
+                0x01 // Value: enable continuous notifications
+            ];
+            
+            // Add checksum
+            const checksum = this.calculateChecksum([0x7F, 0x00, 0x00, 0x01, 0x01]);
+            sysex.push(checksum);
+            
+            console.log('🔔 Sending continuous notification enable command:', 
+                       sysex.map(b => b.toString(16).padStart(2, '0')).join(' '));
+            
+            // Create BLE MIDI command and send
+            const command = this.createBLEMIDICommand(sysex);
+            await this.cubeCharacteristic.writeValueWithoutResponse(command);
+            
+            console.log('✅ Continuous notification enable command sent!');
+            
+        } catch (error) {
+            console.error('Failed to enable continuous notifications:', error);
+            throw error;
+        }
+    }
+    
+    // Start periodic notification maintenance (keeps notifications alive)
+    startNotificationMaintenance() {
+        // Clear any existing maintenance timer
+        this.stopNotificationMaintenance();
+        
+        // Send the enable command every 5 seconds to maintain notifications
+        this.notificationMaintenanceTimer = setInterval(async () => {
+            if (this.isCubeConnected) {
+                try {
+                    console.log('⏰ Sending periodic notification maintenance...');
+                    await this.enableContinuousNotifications();
+                } catch (error) {
+                    console.error('Notification maintenance failed:', error);
+                    // Stop maintenance if connection is lost
+                    if (!this.isCubeConnected) {
+                        this.stopNotificationMaintenance();
+                    }
+                }
+            } else {
+                // Stop maintenance if not connected
+                this.stopNotificationMaintenance();
+            }
+        }, 5000); // Every 5 seconds
+        
+        console.log('⏰ Started notification maintenance (every 5 seconds)');
+    }
+    
+    // Stop periodic notification maintenance
+    stopNotificationMaintenance() {
+        if (this.notificationMaintenanceTimer) {
+            clearInterval(this.notificationMaintenanceTimer);
+            this.notificationMaintenanceTimer = null;
+            console.log('⏹️ Stopped notification maintenance');
         }
     }
 } 

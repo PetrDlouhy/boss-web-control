@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Service Worker
 // Enables PWA functionality with aggressive update strategy
 
-const VERSION = '2.10.0-notification-tests'; // Added notification enable test buttons based on btsnoop analysis
+const VERSION = '2.13.2';
 const CACHE_NAME = `boss-cube-control-v${VERSION}`;
 const urlsToCache = [
     '/',
@@ -88,5 +88,9 @@ self.addEventListener('activate', event => {
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'GET_VERSION') {
         event.ports[0].postMessage({ version: VERSION });
+    }
+    
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
     }
 }); 

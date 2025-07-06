@@ -1,16 +1,24 @@
 // Boss Cube Web Control - Full Mixer Interface
 // Complete parameter control with dual Bluetooth support
 
-const APP_VERSION = '2.10.0-notification-tests'; // Added notification enable test buttons based on btsnoop analysis
+const APP_VERSION = '2.13.2';
 
 let bossCubeController = null;
 let currentParameterKey = 'masterVolume';
 let pedalExpression = 64; // Current pedal expression value (0-127)
 
+// Pickup mode state
+let pickupMode = {
+    active: false,
+    pedalValue: 0,
+    controlValue: 0,
+    threshold: 3, // Pickup threshold in parameter units for capture
+    activationThreshold: 15 // Activation threshold as percentage for new parameter selection
+};
+
 // UI Elements
 let statusEl, pedalStatusEl, logEl;
 let connectBtn, connectPedalBtn, debugBtn, readValuesBtn;
-let enableNotificationsBtn, testCommand1Btn, testCommand2Btn, testCommand3Btn;
 let mixerControlsEl, effectsControlsEl;
 let versionTextEl, refreshBtn;
 
@@ -25,11 +33,6 @@ document.addEventListener('DOMContentLoaded', function() {
     connectPedalBtn = document.getElementById('connectPedalBtn');
     debugBtn = document.getElementById('debugBtn');
     readValuesBtn = document.getElementById('readValuesBtn');
-    
-    enableNotificationsBtn = document.getElementById('enableNotificationsBtn');
-    testCommand1Btn = document.getElementById('testCommand1Btn');
-    testCommand2Btn = document.getElementById('testCommand2Btn');
-    testCommand3Btn = document.getElementById('testCommand3Btn');
     
     mixerControlsEl = document.getElementById('mixerControls');
     effectsControlsEl = document.getElementById('effectsControls');
@@ -57,21 +60,79 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize version checking and updates
     initializeVersioning();
     
-    log('Boss Cube Web Control v2.11.0 initialized', 'success');
+    log(`Boss Cube Web Control v${APP_VERSION} initialized`, 'success');
 });
+
+function initializeVersioning() {
+    // Display current version
+    if (versionTextEl) {
+        versionTextEl.textContent = `v${APP_VERSION}`;
+    }
+    
+    // Set up refresh button handler
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            try {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = '🔄 Updating...';
+                
+                // Force service worker update
+                if ('serviceWorker' in navigator) {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        await registration.update();
+                        // Force page reload after update
+                        window.location.reload();
+                    }
+                }
+            } catch (error) {
+                console.error('Update failed:', error);
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 Update Available';
+            }
+        });
+    }
+    
+    // Register service worker and check for updates
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+            .then(registration => {
+                console.log('Service Worker registered:', registration);
+                
+                // Check for updates
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New version available
+                                if (refreshBtn) {
+                                    refreshBtn.style.display = 'inline-block';
+                                    refreshBtn.textContent = '🔄 Update Available';
+                                }
+                                log('🔄 New version available - click Update Available to refresh', 'info');
+                            }
+                        });
+                    }
+                });
+                
+                // Listen for controlling service worker changes
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    window.location.reload();
+                });
+            })
+            .catch(error => {
+                console.error('Service Worker registration failed:', error);
+            });
+    }
+}
 
 function setupEventListeners() {
     // Connection buttons
     connectBtn.addEventListener('click', handleBossCubeButton);
-    connectPedalBtn.addEventListener('click', handlePedalButton);
+    connectPedalBtn.addEventListener('click', handlePedalUIButton);
     debugBtn.addEventListener('click', runDebugSequence);
     readValuesBtn.addEventListener('click', readValuesFromCube);
-    
-    // Notification test buttons
-    enableNotificationsBtn.addEventListener('click', enableNotifications);
-    testCommand1Btn.addEventListener('click', testCommand1);
-    testCommand2Btn.addEventListener('click', testCommand2);
-    testCommand3Btn.addEventListener('click', testCommand3);
     
     // Set up pedal event listeners
     bossCubeController.onPedalEvent((event) => {
@@ -110,11 +171,74 @@ function setupEventListeners() {
 function handlePedalVolumeChange(event) {
     const { value, pedalValue, parameter, parameterKey } = event;
     
-    // Fast UI update - only essential elements, no logging during movement
-    updateParameterDisplayFast(parameterKey, value);
+    // Store previous pedal value to detect crossing
+    const previousPedalValue = pickupMode.pedalValue;
+    
+    // Update pickup mode state
+    pickupMode.pedalValue = value;
+    
+    // Don't update control value from parameter.current - keep the actual UI control value
+    // Only update if we don't have a control value yet
+    if (pickupMode.controlValue === 0) {
+        pickupMode.controlValue = parameter.current;
+    }
+    
+    // If we're not in pickup mode, update control value immediately to prevent false activation
+    if (!pickupMode.active) {
+        pickupMode.controlValue = value;
+    }
+    
+    // Check if we need to enter pickup mode
+    const valueDifference = Math.abs(pickupMode.pedalValue - pickupMode.controlValue);
+    
+    if (!pickupMode.active && valueDifference > pickupMode.threshold) {
+        // Enter pickup mode - pedal and control positions don't match
+        pickupMode.active = true;
+        updatePickupModeVisuals(parameterKey, true);
+        bossCubeController.enablePickupMode();
+        log(`🎯 Pickup mode activated`, 'info');
+    } else if (pickupMode.active) {
+        // Check if we should exit pickup mode
+        const shouldExit = valueDifference <= pickupMode.threshold || 
+                          hasCrossedTarget(previousPedalValue, pickupMode.pedalValue, pickupMode.controlValue);
+        
+        if (shouldExit) {
+            // Exit pickup mode - pedal has reached control position or crossed it
+            pickupMode.active = false;
+            updatePickupModeVisuals(parameterKey, false);
+            bossCubeController.disablePickupMode();
+            log(`✅ Pickup mode deactivated`, 'success');
+        }
+    }
+    
+    if (pickupMode.active) {
+        // In pickup mode - update pedal position indicator but don't change parameter
+        updatePedalPositionIndicator(parameterKey, value);
+        
+        // Don't update the parameter value or send to Boss Cube while in pickup mode
+        // Just update the visual pedal indicator
+    } else {
+        // Normal mode - update parameter value
+        updateParameterDisplayFast(parameterKey, value);
+    }
     
     // Throttled logging to prevent console spam during fast movement
     throttledPedalLog(parameter.name, value);
+}
+
+/**
+ * Check if the pedal has crossed the target control value
+ * This ensures we always capture control when moving past the target, even during fast movement
+ */
+function hasCrossedTarget(previousValue, currentValue, targetValue) {
+    // If we don't have a previous value, we can't detect crossing
+    if (previousValue === 0) return false;
+    
+    // Check if the target value is between the previous and current pedal values
+    const minVal = Math.min(previousValue, currentValue);
+    const maxVal = Math.max(previousValue, currentValue);
+    
+    return targetValue >= minVal && targetValue <= maxVal;
 }
 
 function handlePedalButton(event) {
@@ -143,7 +267,39 @@ function handlePedalStatusChange(event) {
 
 function handleParameterChange(event) {
     const { parameter } = event;
+    const oldParameterKey = currentParameterKey;
     currentParameterKey = bossCubeController.currentParameterKey;
+    
+    // Reset pickup mode when switching parameters
+    if (pickupMode.active) {
+        // Clear pickup mode from old parameter
+        if (oldParameterKey) {
+            const oldControl = document.querySelector(`[data-param-key="${oldParameterKey}"]`);
+            if (oldControl) {
+                oldControl.classList.remove('pickup-mode');
+            }
+        }
+        pickupMode.active = false;
+        bossCubeController.disablePickupMode();
+    }
+    
+    // Initialize pickup mode state for the new parameter
+    pickupMode.controlValue = parameter.current;
+    // Keep existing pedal value and check if pickup mode should be activated
+    if (pickupMode.pedalValue !== 0) {
+        const valueDifference = Math.abs(pickupMode.pedalValue - pickupMode.controlValue);
+        const percentageDifference = (valueDifference / parameter.max) * 100;
+        if (percentageDifference > pickupMode.activationThreshold) {
+            pickupMode.active = true;
+            updatePickupModeVisuals(currentParameterKey, true);
+            bossCubeController.enablePickupMode();
+            log(`🎯 Pickup mode activated after parameter switch`, 'info');
+        }
+    }
+    
+    // Update visual selection
+    updateParameterSelection();
+    
     log(`🔄 Parameter switched to: ${parameter.name}`, 'info');
 }
 
@@ -175,6 +331,7 @@ function createParameterControl(param, key) {
     // Create the interactive structure with visual fill
     control.innerHTML = `
         <div class="parameter-fill" data-param-key="${key}"></div>
+        <div class="parameter-pedal-position" data-param-key="${key}"></div>
         <div class="parameter-label">${param.name}</div>
         <input type="range" 
                class="parameter-slider" 
@@ -404,6 +561,23 @@ function updateParameterValue(key, value) {
     // Clamp value to parameter range
     value = Math.max(param.min, Math.min(param.max, value));
     
+    // Update pickup mode state when control is changed manually
+    if (key === currentParameterKey) {
+        pickupMode.controlValue = value;
+        
+        // If pedal position is significantly different, enter pickup mode
+        if (!pickupMode.active && pickupMode.pedalValue !== 0) {
+            const valueDifference = Math.abs(pickupMode.pedalValue - pickupMode.controlValue);
+            const percentageDifference = (valueDifference / param.max) * 100;
+            if (percentageDifference > pickupMode.activationThreshold) {
+                pickupMode.active = true;
+                updatePickupModeVisuals(key, true);
+                bossCubeController.enablePickupMode();
+                log(`🎯 Pickup mode activated`, 'info');
+            }
+        }
+    }
+    
     // Send command to Boss Cube only if connected
     if (bossCubeController.isCubeConnected) {
         bossCubeController.setParameter(key, value);
@@ -480,6 +654,35 @@ function updateParameterDisplayFast(key, value) {
     slider.value = value;
 }
 
+function updatePickupModeVisuals(key, active) {
+    // Only show pickup mode visuals on the current parameter
+    if (key === currentParameterKey) {
+        const control = document.querySelector(`[data-param-key="${key}"]`);
+        if (control) {
+            if (active) {
+                control.classList.add('pickup-mode');
+                // Update pedal position indicator when entering pickup mode
+                updatePedalPositionIndicator(key, pickupMode.pedalValue);
+            } else {
+                control.classList.remove('pickup-mode');
+            }
+        }
+    }
+}
+
+function updatePedalPositionIndicator(key, pedalValue) {
+    const control = document.querySelector(`[data-param-key="${key}"]`);
+    if (control) {
+        const pedalIndicator = control.querySelector('.parameter-pedal-position');
+        const param = bossCubeController.parameters[key];
+        
+        if (pedalIndicator && param) {
+            const percentage = ((pedalValue - param.min) / (param.max - param.min)) * 100;
+            pedalIndicator.style.left = `${percentage}%`;
+        }
+    }
+}
+
 async function handleBossCubeButton() {
     if (bossCubeController.isCubeConnected) {
         await disconnectBossCube();
@@ -488,7 +691,7 @@ async function handleBossCubeButton() {
     }
 }
 
-async function handlePedalButton() {
+async function handlePedalUIButton() {
     if (bossCubeController.isPedalConnected) {
         await disconnectPedal();
     } else {
@@ -511,12 +714,17 @@ async function connectToBossCube() {
         connectBtn.disabled = false;
         connectBtn.className = 'btn danger';
         
-        // Enable read values button and notification test buttons
+        // Enable read values button
         readValuesBtn.disabled = false;
-        enableNotificationsBtn.disabled = false;
-        testCommand1Btn.disabled = false;
-        testCommand2Btn.disabled = false;
-        testCommand3Btn.disabled = false;
+        
+        // Automatically enable notifications for physical knob changes
+        try {
+            log('🔔 Enabling continuous notifications...', 'info');
+            await bossCubeController.enableContinuousNotifications();
+            log('✅ Continuous notifications enabled', 'success');
+        } catch (error) {
+            log(`⚠️ Failed to enable notifications: ${error.message}`, 'warning');
+        }
         
         log('Connected to Boss Cube II', 'success');
         
@@ -548,12 +756,8 @@ async function disconnectBossCube() {
         connectBtn.disabled = false;
         connectBtn.className = 'btn';
         
-        // Disable read values button and notification test buttons
+        // Disable read values button
         readValuesBtn.disabled = true;
-        enableNotificationsBtn.disabled = true;
-        testCommand1Btn.disabled = true;
-        testCommand2Btn.disabled = true;
-        testCommand3Btn.disabled = true;
         
         log('Disconnected from Boss Cube II', 'info');
         
@@ -778,17 +982,17 @@ async function readValuesFromCube() {
     
     try {
         readValuesBtn.disabled = true;
-        readValuesBtn.textContent = 'Reading All...';
+        readValuesBtn.textContent = '🔄 Reload Values';
         
-        log('📖 Reading all parameter values from Boss Cube...', 'info');
+        log('🔄 Reloading all parameter values from Boss Cube...', 'info');
         
         // Read all mixer and effects values
         await bossCubeController.readAllValues();
         
-        log('✅ All read requests sent - watch for incoming values', 'success');
+        log('✅ All reload requests sent - watch for incoming values', 'success');
         
     } catch (error) {
-        log(`❌ Failed to read values: ${error.message}`, 'error');
+        log(`❌ Failed to reload values: ${error.message}`, 'error');
     } finally {
         readValuesBtn.disabled = false;
         readValuesBtn.textContent = '📖 Read Values';
@@ -799,260 +1003,12 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     // Update the parameter display when Boss Cube sends us a value
     updateParameterDisplay(paramKey, value);
     
-    // Different logging for physical knob changes vs read responses
-    if (isPhysicalKnobChange) {
-        log(`🎛️ Physical Knob: ${bossCubeController.parameters[paramKey].name} = ${value}`, 'warning');
-    } else {
-        log(`📥 Boss Cube: ${bossCubeController.parameters[paramKey].name} = ${value}`, 'info');
+    // Reset pickup mode when physical knob changes are detected
+    if (isPhysicalKnobChange && paramKey === currentParameterKey && pickupMode.active) {
+        pickupMode.active = false;
+        updatePickupModeVisuals(paramKey, false);
+        pickupMode.controlValue = value;
+        bossCubeController.disablePickupMode();
+        log(`🎛️ Physical knob change detected - pickup mode reset`, 'info');
     }
 }
-
-function handlePhysicalKnobChange(paramKey, paramName, value) {
-    // Special handling for physical knob changes
-    console.log(`🎛️ Physical knob detected: ${paramName} = ${value}`);
-    
-    // Add visual feedback for physical knob changes
-    const control = document.querySelector(`[data-param-key="${paramKey}"]`);
-    if (control) {
-        // Add a visual indicator for physical knob changes
-        control.classList.add('physical-change');
-        
-        // Remove the indicator after a short time
-        setTimeout(() => {
-            control.classList.remove('physical-change');
-        }, 1000);
-    }
-    
-    // Log with special formatting
-    log(`🎛️ LIVE: ${paramName} changed to ${value} via physical knob`, 'success');
-    
-    // If this parameter is currently selected for pedal control, 
-    // we might want to sync the pedal position (or show notification)
-    if (paramKey === currentParameterKey) {
-        log(`🎯 Current parameter changed physically: ${paramName}`, 'warning');
-    }
-}
-
-// Version and Service Worker Management
-function initializeVersioning() {
-    // Display current app version
-    versionTextEl.textContent = `v${APP_VERSION}`;
-    
-    // Set up refresh button
-    refreshBtn.addEventListener('click', () => {
-        location.reload(true); // Force reload from server
-    });
-    
-    // Check for service worker updates
-    if ('serviceWorker' in navigator) {
-        checkForServiceWorkerUpdates();
-    }
-}
-
-async function checkForServiceWorkerUpdates() {
-    try {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-            // Get service worker version
-            const swVersion = await getServiceWorkerVersion();
-            console.log('Service Worker version:', swVersion);
-            console.log('App version:', APP_VERSION);
-            
-            // Check if versions match
-            if (swVersion && swVersion !== APP_VERSION) {
-                showUpdateAvailable();
-            }
-            
-            // Listen for new service worker installations
-            registration.addEventListener('updatefound', () => {
-                console.log('New service worker found');
-                showUpdateAvailable();
-            });
-        }
-    } catch (error) {
-        console.log('Error checking for updates:', error);
-    }
-}
-
-function getServiceWorkerVersion() {
-    return new Promise((resolve) => {
-        if (!navigator.serviceWorker.controller) {
-            resolve(null);
-            return;
-        }
-        
-        const messageChannel = new MessageChannel();
-        messageChannel.port1.onmessage = (event) => {
-            resolve(event.data.version);
-        };
-        
-        navigator.serviceWorker.controller.postMessage(
-            { type: 'GET_VERSION' },
-            [messageChannel.port2]
-        );
-        
-        // Timeout after 2 seconds
-        setTimeout(() => resolve(null), 2000);
-    });
-}
-
-function showUpdateAvailable() {
-    refreshBtn.style.display = 'inline-block';
-    versionTextEl.textContent = `v${APP_VERSION} • Update Available!`;
-    log('🔄 App update available - click refresh button to update', 'info');
-}
-
-// Notification Test Functions
-async function enableNotifications() {
-    if (!bossCubeController.isCubeConnected) {
-        log('Boss Cube not connected - cannot test notifications', 'error');
-        return;
-    }
-    
-    try {
-        enableNotificationsBtn.disabled = true;
-        enableNotificationsBtn.textContent = 'Initializing...';
-        
-        log('🔔 Running Boss Cube initialization sequence from btsnoop...', 'info');
-        
-        // The initialization sequence found in btsnoop - these are READ commands (0x11) to system addresses
-        const initSequence = [
-            { address: [0x7F, 0x00, 0x00, 0x00], name: 'System Config 1' },
-            { address: [0x7F, 0x00, 0x00, 0x03], name: 'System Config 2' },
-            { address: [0x7F, 0x00, 0x00, 0x02], name: 'System Config 3' },
-            { address: [0x10, 0x00, 0x00, 0x00], name: 'Guitar Config' },
-            { address: [0x00, 0x00, 0x00, 0x00], name: 'Global Config' },
-            { address: [0x20, 0x00, 0x00, 0x00], name: 'Mixer Config 1' },
-            { address: [0x20, 0x00, 0x30, 0x00], name: 'Mixer Config 2' }
-        ];
-        
-        log(`📋 Sending ${initSequence.length} initialization read commands...`, 'info');
-        
-        for (const { address, name } of initSequence) {
-            await bossCubeController.sendInitReadCommand(address, name);
-            await new Promise(resolve => setTimeout(resolve, 200)); // Wait between commands
-        }
-        
-        log('✅ Initialization sequence complete! Try turning a physical knob now.', 'success');
-        
-    } catch (error) {
-        log(`❌ Failed to send initialization sequence: ${error.message}`, 'error');
-    } finally {
-        enableNotificationsBtn.disabled = false;
-        enableNotificationsBtn.textContent = '🔔 Enable Notifications';
-    }
-}
-
-async function testCommand1() {
-    if (!bossCubeController.isCubeConnected) {
-        log('Boss Cube not connected - cannot test command', 'error');
-        return;
-    }
-    
-    try {
-        testCommand1Btn.disabled = true;
-        testCommand1Btn.textContent = 'Testing...';
-        
-        log('📡 Testing single system read: 7F 00 00 00...', 'info');
-        
-        // Try just the first system read to see if that's sufficient
-        await bossCubeController.sendInitReadCommand([0x7F, 0x00, 0x00, 0x00], 'System Config Test');
-        
-        log('✅ Single system read sent!', 'success');
-        
-    } catch (error) {
-        log(`❌ Test command 1 failed: ${error.message}`, 'error');
-    } finally {
-        testCommand1Btn.disabled = false;
-        testCommand1Btn.textContent = '📡 Test Command 1';
-    }
-}
-
-async function testCommand2() {
-    if (!bossCubeController.isCubeConnected) {
-        log('Boss Cube not connected - cannot test command', 'error');
-        return;
-    }
-    
-    try {
-        testCommand2Btn.disabled = true;
-        testCommand2Btn.textContent = 'Testing...';
-        
-        log('📡 Testing GATT-level notification enable...', 'info');
-        
-        // Try to enable notifications at the GATT level
-        await bossCubeController.enableGATTNotifications();
-        
-        log('✅ GATT notification enable attempted!', 'success');
-        
-    } catch (error) {
-        log(`❌ Test command 2 failed: ${error.message}`, 'error');
-    } finally {
-        testCommand2Btn.disabled = false;
-        testCommand2Btn.textContent = '📡 Test Command 2';
-    }
-}
-
-async function testCommand3() {
-    if (!bossCubeController.isCubeConnected) {
-        log('Boss Cube not connected - cannot test command', 'error');
-        return;
-    }
-    
-    try {
-        testCommand3Btn.disabled = true;
-        testCommand3Btn.textContent = 'Testing...';
-        
-        log('📡 Testing reduced init sequence...', 'info');
-        
-        // Try just the 0x7F system reads
-        const systemReads = [
-            [0x7F, 0x00, 0x00, 0x00],
-            [0x7F, 0x00, 0x00, 0x02],
-            [0x7F, 0x00, 0x00, 0x03]
-        ];
-        
-        for (const address of systemReads) {
-            await bossCubeController.sendInitReadCommand(address, 'System Read');
-            await new Promise(resolve => setTimeout(resolve, 150));
-        }
-        
-        log('✅ System reads complete!', 'success');
-        
-    } catch (error) {
-        log(`❌ Test command 3 failed: ${error.message}`, 'error');
-    } finally {
-        testCommand3Btn.disabled = false;
-        testCommand3Btn.textContent = '📡 Test Command 3';
-    }
-}
-
-// Service Worker Registration with Update Detection
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-        try {
-            const registration = await navigator.serviceWorker.register('/sw.js');
-            console.log('SW registered: ', registration);
-            
-            // Check for immediate updates
-            registration.update();
-            
-            // Handle service worker updates
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                if (newWorker) {
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            // New service worker is ready
-                            showUpdateAvailable();
-                        }
-                    });
-                }
-            });
-            
-        } catch (registrationError) {
-            console.log('SW registration failed: ', registrationError);
-            versionTextEl.textContent = `v${APP_VERSION} (No SW)`;
-        }
-    });
-} 

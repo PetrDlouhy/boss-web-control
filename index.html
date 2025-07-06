@@ -120,7 +120,17 @@
             border-color: #4caf50;
         }
 
-
+        .current-parameter {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            background: #fff3e0;
+            color: #f57c00;
+            border: 2px solid #ff9800;
+            flex: 1;
+            min-width: 180px;
+            font-weight: bold;
+        }
         
         .controls-section {
             display: flex;
@@ -228,27 +238,6 @@
             box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
         }
         
-        .parameter-control.physical-change {
-            border-color: #4CAF50;
-            box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
-            animation: physicalKnobPulse 1s ease-out;
-        }
-        
-        @keyframes physicalKnobPulse {
-            0% {
-                transform: scale(1);
-                box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 8px 20px rgba(76, 175, 80, 0.7);
-            }
-            100% {
-                transform: scale(1);
-                box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
-            }
-        }
-        
         .parameter-fill {
             position: absolute;
             top: 0;
@@ -262,6 +251,23 @@
         
         .parameter-control.current .parameter-fill {
             background: linear-gradient(to right, #ff9800 0%, rgba(255, 152, 0, 0.7) 100%);
+        }
+        
+        .parameter-pedal-position {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: #e91e63;
+            z-index: 4;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        
+        .parameter-control.current.pickup-mode .parameter-pedal-position {
+            opacity: 1;
         }
         
         .parameter-label {
@@ -440,6 +446,7 @@
         <div class="controls-section">
             <button id="connectBtn" class="btn">Connect Boss Cube</button>
             <button id="connectPedalBtn" class="btn" disabled>Connect Pedal (EV-1-WL)</button>
+            <button id="readValuesBtn" class="btn" disabled>🔄 Reload Values</button>
         </div>
         
         <div class="mixer-container">
@@ -460,19 +467,7 @@
         
         <div class="debug-section">
             <p><strong>🔧 Controls:</strong> Hold and drag to adjust values • Long hold (0.8s) without movement to select for pedal control • Expression pedal controls selected parameter • Right footswitch = Next • Left footswitch = Previous</p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button id="debugBtn" class="btn warning">Run Debug</button>
-                <button id="readValuesBtn" class="btn success" disabled>📖 Read Values</button>
-            </div>
-            <div style="margin-top: 8px;">
-                <p><strong>🧪 Notification Tests:</strong></p>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button id="enableNotificationsBtn" class="btn warning" disabled>🔔 Enable Notifications</button>
-                    <button id="testCommand1Btn" class="btn warning" disabled>📡 Test Command 1</button>
-                    <button id="testCommand2Btn" class="btn warning" disabled>📡 Test Command 2</button>
-                    <button id="testCommand3Btn" class="btn warning" disabled>📡 Test Command 3</button>
-                </div>
-            </div>
+            <button id="debugBtn" class="btn warning">Run Debug</button>
         </div>
         
         <div id="log" class="log">
