@@ -1,11 +1,15 @@
 // Boss Cube Web Control - Full Mixer Interface
 // Complete parameter control with dual Bluetooth support
 
-const VERSION = '2.16.1';
+const VERSION = '2.17.7';
 
 let bossCubeController = null;
 let currentParameterKey = 'masterVolume';
 let pedalExpression = 64; // Current pedal expression value (0-127)
+
+// Screen Wake Lock
+let wakeLock = null;
+let wakeLockSupported = false;
 
 // Pickup mode state
 let pickupMode = {
@@ -18,9 +22,17 @@ let pickupMode = {
 
 // UI Elements
 let statusEl, pedalStatusEl, logEl;
-let connectBtn, connectPedalBtn, debugBtn, readValuesBtn;
+let connectBtn, connectPedalBtn, debugBtn, readValuesBtn, tunerBtn;
 let mixerControlsEl, effectsControlsEl;
 let versionTextEl, refreshBtn;
+
+// Tuner state
+let tunerEnabled = false;
+
+// Master Out binding state
+let masterBindEnabled = false;
+let masterBindControl, masterBindInfoIcon;
+let bindInfoOverlay, bindInfoPopup;
 
 // Settings management
 let settings = {
@@ -42,10 +54,19 @@ document.addEventListener('DOMContentLoaded', function() {
     connectPedalBtn = document.getElementById('connectPedalBtn');
     debugBtn = document.getElementById('debugBtn');
     readValuesBtn = document.getElementById('readValuesBtn');
+    tunerBtn = document.getElementById('tunerBtn');
     mixerControlsEl = document.getElementById('mixerControls');
     effectsControlsEl = document.getElementById('effectsControls');
     versionTextEl = document.getElementById('versionText');
     refreshBtn = document.getElementById('refreshBtn');
+    
+    // Master bind elements - will be created dynamically
+    masterBindControl = null;
+    masterBindInfoIcon = null;
+    
+    // Bind info popup elements
+    bindInfoOverlay = document.getElementById('bindInfoOverlay');
+    bindInfoPopup = document.getElementById('bindInfoPopup');
     
     // Initialize settings modal
     initializeSettingsModal();
@@ -55,6 +76,8 @@ document.addEventListener('DOMContentLoaded', function() {
     connectPedalBtn.addEventListener('click', handlePedalUIButton);
     debugBtn.addEventListener('click', runDebugSequence);
     readValuesBtn.addEventListener('click', readValuesFromCube);
+    tunerBtn.addEventListener('click', toggleTuner);
+    
     refreshBtn.addEventListener('click', () => {
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
             navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
@@ -87,6 +110,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load settings from localStorage
     loadSettings();
+    
+    // Initialize wake lock
+    initializeWakeLock();
     
     log(`Boss Cube Web Control v${VERSION} initialized`, 'success');
 });
@@ -169,6 +195,11 @@ function setupEventListeners() {
     // Set up physical knob change callback for special UI feedback
     bossCubeController.onPhysicalKnobChange = (paramKey, paramName, value) => {
         handlePhysicalKnobChange(paramKey, paramName, value);
+    };
+    
+    // Set up master bind check callback
+    bossCubeController.checkMasterBindEnabled = () => {
+        return masterBindEnabled;
     };
 }
 
@@ -317,6 +348,12 @@ function createParameterControls() {
     Object.entries(mixerParams).forEach(([key, param]) => {
         const control = createParameterControl(param, key);
         mixerControlsEl.appendChild(control);
+        
+        // Add bind control after Master Out parameter
+        if (key === 'masterVolume') {
+            const bindControl = createMasterBindControl();
+            mixerControlsEl.appendChild(bindControl);
+        }
     });
     
     // Create effects interface with selectors and controls
@@ -325,6 +362,11 @@ function createParameterControls() {
 
 function createEffectsInterface() {
     effectsControlsEl.innerHTML = `
+        <div class="effects-section">
+            <h4>🎸 Guitar Amp</h4>
+            <div id="guitarAmpControls" class="parameter-grid"></div>
+        </div>
+
         <div class="effects-section">
             <h4>🎸 Guitar Effects</h4>
             <div class="effect-buttons">
@@ -361,8 +403,13 @@ function createEffectsInterface() {
         </div>
         
         <div class="effects-section">
-            <h4>🎤 Mic/Inst Reverb</h4>
+            <h4>🎤 Reverb (Shared)</h4>
             <div id="micInstReverbControls" class="parameter-grid"></div>
+        </div>
+
+        <div class="effects-section">
+            <h4>🎵 Tuner Settings</h4>
+            <div id="tunerControls" class="parameter-grid"></div>
         </div>
     `;
     
@@ -373,6 +420,8 @@ function createEffectsInterface() {
     updateGuitarEffectControls();
     updateMicInstEffectControls();
     updateReverbDelayControls();
+    updateGuitarAmpControls();
+    updateTunerControls();
 }
 
 function setupEffectSelectors() {
@@ -472,6 +521,133 @@ function updateReverbDelayControls() {
             micInstReverbContainer.appendChild(control);
         });
     }
+}
+
+function updateGuitarAmpControls() {
+    const container = document.getElementById('guitarAmpControls');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const ampParams = bossCubeController.getParametersByCategory('guitarAmp');
+    
+    Object.entries(ampParams).forEach(([key, param]) => {
+        const control = createParameterControl(param, key);
+        container.appendChild(control);
+    });
+}
+
+function updateTunerControls() {
+    const container = document.getElementById('tunerControls');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const tunerParams = bossCubeController.getParametersByCategory('tuner');
+    
+    Object.entries(tunerParams).forEach(([key, param]) => {
+        const control = createParameterControl(param, key);
+        container.appendChild(control);
+    });
+}
+
+async function toggleTuner() {
+    if (!bossCubeController.isCubeConnected) {
+        log('Boss Cube not connected - cannot control tuner', 'error');
+        return;
+    }
+    
+    try {
+        tunerEnabled = !tunerEnabled;
+        
+        // Update button appearance
+        if (tunerEnabled) {
+            tunerBtn.textContent = '🎵 Tuner ON';
+            tunerBtn.classList.add('active', 'tuner');
+        } else {
+            tunerBtn.textContent = '🎵 Tuner';
+            tunerBtn.classList.remove('active');
+        }
+        
+        // Send tuner control command to Boss Cube
+        await bossCubeController.setTunerControl(tunerEnabled);
+        
+        log(`🎵 Tuner ${tunerEnabled ? 'enabled' : 'disabled'}`, 'success');
+        
+    } catch (error) {
+        // Revert button state on error
+        tunerEnabled = !tunerEnabled;
+        tunerBtn.textContent = '🎵 Tuner';
+        tunerBtn.classList.remove('active');
+        
+        log(`Failed to control tuner: ${error.message}`, 'error');
+    }
+}
+
+function toggleMasterBind() {
+    masterBindEnabled = !masterBindEnabled;
+    
+    if (masterBindEnabled) {
+        masterBindControl.classList.add('enabled');
+        log(`🔗 Master Out binding enabled - Aux volume knob will control both sliders`, 'success');
+    } else {
+        masterBindControl.classList.remove('enabled');
+        log('🔗 Master Out binding disabled - controls work normally', 'info');
+    }
+}
+
+function showBindInfo() {
+    bindInfoOverlay.classList.add('show');
+    bindInfoPopup.classList.add('show');
+    
+    // Close popup when clicking overlay
+    bindInfoOverlay.addEventListener('click', hideBindInfo);
+    
+    // Close popup on escape key
+    document.addEventListener('keydown', handleBindInfoEscape);
+}
+
+function hideBindInfo() {
+    bindInfoOverlay.classList.remove('show');
+    bindInfoPopup.classList.remove('show');
+    
+    // Remove event listeners
+    bindInfoOverlay.removeEventListener('click', hideBindInfo);
+    document.removeEventListener('keydown', handleBindInfoEscape);
+}
+
+function handleBindInfoEscape(e) {
+    if (e.key === 'Escape') {
+        hideBindInfo();
+    }
+}
+
+function createMasterBindControl() {
+    const bindControl = document.createElement('div');
+    bindControl.className = 'mixer-bind-control';
+    bindControl.innerHTML = `
+        <div class="bind-main-text">🔗 Bind Master Out with Aux</div>
+        <button class="bind-info-icon" type="button">i</button>
+    `;
+    
+    // Store references
+    masterBindControl = bindControl;
+    masterBindInfoIcon = bindControl.querySelector('.bind-info-icon');
+    
+    // Add event listeners
+    bindControl.addEventListener('click', (e) => {
+        // Don't toggle if clicking the info icon
+        if (e.target === masterBindInfoIcon) {
+            return;
+        }
+        toggleMasterBind();
+    });
+    
+    masterBindInfoIcon.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showBindInfo();
+    });
+    
+    return bindControl;
 }
 
 function createParameterControl(param, key) {
@@ -908,8 +1084,9 @@ async function connectToBossCube() {
         connectBtn.disabled = false;
         connectBtn.className = 'btn danger';
         
-        // Enable read values button
+        // Enable read values button and tuner button
         readValuesBtn.disabled = false;
+        tunerBtn.disabled = false;
         
         // Automatically enable notifications for physical knob changes
         try {
@@ -950,8 +1127,20 @@ async function disconnectBossCube() {
         connectBtn.disabled = false;
         connectBtn.className = 'btn';
         
-        // Disable read values button
+        // Disable read values button and tuner button
         readValuesBtn.disabled = true;
+        tunerBtn.disabled = true;
+        
+        // Reset tuner state
+        tunerEnabled = false;
+        tunerBtn.textContent = '🎵 Tuner';
+        tunerBtn.classList.remove('active');
+        
+        // Reset master bind state
+        masterBindEnabled = false;
+        if (masterBindControl) {
+            masterBindControl.classList.remove('enabled');
+        }
         
         log('Disconnected from Boss Cube II', 'info');
         
@@ -1207,6 +1396,21 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     }
 }
 
+function handlePhysicalKnobChange(paramKey, paramName, value) {
+    // Handle physical knob changes with special logging and UI feedback
+    if (masterBindEnabled) {
+        if (paramKey === 'masterVolume') {
+            log(`🔗 Master Out controlled via Aux volume knob: ${value}`, 'success');
+        } else if (paramKey === 'auxBluetoothVolume') {
+            log(`🔗 Aux volume knob position: ${value} (both sliders moving)`, 'info');
+        } else {
+            log(`🎛️ Physical knob: ${paramName} = ${value}`, 'info');
+        }
+    } else {
+        log(`🎛️ Physical knob: ${paramName} = ${value}`, 'info');
+    }
+}
+
 function updateGuitarEffectButtonHighlight(activeEffect) {
     const guitarEffectContainer = document.querySelector('.effects-section .effect-buttons');
     const buttons = guitarEffectContainer.querySelectorAll('.effect-btn');
@@ -1365,4 +1569,63 @@ function applySettingsToController() {
     bossCubeController.setFootswitchPolarity(settings.footswitchPolarity);
     
     log(`Settings applied: CC codes [${settings.pedalCCCodes.previousParameter}, ${settings.pedalCCCodes.nextParameter}, ${settings.pedalCCCodes.pedalControl}], Polarity: ${settings.footswitchPolarity}`, 'info');
+}
+
+// Wake Lock Functions
+function initializeWakeLock() {
+    // Check if wake lock is supported
+    wakeLockSupported = 'wakeLock' in navigator;
+    
+    if (!wakeLockSupported) {
+        log('⚠️ Screen Wake Lock API not supported (requires modern browser + HTTPS)', 'warning');
+        return;
+    }
+    
+    // Set up visibility change listener to re-acquire wake lock
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Automatically acquire wake lock on app start
+    acquireWakeLock();
+    
+    log('📱 Screen Wake Lock initialized - keeping screen active automatically', 'success');
+}
+
+
+
+async function acquireWakeLock() {
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        
+        wakeLock.addEventListener('release', () => {
+            log('📱 Screen wake lock released - screen can now turn off', 'info');
+            wakeLock = null;
+        });
+        
+        log('📱 Screen wake lock active - screen will stay on during app use', 'success');
+        
+    } catch (error) {
+        log(`❌ Failed to acquire wake lock: ${error.message}`, 'error');
+        wakeLock = null;
+    }
+}
+
+async function releaseWakeLock() {
+    if (wakeLock) {
+        try {
+            await wakeLock.release();
+            wakeLock = null;
+            log('📱 Screen wake lock disabled - screen can now turn off normally', 'info');
+        } catch (error) {
+            log(`❌ Failed to release wake lock: ${error.message}`, 'error');
+        }
+    }
+}
+
+
+
+async function handleVisibilityChange() {
+    if (wakeLock !== null && document.visibilityState === 'visible') {
+        // Re-acquire wake lock when page becomes visible again
+        await acquireWakeLock();
+    }
 } 

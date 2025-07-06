@@ -429,6 +429,13 @@ class BossCubeController {
                 min: 0, max: 100, current: 25,
                 category: 'guitarDelay'
             },
+            guitarDelayType: { 
+                name: 'Guitar Delay Type', 
+                address: [0x10, 0x00, 0x00, 0x60], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['Digital', 'Reverse', 'Analog', 'Tape Echo'],
+                category: 'guitarDelay'
+            },
             guitarDelayKnobAssign: { 
                 name: 'Guitar Delay Knob Assign', 
                 address: [0x10, 0x00, 0x00, 0x66], 
@@ -437,130 +444,277 @@ class BossCubeController {
                 category: 'guitarDelay'
             },
 
-            // Mic/Inst Effects - Harmony (estimated addresses)
-            micInstHarmonyVoice1: { 
-                name: 'Harmony Voice 1', 
-                address: [0x10, 0x00, 0x01, 0x00], 
+            // Guitar Reverb Level (separate from shared reverb)
+            guitarReverbEffectLevel: { 
+                name: 'Guitar Reverb Level', 
+                address: [0x10, 0x00, 0x00, 0x67], 
+                min: 0, max: 100, current: 25,
+                category: 'guitarReverb'
+            },
+
+            // Guitar Amp Settings (verified addresses from README)
+            guitarAmpCleanType: { 
+                name: 'Clean Amp Type', 
+                address: [0x10, 0x00, 0x00, 0x36], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['Type 1', 'Type 2'],
+                category: 'guitarAmp'
+            },
+            guitarAmpCrunchType: { 
+                name: 'Crunch Amp Type', 
+                address: [0x10, 0x00, 0x00, 0x37], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['Type 1', 'Type 2'],
+                category: 'guitarAmp'
+            },
+            guitarAmpLeadType: { 
+                name: 'Lead Amp Type', 
+                address: [0x10, 0x00, 0x00, 0x38], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['Type 1', 'Type 2'],
+                category: 'guitarAmp'
+            },
+
+            // Tuner Settings (verified addresses from README)
+            tunerPitch: { 
+                name: 'Tuner Pitch', 
+                address: [0x10, 0x00, 0x00, 0x68], 
                 min: 0, max: 100, current: 50,
+                displayValue: (value) => `${value - 50 > 0 ? '+' : ''}${value - 50}`,
+                category: 'tuner'
+            },
+
+            // Mic/Inst General Settings (verified addresses from README)
+            micInstEQType: { 
+                name: 'Mic/Inst EQ Type', 
+                address: [0x10, 0x00, 0x00, 0x00], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['Type 1', 'Type 2', 'Type 3', 'Type 4'],
+                category: 'micInstEffects'
+            },
+
+            // Mic/Inst Effects - Harmony (verified addresses from README)
+            micInstHarmonyKey: { 
+                name: 'Harmony Key', 
+                address: [0x10, 0x00, 0x00, 0x0B], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['Auto', 'Set'],
                 category: 'micInstEffects',
                 effectType: 'harmony'
             },
-            micInstHarmonyVoice2: { 
-                name: 'Harmony Voice 2', 
-                address: [0x10, 0x00, 0x01, 0x01], 
-                min: 0, max: 100, current: 50,
+            micInstHarmonyKeySetup: { 
+                name: 'Harmony Key Setup', 
+                address: [0x10, 0x00, 0x00, 0x0C], 
+                min: 0, max: 11, current: 0,
+                valueLabels: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'],
                 category: 'micInstEffects',
                 effectType: 'harmony'
             },
-            micInstHarmonyLevel: { 
-                name: 'Harmony Level', 
-                address: [0x10, 0x00, 0x01, 0x02], 
-                min: 0, max: 100, current: 50,
+            micInstHarmonyAccurate: { 
+                name: 'Harmony Accurate', 
+                address: [0x10, 0x00, 0x00, 0x0D], 
+                min: 0, max: 9, current: 5,
+                displayValue: (value) => `${value + 1}`,
+                category: 'micInstEffects',
+                effectType: 'harmony'
+            },
+            micInstHarmonyVoiceAssign: { 
+                name: 'Harmony Voice Assign', 
+                address: [0x10, 0x00, 0x00, 0x0E], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['Default', 'Unison/Low/High', 'Unison/Low/Higher', 'Low/High/Higher'],
                 category: 'micInstEffects',
                 effectType: 'harmony'
             },
 
-            // Mic/Inst Effects - Chorus (estimated addresses)
-            micInstChorusRate: { 
-                name: 'Mic/Inst Chorus Rate', 
-                address: [0x10, 0x00, 0x01, 0x10], 
+            // Mic/Inst Effects - Chorus (verified addresses from README)
+            micInstChorusLowRate: { 
+                name: 'Chorus Low Rate', 
+                address: [0x10, 0x00, 0x00, 0x08], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'chorus'
             },
-            micInstChorusDepth: { 
-                name: 'Mic/Inst Chorus Depth', 
-                address: [0x10, 0x00, 0x01, 0x11], 
+            micInstChorusLowDepth: { 
+                name: 'Chorus Low Depth', 
+                address: [0x10, 0x00, 0x00, 0x09], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'chorus'
             },
-            micInstChorusLevel: { 
-                name: 'Mic/Inst Chorus Level', 
-                address: [0x10, 0x00, 0x01, 0x12], 
+            micInstChorusLowPreDelay: { 
+                name: 'Chorus Low Pre Delay', 
+                address: [0x10, 0x00, 0x00, 0x0A], 
                 min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusLowLevel: { 
+                name: 'Chorus Low Level', 
+                address: [0x10, 0x00, 0x00, 0x0B], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusDirectMix: { 
+                name: 'Chorus Direct Mix', 
+                address: [0x10, 0x00, 0x00, 0x0C], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusHighRate: { 
+                name: 'Chorus High Rate', 
+                address: [0x10, 0x00, 0x00, 0x0D], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusHighDepth: { 
+                name: 'Chorus High Depth', 
+                address: [0x10, 0x00, 0x00, 0x0E], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusHighPreDelay: { 
+                name: 'Chorus High Pre Delay', 
+                address: [0x10, 0x00, 0x00, 0x0F], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusHighLevel: { 
+                name: 'Chorus High Level', 
+                address: [0x10, 0x00, 0x00, 0x10], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'chorus'
+            },
+            micInstChorusXoverFreq: { 
+                name: 'Chorus Xover Frequency', 
+                address: [0x10, 0x00, 0x00, 0x11], 
+                min: 0, max: 16, current: 8,
+                valueLabels: ['200Hz', '250Hz', '315Hz', '400Hz', '500Hz', '630Hz', '800Hz', '1.0kHz', '1.25kHz', '1.6kHz', '2.0kHz', '2.5kHz', '3.15kHz', '4.0kHz', '5.0kHz', '6.3kHz', '8.0kHz'],
                 category: 'micInstEffects',
                 effectType: 'chorus'
             },
 
-            // Mic/Inst Effects - Phaser (estimated addresses)
+            // Mic/Inst Effects - Phaser (verified addresses from README)
+            micInstPhaserType: { 
+                name: 'Phaser Type', 
+                address: [0x10, 0x00, 0x00, 0x13], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['4stage', '8stage', '12stage', 'BiPHASE'],
+                category: 'micInstEffects',
+                effectType: 'phaser'
+            },
             micInstPhaserRate: { 
-                name: 'Mic/Inst Phaser Rate', 
-                address: [0x10, 0x00, 0x01, 0x20], 
+                name: 'Phaser Rate', 
+                address: [0x10, 0x00, 0x00, 0x14], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'phaser'
             },
             micInstPhaserDepth: { 
-                name: 'Mic/Inst Phaser Depth', 
-                address: [0x10, 0x00, 0x01, 0x21], 
+                name: 'Phaser Depth', 
+                address: [0x10, 0x00, 0x00, 0x15], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'phaser'
             },
             micInstPhaserResonance: { 
-                name: 'Mic/Inst Phaser Resonance', 
-                address: [0x10, 0x00, 0x01, 0x22], 
+                name: 'Phaser Resonance', 
+                address: [0x10, 0x00, 0x00, 0x16], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'phaser'
+            },
+            micInstPhaserManual: { 
+                name: 'Phaser Manual', 
+                address: [0x10, 0x00, 0x00, 0x17], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'phaser'
             },
             micInstPhaserLevel: { 
-                name: 'Mic/Inst Phaser Level', 
-                address: [0x10, 0x00, 0x01, 0x23], 
+                name: 'Phaser Level', 
+                address: [0x10, 0x00, 0x00, 0x18], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'phaser'
             },
 
-            // Mic/Inst Effects - Flanger (estimated addresses)
+            // Mic/Inst Effects - Flanger (verified addresses from README)
             micInstFlangerRate: { 
-                name: 'Mic/Inst Flanger Rate', 
-                address: [0x10, 0x00, 0x01, 0x30], 
+                name: 'Flanger Rate', 
+                address: [0x10, 0x00, 0x00, 0x1A], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'flanger'
             },
             micInstFlangerDepth: { 
-                name: 'Mic/Inst Flanger Depth', 
-                address: [0x10, 0x00, 0x01, 0x31], 
+                name: 'Flanger Depth', 
+                address: [0x10, 0x00, 0x00, 0x1B], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'flanger'
             },
             micInstFlangerResonance: { 
-                name: 'Mic/Inst Flanger Resonance', 
-                address: [0x10, 0x00, 0x01, 0x32], 
+                name: 'Flanger Resonance', 
+                address: [0x10, 0x00, 0x00, 0x1C], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'flanger'
+            },
+            micInstFlangerManual: { 
+                name: 'Flanger Manual', 
+                address: [0x10, 0x00, 0x00, 0x1D], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'flanger'
             },
             micInstFlangerLevel: { 
-                name: 'Mic/Inst Flanger Level', 
-                address: [0x10, 0x00, 0x01, 0x33], 
+                name: 'Flanger Level', 
+                address: [0x10, 0x00, 0x00, 0x1E], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'flanger'
             },
+            micInstFlangerLowCut: { 
+                name: 'Flanger Low Cut', 
+                address: [0x10, 0x00, 0x00, 0x1F], 
+                min: 0, max: 10, current: 0,
+                valueLabels: ['FLAT', '55Hz', '110Hz', '165Hz', '200Hz', '280Hz', '340Hz', '400Hz', '500Hz', '530Hz', '800Hz'],
+                category: 'micInstEffects',
+                effectType: 'flanger'
+            },
 
-            // Mic/Inst Effects - Tremolo (estimated addresses)
+            // Mic/Inst Effects - Tremolo (verified addresses from README)
+            micInstTremoloWaveShape: { 
+                name: 'Tremolo Wave Shape', 
+                address: [0x10, 0x00, 0x00, 0x21], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEffects',
+                effectType: 'tremolo'
+            },
             micInstTremoloRate: { 
-                name: 'Mic/Inst Tremolo Rate', 
-                address: [0x10, 0x00, 0x01, 0x40], 
+                name: 'Tremolo Rate', 
+                address: [0x10, 0x00, 0x00, 0x22], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'tremolo'
             },
             micInstTremoloDepth: { 
-                name: 'Mic/Inst Tremolo Depth', 
-                address: [0x10, 0x00, 0x01, 0x41], 
+                name: 'Tremolo Depth', 
+                address: [0x10, 0x00, 0x00, 0x23], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'tremolo'
             },
             micInstTremoloLevel: { 
-                name: 'Mic/Inst Tremolo Level', 
-                address: [0x10, 0x00, 0x01, 0x42], 
+                name: 'Tremolo Level', 
+                address: [0x10, 0x00, 0x00, 0x24], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
                 effectType: 'tremolo'
@@ -612,54 +766,62 @@ class BossCubeController {
                 effectType: 'twah'
             },
 
-            // Mic/Inst Reverb (separate section)
+            // Reverb (shared section - verified addresses from README)
             micInstReverbType: { 
-                name: 'Mic/Inst Reverb Type', 
+                name: 'Reverb Type', 
                 address: [0x10, 0x00, 0x00, 0x2d], 
                 min: 0, max: 2, current: 0,
+                valueLabels: ['ROOM', 'HALL', 'PLATE'],
                 category: 'micInstReverb'
             },
             micInstReverbTime: { 
-                name: 'Mic/Inst Reverb Time', 
+                name: 'Reverb Time', 
                 address: [0x10, 0x00, 0x00, 0x2e], 
                 min: 0, max: 49, current: 25,
+                unit: 's',
+                step: 0.1,
+                displayValue: (value) => `${(value * 0.1 + 0.1).toFixed(1)}s`,
                 category: 'micInstReverb'
             },
             micInstReverbPreDelay: { 
-                name: 'Mic/Inst Reverb Pre-Delay', 
+                name: 'Reverb Pre-Delay', 
                 address: [0x10, 0x00, 0x00, 0x2f], 
-                min: 0, max: 328, current: 100,
+                min: 0, max: 200, current: 100,
+                unit: 'ms',
+                displayValue: (value) => `${value}ms`,
                 category: 'micInstReverb',
                 is16Bit: true
             },
-            micInstReverbLevel: { 
-                name: 'Mic/Inst Reverb Level', 
+            micInstEffectLevel: { 
+                name: 'Mic/Inst Effect Level', 
                 address: [0x10, 0x00, 0x00, 0x31], 
                 min: 0, max: 100, current: 25,
                 category: 'micInstReverb'
             },
             micInstReverbLowCut: { 
-                name: 'Mic/Inst Reverb Low Cut', 
+                name: 'Reverb Low Cut', 
                 address: [0x10, 0x00, 0x00, 0x32], 
                 min: 0, max: 12, current: 0,
                 category: 'micInstReverb'
             },
             micInstReverbHighCut: { 
-                name: 'Mic/Inst Reverb High Cut', 
+                name: 'Reverb High Cut', 
                 address: [0x10, 0x00, 0x00, 0x33], 
                 min: 0, max: 10, current: 10,
                 category: 'micInstReverb'
             },
             micInstReverbDensity: { 
-                name: 'Mic/Inst Reverb Density', 
+                name: 'Reverb Density', 
                 address: [0x10, 0x00, 0x00, 0x34], 
                 min: 0, max: 10, current: 5,
+                displayValue: (value) => `${value}`,
                 category: 'micInstReverb'
             },
             micInstReverbKnobAssign: { 
-                name: 'Mic/Inst Reverb Knob Assign', 
+                name: 'Reverb Knob Assign', 
                 address: [0x10, 0x00, 0x00, 0x35], 
                 min: 0, max: 1, current: 0,
+                valueLabels: ['Rev Time', 'FX Level'],
                 category: 'micInstReverb'
             }
         };
@@ -672,7 +834,7 @@ class BossCubeController {
         this.currentGuitarEffect = 'phaser'; // phaser, chorus, tremolo, twah, flanger
         this.currentMicInstEffect = 'harmony'; // harmony, chorus, phaser, flanger, tremolo, twah
         
-        // Effect switching commands from README
+        // Effect switching commands from README (verified addresses)
         this.effectSwitchCommands = {
             guitar: {
                 phaser: {
@@ -698,22 +860,22 @@ class BossCubeController {
             },
             micInst: {
                 harmony: {
-                    switch: [0x10, 0x00, 0x00, 0x00, 0x00]
+                    switch: [0x10, 0x00, 0x00, 0x01, 0x00]
                 },
                 chorus: {
-                    switch: [0x10, 0x00, 0x00, 0x00, 0x01]
+                    switch: [0x10, 0x00, 0x00, 0x01, 0x01]
                 },
                 phaser: {
-                    switch: [0x10, 0x00, 0x00, 0x00, 0x02]
+                    switch: [0x10, 0x00, 0x00, 0x01, 0x02]
                 },
                 flanger: {
-                    switch: [0x10, 0x00, 0x00, 0x00, 0x03]
+                    switch: [0x10, 0x00, 0x00, 0x01, 0x03]
                 },
                 tremolo: {
-                    switch: [0x10, 0x00, 0x00, 0x00, 0x04]
+                    switch: [0x10, 0x00, 0x00, 0x01, 0x04]
                 },
                 twah: {
-                    switch: [0x10, 0x00, 0x00, 0x00, 0x05]
+                    switch: [0x10, 0x00, 0x00, 0x01, 0x05]
                 }
             }
         };
@@ -731,6 +893,10 @@ class BossCubeController {
             pedalControl: 127
         };
         this.footswitchPolarity = 'normally_open'; // 'normally_open' or 'normally_closed'
+        
+        // Master Out binding - callbacks
+        this.checkMasterBindEnabled = null;
+        // Master bind mode removed - always use redirect behavior
     }
 
     /**
@@ -1537,10 +1703,31 @@ class BossCubeController {
                 const updateType = isPhysicalKnobChange ? '🎛️ PHYSICAL' : '📖 READ';
                 console.log(`🔄 MATCH! ${updateType} - Updating ${param.name} from Boss Cube: ${value}/${param.max}`);
                 
+                // Check for Master Out binding - redirect Aux knob to control both sliders
+                if (key === 'auxBluetoothVolume' && isPhysicalKnobChange && 
+                    this.checkMasterBindEnabled && this.checkMasterBindEnabled()) {
+                    
+                    console.log(`🔗 BINDING ACTIVE! Aux knob value: ${value} - updating both sliders`);
+                    
+                    // Update master volume on the amp
+                    this.setParameter('masterVolume', value).catch(error => {
+                        console.error('Failed to set master volume during binding:', error);
+                    });
+                    
+                    // Update master volume parameter and UI
+                    this.parameters.masterVolume.current = value;
+                    if (this.onParameterUpdate) {
+                        this.onParameterUpdate('masterVolume', value, isPhysicalKnobChange);
+                    }
+                    
+                    // Continue with normal aux volume update (so both sliders move)
+                    // actualKey and actualParam remain as auxBluetoothVolume
+                }
+                
                 // Update parameter value
                 param.current = value;
                 
-                // Notify callbacks about the update with additional context
+                // Notify callbacks about the update
                 if (this.onParameterUpdate) {
                     this.onParameterUpdate(key, value, isPhysicalKnobChange);
                 }
@@ -2024,6 +2211,42 @@ class BossCubeController {
             
         } catch (error) {
             console.error('Failed to enable continuous notifications:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Control tuner on/off (verified address from README)
+     */
+    async setTunerControl(enabled) {
+        if (!this.isCubeConnected || !this.cubeCharacteristic) {
+            throw new Error('Boss Cube not connected');
+        }
+
+        try {
+            // Send tuner control command: 7F 00 00 02 = [00/01]
+            const sysex = [
+                0x41, 0x10, 0x00, 0x00, 0x00, 0x00, 0x09, // Roland header
+                0x12, // SET command
+                0x7F, 0x00, 0x00, 0x02, // Address: tuner control register
+                enabled ? 0x01 : 0x00 // Value: enable/disable tuner
+            ];
+            
+            // Add checksum
+            const checksum = this.calculateChecksum([0x7F, 0x00, 0x00, 0x02, enabled ? 0x01 : 0x00]);
+            sysex.push(checksum);
+            
+            console.log(`🎵 Sending tuner ${enabled ? 'enable' : 'disable'} command:`, 
+                       sysex.map(b => b.toString(16).padStart(2, '0')).join(' '));
+            
+            // Create BLE MIDI command and send
+            const command = this.createBLEMIDICommand(sysex);
+            await this.cubeCharacteristic.writeValueWithoutResponse(command);
+            
+            this.log(`🎵 Tuner ${enabled ? 'enabled' : 'disabled'}`, 'success');
+            
+        } catch (error) {
+            this.log(`Failed to control tuner: ${error.message}`, 'error');
             throw error;
         }
     }
