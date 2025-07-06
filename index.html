@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss Cube Web Control - Full Mixer</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzIxOTZGMyIvPgo8cGF0aCBkPSJNMTYgOHYxNiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHBhdGggZD0iTTggMTZoMTYiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPg==">
+    <meta name="theme-color" content="#2196F3">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 8px;
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 16px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 2.2em;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 8px;
+            font-size: 1em;
+            text-align: center;
+        }
+        
+        .version-info {
+            text-align: center;
+            margin-bottom: 16px;
+            font-size: 0.8em;
+            color: #888;
+        }
+        
+        .btn-small {
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .status-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .status {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.85em;
+            flex: 1;
+            min-width: 180px;
+        }
+        
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .pedal-status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .pedal-status.connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-color: #4caf50;
+        }
+
+
+        
+        .controls-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 130px;
+        }
+        
+        .btn:hover {
+            background: #1976D2;
+            transform: translateY(-1px);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn.danger {
+            background: #f44336;
+        }
+        
+        .btn.danger:hover {
+            background: #d32f2f;
+        }
+        
+        .btn.success {
+            background: #4CAF50;
+        }
+        
+        .btn.success:hover {
+            background: #45a049;
+        }
+
+        .btn.warning {
+            background: #FF9800;
+        }
+
+        .btn.warning:hover {
+            background: #F57C00;
+        }
+        
+        .mixer-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .mixer-section {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .mixer-section h3 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 1.2em;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 6px;
+        }
+        
+        .parameter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+        
+        .parameter-control {
+            position: relative;
+            background: linear-gradient(to right, #e0e0e0 0%, #f5f5f5 100%);
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            min-height: 60px;
+            cursor: pointer;
+            overflow: hidden;
+            user-select: none;
+            border: 2px solid transparent;
+        }
+        
+        .parameter-control:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .parameter-control.current {
+            border-color: #ff9800;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        
+        .parameter-control.physical-change {
+            border-color: #4CAF50;
+            box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+            animation: physicalKnobPulse 1s ease-out;
+        }
+        
+        @keyframes physicalKnobPulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 8px 20px rgba(76, 175, 80, 0.7);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+            }
+        }
+        
+        .parameter-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(to right, #2196F3 0%, rgba(33, 150, 243, 0.7) 100%);
+            transition: width 0.05s ease-out;
+            border-radius: 6px 0 0 6px;
+            will-change: width;
+        }
+        
+        .parameter-control.current .parameter-fill {
+            background: linear-gradient(to right, #ff9800 0%, rgba(255, 152, 0, 0.7) 100%);
+        }
+        
+        .parameter-label {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            right: 10px;
+            font-weight: bold;
+            color: #333;
+            font-size: 0.8em;
+            line-height: 1.1;
+            z-index: 3;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+            pointer-events: none;
+        }
+        
+        .parameter-value {
+            position: absolute;
+            bottom: 8px;
+            left: 10px;
+            right: 10px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #fff;
+            text-align: center;
+            z-index: 3;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        
+        .parameter-control.current .parameter-label {
+            color: #000;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.9);
+        }
+        
+        /* Hide the actual range input but keep it for accessibility */
+        .parameter-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+        
+        .debug-section {
+            margin-top: 16px;
+            padding: 12px;
+            background: #fff3e0;
+            border-radius: 8px;
+            border-left: 4px solid #FF9800;
+        }
+        
+        .debug-section p {
+            font-size: 0.85em;
+            margin-bottom: 8px;
+        }
+        
+        .log {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.75em;
+        }
+        
+        .log-entry {
+            margin-bottom: 4px;
+            padding: 1px 0;
+        }
+        
+        .log-entry.error {
+            color: #c62828;
+        }
+        
+        .log-entry.success {
+            color: #2e7d32;
+        }
+        
+        .log-entry.info {
+            color: #1976D2;
+        }
+
+        .log-entry .timestamp {
+            color: #999;
+            font-size: 0.85em;
+            margin-right: 6px;
+        }
+
+        .log-entry.warning {
+            color: #f57c00;
+        }
+        
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            .mixer-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .parameter-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .parameter-control {
+                min-height: 50px;
+            }
+            
+            .controls-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .status-section {
+                flex-direction: column;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .container {
+                padding: 12px;
+            }
+        }
+        
+        /* Larger mobile devices */
+        @media (min-width: 481px) and (max-width: 768px) {
+            .parameter-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+        }
+        
+        /* Tablets and small desktops */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .parameter-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+        }
+        
+        /* Large screens */
+        @media (min-width: 1025px) {
+            .parameter-grid {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎚️ Boss Cube Mixer</h1>
+        <p class="subtitle">Full Parameter Control via Bluetooth</p>
+        <div id="versionInfo" class="version-info">
+            <span id="versionText">Loading version...</span>
+            <button id="refreshBtn" class="btn-small" style="display: none;">🔄 Update Available</button>
+        </div>
+        
+        <div class="status-section">
+            <div id="status" class="status error">
+                Disconnected
+            </div>
+            
+            <div id="pedalStatus" class="pedal-status">
+                🎹 Pedal: Not connected
+            </div>
+            
+
+        </div>
+        
+        <div class="controls-section">
+            <button id="connectBtn" class="btn">Connect Boss Cube</button>
+            <button id="connectPedalBtn" class="btn" disabled>Connect Pedal (EV-1-WL)</button>
+        </div>
+        
+        <div class="mixer-container">
+            <div class="mixer-section">
+                <h3>🎛️ Mixer Controls</h3>
+                <div id="mixerControls" class="parameter-grid">
+                    <!-- Mixer controls will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="mixer-section">
+                <h3>🎸 Effects Controls</h3>
+                <div id="effectsControls" class="parameter-grid">
+                    <!-- Effects controls will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <p><strong>🔧 Controls:</strong> Hold and drag to adjust values • Long hold (0.8s) without movement to select for pedal control • Expression pedal controls selected parameter • Right footswitch = Next • Left footswitch = Previous</p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button id="debugBtn" class="btn warning">Run Debug</button>
+                <button id="readValuesBtn" class="btn success" disabled>📖 Read Values</button>
+            </div>
+            <div style="margin-top: 8px;">
+                <p><strong>🧪 Notification Tests:</strong></p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button id="enableNotificationsBtn" class="btn warning" disabled>🔔 Enable Notifications</button>
+                    <button id="testCommand1Btn" class="btn warning" disabled>📡 Test Command 1</button>
+                    <button id="testCommand2Btn" class="btn warning" disabled>📡 Test Command 2</button>
+                    <button id="testCommand3Btn" class="btn warning" disabled>📡 Test Command 3</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="log" class="log">
+            <div class="log-entry info">Ready to connect...</div>
+        </div>
+    </div>
+
+    <script src="boss-cube-controller.js"></script>
+    <script src="app.js"></script>
+</body>
+</html> 
