@@ -94,6 +94,76 @@ class BossCubeController {
                 category: 'mixer'
             },
 
+            // Looper Control (corrected address)
+            looperControl: { 
+                name: 'Looper Control', 
+                address: [0x20, 0x00, 0x10, 0x01], 
+                min: 0, max: 3, current: 0,
+                valueLabels: ['Erase Loop', 'Start Recording', 'End Recording', 'Overdub'],
+                displayValue: (value) => {
+                    const labels = ['Erase Loop', 'Start Recording', 'End Recording', 'Overdub'];
+                    return labels[value] || 'Unknown';
+                },
+                category: 'looper'
+            },
+
+            // Mic/Inst EQ Controls (verified addresses from README)
+            micInstEQBass: { 
+                name: 'Bass', 
+                address: [0x20, 0x00, 0x20, 0x01], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEQ'
+            },
+            micInstEQMiddle: { 
+                name: 'Middle', 
+                address: [0x20, 0x00, 0x20, 0x02], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEQ'
+            },
+            micInstEQTreble: { 
+                name: 'Treble', 
+                address: [0x20, 0x00, 0x20, 0x03], 
+                min: 0, max: 100, current: 50,
+                category: 'micInstEQ'
+            },
+
+            // Guitar EQ & Amp Controls (verified addresses from README)
+            guitarEQBass: { 
+                name: 'Bass', 
+                address: [0x20, 0x00, 0x20, 0x04], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEQ'
+            },
+            guitarEQMiddle: { 
+                name: 'Middle', 
+                address: [0x20, 0x00, 0x20, 0x05], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEQ'
+            },
+            guitarEQTreble: { 
+                name: 'Treble', 
+                address: [0x20, 0x00, 0x20, 0x06], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEQ'
+            },
+            guitarGain: { 
+                name: 'Gain', 
+                address: [0x20, 0x00, 0x20, 0x07], 
+                min: 0, max: 100, current: 50,
+                category: 'guitarEQ'
+            },
+            guitarAmpType: { 
+                name: 'Amp Type', 
+                address: [0x20, 0x00, 0x20, 0x0A], 
+                min: 0, max: 8, current: 4,
+                valueLabels: ['Normal', 'Bright', 'Wide', 'Instrument', 'Clean', 'Crunch', 'Lead', 'Acoustic Sim', 'Mic'],
+                displayValue: (value) => {
+                    const labels = ['Normal', 'Bright', 'Wide', 'Instrument', 'Clean', 'Crunch', 'Lead', 'Acoustic Sim', 'Mic'];
+                    return labels[value] || 'Unknown';
+                },
+                category: 'guitarEQ'
+            },
+
             // Guitar Effects - Phaser
             guitarPhaserRate: { 
                 name: 'Phaser Rate', 
@@ -336,74 +406,85 @@ class BossCubeController {
                 effectType: 'flanger'
             },
 
-            // Guitar Reverb (separate section)
-            guitarReverbType: { 
-                name: 'Guitar Reverb Type', 
+            // Shared Reverb Controls (verified from README - shared between Guitar and Mic/Inst)
+            reverbType: { 
+                name: 'Type', 
                 address: [0x10, 0x00, 0x00, 0x2d], 
                 min: 0, max: 2, current: 0,
                 valueLabels: ['ROOM', 'HALL', 'PLATE'],
-                category: 'guitarReverb'
+                category: 'reverb'
             },
-            guitarReverbTime: { 
-                name: 'Guitar Reverb Time', 
+            reverbTime: { 
+                name: 'Time', 
                 address: [0x10, 0x00, 0x00, 0x2e], 
                 min: 0, max: 49, current: 25,
                 unit: 's',
                 step: 0.1,
                 displayValue: (value) => `${(value * 0.1 + 0.1).toFixed(1)}s`,
-                category: 'guitarReverb'
+                category: 'reverb'
             },
-            guitarReverbPreDelay: { 
-                name: 'Guitar Reverb Pre-Delay', 
+            reverbPreDelay: { 
+                name: 'Pre-Delay', 
                 address: [0x10, 0x00, 0x00, 0x2f], 
                 min: 0, max: 200, current: 100,
                 unit: 'ms',
                 displayValue: (value) => `${value}ms`,
-                category: 'guitarReverb',
+                category: 'reverb',
                 is16Bit: true
             },
+            reverbLowCut: { 
+                name: 'Low Cut', 
+                address: [0x10, 0x00, 0x00, 0x32], 
+                min: 0, max: 12, current: 0,
+                valueLabels: ['FLAT', '50Hz', '63Hz', '80Hz', '100Hz', '125Hz', '160Hz', '200Hz', '250Hz', '315Hz', '400Hz', '500Hz', '630Hz'],
+                category: 'reverb'
+            },
+            reverbHighCut: { 
+                name: 'High Cut', 
+                address: [0x10, 0x00, 0x00, 0x33], 
+                min: 0, max: 10, current: 10,
+                valueLabels: ['1.6kHz', '2.0kHz', '2.5kHz', '3.15kHz', '4.0kHz', '5.0kHz', '6.3kHz', '8.0kHz', '10.0kHz', '12.5kHz', 'FLAT'],
+                category: 'reverb'
+            },
+            reverbDensity: { 
+                name: 'Density', 
+                address: [0x10, 0x00, 0x00, 0x34], 
+                min: 0, max: 10, current: 5,
+                displayValue: (value) => `${value}`,
+                category: 'reverb'
+            },
+            reverbKnobAssign: { 
+                name: 'Knob Assign', 
+                address: [0x10, 0x00, 0x00, 0x35], 
+                min: 0, max: 1, current: 0,
+                valueLabels: ['Rev Time', 'FX Level'],
+                category: 'reverb'
+            },
+            
+            // Separate Reverb Effect Levels (verified from README)
             guitarReverbLevel: { 
                 name: 'Guitar Reverb Level', 
                 address: [0x10, 0x00, 0x00, 0x67], 
                 min: 0, max: 100, current: 25,
-                category: 'guitarReverb'
+                category: 'reverbLevels'
             },
-            guitarReverbLowCut: { 
-                name: 'Guitar Reverb Low Cut', 
-                address: [0x10, 0x00, 0x00, 0x32], 
-                min: 0, max: 12, current: 0,
-                category: 'guitarReverb'
-            },
-            guitarReverbHighCut: { 
-                name: 'Guitar Reverb High Cut', 
-                address: [0x10, 0x00, 0x00, 0x33], 
-                min: 0, max: 10, current: 10,
-                category: 'guitarReverb'
-            },
-            guitarReverbDensity: { 
-                name: 'Guitar Reverb Density', 
-                address: [0x10, 0x00, 0x00, 0x34], 
-                min: 0, max: 10, current: 5,
-                category: 'guitarReverb'
-            },
-            guitarReverbKnobAssign: { 
-                name: 'Guitar Reverb Knob Assign', 
-                address: [0x10, 0x00, 0x00, 0x35], 
-                min: 0, max: 1, current: 0,
-                valueLabels: ['rev time', 'fx level'],
-                category: 'guitarReverb'
+            micInstReverbLevel: { 
+                name: 'Mic/Inst Reverb Level', 
+                address: [0x10, 0x00, 0x00, 0x31], 
+                min: 0, max: 100, current: 25,
+                category: 'reverbLevels'
             },
 
             // Guitar Delay (separate section)
             guitarDelayType: { 
-                name: 'Guitar Delay Type', 
+                name: 'Type', 
                 address: [0x10, 0x00, 0x00, 0x60], 
                 min: 0, max: 3, current: 0,
                 valueLabels: ['Digital', 'Reverse', 'Analog', 'Tape Echo'],
                 category: 'guitarDelay'
             },
             guitarDelayTime: { 
-                name: 'Guitar Delay Time', 
+                name: 'Time', 
                 address: [0x10, 0x00, 0x00, 0x61], 
                 min: 1, max: 1000, current: 500,
                 unit: 'ms',
@@ -412,45 +493,32 @@ class BossCubeController {
                 is16Bit: true
             },
             guitarDelayFeedback: { 
-                name: 'Guitar Delay Feedback', 
+                name: 'Feedback', 
                 address: [0x10, 0x00, 0x00, 0x63], 
                 min: 0, max: 100, current: 30,
                 category: 'guitarDelay'
             },
             guitarDelayHighCut: { 
-                name: 'Guitar Delay High Cut', 
+                name: 'High Cut', 
                 address: [0x10, 0x00, 0x00, 0x64], 
                 min: 0, max: 14, current: 14,
                 category: 'guitarDelay'
             },
             guitarDelayLevel: { 
-                name: 'Guitar Delay Level', 
+                name: 'Level', 
                 address: [0x10, 0x00, 0x00, 0x65], 
                 min: 0, max: 100, current: 25,
                 category: 'guitarDelay'
             },
-            guitarDelayType: { 
-                name: 'Guitar Delay Type', 
-                address: [0x10, 0x00, 0x00, 0x60], 
-                min: 0, max: 3, current: 0,
-                valueLabels: ['Digital', 'Reverse', 'Analog', 'Tape Echo'],
-                category: 'guitarDelay'
-            },
             guitarDelayKnobAssign: { 
-                name: 'Guitar Delay Knob Assign', 
+                name: 'Knob Assign', 
                 address: [0x10, 0x00, 0x00, 0x66], 
                 min: 0, max: 3, current: 0,
                 valueLabels: ['Default', 'Delay Time', 'Feedback', 'FX Level'],
                 category: 'guitarDelay'
             },
 
-            // Guitar Reverb Level (separate from shared reverb)
-            guitarReverbEffectLevel: { 
-                name: 'Guitar Reverb Level', 
-                address: [0x10, 0x00, 0x00, 0x67], 
-                min: 0, max: 100, current: 25,
-                category: 'guitarReverb'
-            },
+
 
             // Guitar Amp Settings (verified addresses from README)
             guitarAmpCleanType: { 
@@ -479,8 +547,23 @@ class BossCubeController {
             tunerPitch: { 
                 name: 'Tuner Pitch', 
                 address: [0x10, 0x00, 0x00, 0x68], 
-                min: 0, max: 100, current: 50,
-                displayValue: (value) => `${value - 50 > 0 ? '+' : ''}${value - 50}`,
+                min: 0, max: 10, current: 5,
+                valueLabels: ['435Hz', '436Hz', '437Hz', '438Hz', '439Hz', '440Hz', '441Hz', '442Hz', '443Hz', '444Hz', '445Hz'],
+                displayValue: (value) => {
+                    const frequencies = ['435Hz', '436Hz', '437Hz', '438Hz', '439Hz', '440Hz', '441Hz', '442Hz', '443Hz', '444Hz', '445Hz'];
+                    return frequencies[value] || '440Hz';
+                },
+                category: 'tuner'
+            },
+            tunerManualKey: { 
+                name: 'Manual Key', 
+                address: [0x20, 0x00, 0x30, 0x01], 
+                min: 0, max: 11, current: 0,
+                valueLabels: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'],
+                displayValue: (value) => {
+                    const keys = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+                    return keys[value] || 'C';
+                },
                 category: 'tuner'
             },
 
@@ -489,18 +572,29 @@ class BossCubeController {
                 name: 'Mic/Inst EQ Type', 
                 address: [0x10, 0x00, 0x00, 0x00], 
                 min: 0, max: 3, current: 0,
-                valueLabels: ['Type 1', 'Type 2', 'Type 3', 'Type 4'],
+                valueLabels: ['EQ off', 'speech', 'vocal', 'inst'],
+                category: 'micInstEffects'
+            },
+            
+            // Mic/Inst Effect Type Selector (verified addresses from README)
+            micInstEffectType: { 
+                name: 'Effect Type', 
+                address: [0x10, 0x00, 0x00, 0x01], 
+                min: 0, max: 5, current: 0,
+                valueLabels: ['Harmony', 'Chorus', 'Phaser', 'Flanger', 'Tremolo', 'T.WAH'],
                 category: 'micInstEffects'
             },
 
             // Mic/Inst Effects - Harmony (verified addresses from README)
+            // NOTE: These addresses are ONLY valid when micInstEffectType = 0 (Harmony)
             micInstHarmonyKey: { 
                 name: 'Harmony Key', 
                 address: [0x10, 0x00, 0x00, 0x0B], 
                 min: 0, max: 1, current: 0,
                 valueLabels: ['Auto', 'Set'],
                 category: 'micInstEffects',
-                effectType: 'harmony'
+                effectType: 'harmony',
+                effectIndex: 0
             },
             micInstHarmonyKeySetup: { 
                 name: 'Harmony Key Setup', 
@@ -508,7 +602,8 @@ class BossCubeController {
                 min: 0, max: 11, current: 0,
                 valueLabels: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'],
                 category: 'micInstEffects',
-                effectType: 'harmony'
+                effectType: 'harmony',
+                effectIndex: 0
             },
             micInstHarmonyAccurate: { 
                 name: 'Harmony Accurate', 
@@ -516,7 +611,8 @@ class BossCubeController {
                 min: 0, max: 9, current: 5,
                 displayValue: (value) => `${value + 1}`,
                 category: 'micInstEffects',
-                effectType: 'harmony'
+                effectType: 'harmony',
+                effectIndex: 0
             },
             micInstHarmonyVoiceAssign: { 
                 name: 'Harmony Voice Assign', 
@@ -524,72 +620,83 @@ class BossCubeController {
                 min: 0, max: 3, current: 0,
                 valueLabels: ['Default', 'Unison/Low/High', 'Unison/Low/Higher', 'Low/High/Higher'],
                 category: 'micInstEffects',
-                effectType: 'harmony'
+                effectType: 'harmony',
+                effectIndex: 0
             },
 
             // Mic/Inst Effects - Chorus (verified addresses from README)
+            // NOTE: These addresses are ONLY valid when micInstEffectType = 1 (Chorus)
             micInstChorusLowRate: { 
                 name: 'Chorus Low Rate', 
                 address: [0x10, 0x00, 0x00, 0x08], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusLowDepth: { 
                 name: 'Chorus Low Depth', 
                 address: [0x10, 0x00, 0x00, 0x09], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusLowPreDelay: { 
                 name: 'Chorus Low Pre Delay', 
                 address: [0x10, 0x00, 0x00, 0x0A], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusLowLevel: { 
                 name: 'Chorus Low Level', 
                 address: [0x10, 0x00, 0x00, 0x0B], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusDirectMix: { 
                 name: 'Chorus Direct Mix', 
                 address: [0x10, 0x00, 0x00, 0x0C], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusHighRate: { 
                 name: 'Chorus High Rate', 
                 address: [0x10, 0x00, 0x00, 0x0D], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusHighDepth: { 
                 name: 'Chorus High Depth', 
                 address: [0x10, 0x00, 0x00, 0x0E], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusHighPreDelay: { 
                 name: 'Chorus High Pre Delay', 
                 address: [0x10, 0x00, 0x00, 0x0F], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusHighLevel: { 
                 name: 'Chorus High Level', 
                 address: [0x10, 0x00, 0x00, 0x10], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
             micInstChorusXoverFreq: { 
                 name: 'Chorus Xover Frequency', 
@@ -597,89 +704,103 @@ class BossCubeController {
                 min: 0, max: 16, current: 8,
                 valueLabels: ['200Hz', '250Hz', '315Hz', '400Hz', '500Hz', '630Hz', '800Hz', '1.0kHz', '1.25kHz', '1.6kHz', '2.0kHz', '2.5kHz', '3.15kHz', '4.0kHz', '5.0kHz', '6.3kHz', '8.0kHz'],
                 category: 'micInstEffects',
-                effectType: 'chorus'
+                effectType: 'chorus',
+                effectIndex: 1
             },
 
             // Mic/Inst Effects - Phaser (verified addresses from README)
+            // NOTE: These addresses are ONLY valid when micInstEffectType = 2 (Phaser)
             micInstPhaserType: { 
                 name: 'Phaser Type', 
                 address: [0x10, 0x00, 0x00, 0x13], 
                 min: 0, max: 3, current: 0,
                 valueLabels: ['4stage', '8stage', '12stage', 'BiPHASE'],
                 category: 'micInstEffects',
-                effectType: 'phaser'
+                effectType: 'phaser',
+                effectIndex: 2
             },
             micInstPhaserRate: { 
                 name: 'Phaser Rate', 
                 address: [0x10, 0x00, 0x00, 0x14], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'phaser'
+                effectType: 'phaser',
+                effectIndex: 2
             },
             micInstPhaserDepth: { 
                 name: 'Phaser Depth', 
                 address: [0x10, 0x00, 0x00, 0x15], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'phaser'
+                effectType: 'phaser',
+                effectIndex: 2
             },
             micInstPhaserResonance: { 
                 name: 'Phaser Resonance', 
                 address: [0x10, 0x00, 0x00, 0x16], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'phaser'
+                effectType: 'phaser',
+                effectIndex: 2
             },
             micInstPhaserManual: { 
                 name: 'Phaser Manual', 
                 address: [0x10, 0x00, 0x00, 0x17], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'phaser'
+                effectType: 'phaser',
+                effectIndex: 2
             },
             micInstPhaserLevel: { 
                 name: 'Phaser Level', 
                 address: [0x10, 0x00, 0x00, 0x18], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'phaser'
+                effectType: 'phaser',
+                effectIndex: 2
             },
 
             // Mic/Inst Effects - Flanger (verified addresses from README)
+            // NOTE: These addresses are ONLY valid when micInstEffectType = 3 (Flanger)
             micInstFlangerRate: { 
                 name: 'Flanger Rate', 
                 address: [0x10, 0x00, 0x00, 0x1A], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'flanger'
+                effectType: 'flanger',
+                effectIndex: 3
             },
             micInstFlangerDepth: { 
                 name: 'Flanger Depth', 
                 address: [0x10, 0x00, 0x00, 0x1B], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'flanger'
+                effectType: 'flanger',
+                effectIndex: 3
             },
             micInstFlangerResonance: { 
                 name: 'Flanger Resonance', 
                 address: [0x10, 0x00, 0x00, 0x1C], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'flanger'
+                effectType: 'flanger',
+                effectIndex: 3
             },
             micInstFlangerManual: { 
                 name: 'Flanger Manual', 
                 address: [0x10, 0x00, 0x00, 0x1D], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'flanger'
+                effectType: 'flanger',
+                effectIndex: 3
             },
             micInstFlangerLevel: { 
                 name: 'Flanger Level', 
                 address: [0x10, 0x00, 0x00, 0x1E], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'flanger'
+                effectType: 'flanger',
+                effectIndex: 3
             },
             micInstFlangerLowCut: { 
                 name: 'Flanger Low Cut', 
@@ -687,47 +808,55 @@ class BossCubeController {
                 min: 0, max: 10, current: 0,
                 valueLabels: ['FLAT', '55Hz', '110Hz', '165Hz', '200Hz', '280Hz', '340Hz', '400Hz', '500Hz', '530Hz', '800Hz'],
                 category: 'micInstEffects',
-                effectType: 'flanger'
+                effectType: 'flanger',
+                effectIndex: 3
             },
 
             // Mic/Inst Effects - Tremolo (verified addresses from README)
+            // NOTE: These addresses are ONLY valid when micInstEffectType = 4 (Tremolo)
             micInstTremoloWaveShape: { 
                 name: 'Tremolo Wave Shape', 
                 address: [0x10, 0x00, 0x00, 0x21], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'tremolo'
+                effectType: 'tremolo',
+                effectIndex: 4
             },
             micInstTremoloRate: { 
                 name: 'Tremolo Rate', 
                 address: [0x10, 0x00, 0x00, 0x22], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'tremolo'
+                effectType: 'tremolo',
+                effectIndex: 4
             },
             micInstTremoloDepth: { 
                 name: 'Tremolo Depth', 
                 address: [0x10, 0x00, 0x00, 0x23], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'tremolo'
+                effectType: 'tremolo',
+                effectIndex: 4
             },
             micInstTremoloLevel: { 
                 name: 'Tremolo Level', 
                 address: [0x10, 0x00, 0x00, 0x24], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'tremolo'
+                effectType: 'tremolo',
+                effectIndex: 4
             },
 
-            // Mic/Inst Effects - T.WAH
+            // Mic/Inst Effects - T.WAH (verified addresses from README)
+            // NOTE: These addresses are ONLY valid when micInstEffectType = 5 (T.WAH)
             micInstTWahMode: { 
                 name: 'Mic/Inst T.WAH Mode', 
                 address: [0x10, 0x00, 0x00, 0x26], 
                 min: 0, max: 1, current: 0,
                 valueLabels: ['LPF', 'BPF'],
                 category: 'micInstEffects',
-                effectType: 'twah'
+                effectType: 'twah',
+                effectIndex: 5
             },
             micInstTWahPolarity: { 
                 name: 'Mic/Inst T.WAH Polarity', 
@@ -735,95 +864,43 @@ class BossCubeController {
                 min: 0, max: 1, current: 0,
                 valueLabels: ['UP', 'DOWN'],
                 category: 'micInstEffects',
-                effectType: 'twah'
+                effectType: 'twah',
+                effectIndex: 5
             },
             micInstTWahSens: { 
                 name: 'Mic/Inst T.WAH Sens', 
                 address: [0x10, 0x00, 0x00, 0x28], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'twah'
+                effectType: 'twah',
+                effectIndex: 5
             },
             micInstTWahFrequency: { 
                 name: 'Mic/Inst T.WAH Frequency', 
                 address: [0x10, 0x00, 0x00, 0x29], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'twah'
+                effectType: 'twah',
+                effectIndex: 5
             },
             micInstTWahPeak: { 
                 name: 'Mic/Inst T.WAH Peak', 
                 address: [0x10, 0x00, 0x00, 0x2a], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'twah'
+                effectType: 'twah',
+                effectIndex: 5
             },
             micInstTWahLevel: { 
                 name: 'Mic/Inst T.WAH Level', 
                 address: [0x10, 0x00, 0x00, 0x2b], 
                 min: 0, max: 100, current: 50,
                 category: 'micInstEffects',
-                effectType: 'twah'
+                effectType: 'twah',
+                effectIndex: 5
             },
 
-            // Reverb (shared section - verified addresses from README)
-            micInstReverbType: { 
-                name: 'Reverb Type', 
-                address: [0x10, 0x00, 0x00, 0x2d], 
-                min: 0, max: 2, current: 0,
-                valueLabels: ['ROOM', 'HALL', 'PLATE'],
-                category: 'micInstReverb'
-            },
-            micInstReverbTime: { 
-                name: 'Reverb Time', 
-                address: [0x10, 0x00, 0x00, 0x2e], 
-                min: 0, max: 49, current: 25,
-                unit: 's',
-                step: 0.1,
-                displayValue: (value) => `${(value * 0.1 + 0.1).toFixed(1)}s`,
-                category: 'micInstReverb'
-            },
-            micInstReverbPreDelay: { 
-                name: 'Reverb Pre-Delay', 
-                address: [0x10, 0x00, 0x00, 0x2f], 
-                min: 0, max: 200, current: 100,
-                unit: 'ms',
-                displayValue: (value) => `${value}ms`,
-                category: 'micInstReverb',
-                is16Bit: true
-            },
-            micInstEffectLevel: { 
-                name: 'Mic/Inst Effect Level', 
-                address: [0x10, 0x00, 0x00, 0x31], 
-                min: 0, max: 100, current: 25,
-                category: 'micInstReverb'
-            },
-            micInstReverbLowCut: { 
-                name: 'Reverb Low Cut', 
-                address: [0x10, 0x00, 0x00, 0x32], 
-                min: 0, max: 12, current: 0,
-                category: 'micInstReverb'
-            },
-            micInstReverbHighCut: { 
-                name: 'Reverb High Cut', 
-                address: [0x10, 0x00, 0x00, 0x33], 
-                min: 0, max: 10, current: 10,
-                category: 'micInstReverb'
-            },
-            micInstReverbDensity: { 
-                name: 'Reverb Density', 
-                address: [0x10, 0x00, 0x00, 0x34], 
-                min: 0, max: 10, current: 5,
-                displayValue: (value) => `${value}`,
-                category: 'micInstReverb'
-            },
-            micInstReverbKnobAssign: { 
-                name: 'Reverb Knob Assign', 
-                address: [0x10, 0x00, 0x00, 0x35], 
-                min: 0, max: 1, current: 0,
-                valueLabels: ['Rev Time', 'FX Level'],
-                category: 'micInstReverb'
-            }
+
         };
         
         // Current parameter selection for pedal control
@@ -903,12 +980,10 @@ class BossCubeController {
      * Log message with timestamp
      */
     log(message, type = 'info') {
-        const timestamp = new Date().toLocaleTimeString();
-        const logMessage = `[${timestamp}] ${message}`;
-        console.log(logMessage);
+        console.log(message);
         
         if (this.onLog) {
-            this.onLog(logMessage, type);
+            this.onLog(message, type);
         }
     }
 
@@ -1636,7 +1711,11 @@ class BossCubeController {
         
         // Check minimum length for a Boss Cube response
         if (sysexData.length < 10) {
+            const fullMessage = sysexData.map(b => b.toString(16).padStart(2, '0')).join(' ');
             console.log('SysEx too short, ignoring');
+            
+            // Log short SysEx messages to UI for debugging
+            this.log(`🔍 Short SysEx received (${sysexData.length} bytes): ${fullMessage}`, 'info');
             return;
         }
         
@@ -1646,7 +1725,11 @@ class BossCubeController {
         // Check header
         for (let i = 0; i < expectedHeader.length; i++) {
             if (sysexData[i] !== expectedHeader[i]) {
+                const fullMessage = sysexData.map(b => b.toString(16).padStart(2, '0')).join(' ');
                 console.log('Not a Boss Cube SysEx, ignoring');
+                
+                // Log non-Boss Cube SysEx messages to UI for debugging
+                this.log(`🔍 Non-Boss Cube SysEx received: ${fullMessage}`, 'info');
                 return;
             }
         }
@@ -1661,15 +1744,34 @@ class BossCubeController {
             // HEADER(7) + COMMAND(1) + ADDRESS(4) + [LENGTH(1)] + VALUE(1) + CHECKSUM(1)
             // Based on tshark captures, there may be a length byte between address and value
             
+            // Try to determine correct value position by checking if we have a known parameter
             let valueIndex = 12;
             let value = sysexData[valueIndex];
             
-            // If the value at position 12 is 0x00, it might be a length byte
-            // and the actual value is at position 13
-            if (value === 0x00 && sysexData.length > 13) {
+            // Check if this address corresponds to a known parameter
+            const paramAddressBytes = sysexData.slice(8, 12);
+            let foundParameter = null;
+            for (const [key, param] of Object.entries(this.parameters)) {
+                if (param.address.length === paramAddressBytes.length &&
+                    param.address.every((byte, index) => byte === paramAddressBytes[index])) {
+                    foundParameter = param;
+                    break;
+                }
+            }
+            
+            // If we have a known parameter and the value at position 12 is 0x00,
+            // check if position 13 might be the actual value (length byte scenario)
+            if (foundParameter && value === 0x00 && sysexData.length > 13) {
+                const alternateValue = sysexData[13];
+                
+                // If the alternate value is within the parameter's range but 0 is not expected,
+                // or if 0 is outside the parameter's range, use the alternate value
+                if (foundParameter.min > 0 && alternateValue >= foundParameter.min && alternateValue <= foundParameter.max) {
                 valueIndex = 13;
-                value = sysexData[valueIndex];
-                console.log('📖 Found length byte, value at position 13');
+                    value = alternateValue;
+                    console.log('📖 Used alternate value position (length byte detected)');
+                }
+                // Otherwise stick with the 0 value as it might be valid
             }
             
             const checksum = sysexData[valueIndex + 1];
@@ -1683,7 +1785,13 @@ class BossCubeController {
             // Find which parameter this corresponds to
             this.updateParameterFromCube(addressBytes, value, isPhysicalKnobChange);
         } else {
-            console.log(`Unknown Boss Cube command: 0x${command.toString(16)}`);
+            const commandHex = `0x${command.toString(16).toUpperCase().padStart(2, '0')}`;
+            const fullMessage = sysexData.map(b => b.toString(16).padStart(2, '0')).join(' ');
+            console.log(`⚠️ Unknown Boss Cube command: ${commandHex}`);
+            console.log(`Full SysEx: ${fullMessage}`);
+            
+            // Also log to UI for user visibility
+            this.log(`🔍 Unknown Boss Cube command: ${commandHex} - Full SysEx: ${fullMessage}`, 'warning');
         }
     }
 
@@ -1691,17 +1799,35 @@ class BossCubeController {
      * Update parameter value from Boss Cube response
      */
     updateParameterFromCube(addressBytes, value, isPhysicalKnobChange = false) {
-        console.log(`🔍 Looking for parameter with address: [${addressBytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
+        const addressStr = addressBytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
         
         // Find parameter by address
         for (const [key, param] of Object.entries(this.parameters)) {
-            console.log(`🔍 Checking ${param.name} with address: [${param.address.map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
-            
             if (param.address.length === addressBytes.length &&
                 param.address.every((byte, index) => byte === addressBytes[index])) {
                 
-                const updateType = isPhysicalKnobChange ? '🎛️ PHYSICAL' : '📖 READ';
-                console.log(`🔄 MATCH! ${updateType} - Updating ${param.name} from Boss Cube: ${value}/${param.max}`);
+                const updateType = isPhysicalKnobChange ? '🎛️' : '📖';
+                
+                // Create category display name for better context
+                const categoryNames = {
+                    'mixer': 'Mixer',
+                    'guitarReverb': 'Guitar Reverb',
+                    'micInstReverb': 'Mic/Inst Reverb',
+                    'guitarDelay': 'Guitar Delay',
+                    'guitarEffects': 'Guitar Effects',
+                    'micInstEffects': 'Mic/Inst Effects',
+                    'guitarEQ': 'Guitar EQ',
+                    'micInstEQ': 'Mic/Inst EQ',
+                    'guitarAmp': 'Guitar Amp',
+                    'looper': 'Looper',
+                    'tuner': 'Tuner'
+                };
+                
+                const categoryName = categoryNames[param.category] || param.category;
+                const displayName = `${categoryName} ${param.name}`;
+                
+                // Log to UI for user visibility
+                this.log(`${updateType} ${addressStr} = ${value} (${displayName})`, isPhysicalKnobChange ? 'info' : 'success');
                 
                 // Check for Master Out binding - redirect Aux knob to control both sliders
                 if (key === 'auxBluetoothVolume' && isPhysicalKnobChange && 
@@ -1724,28 +1850,44 @@ class BossCubeController {
                     // actualKey and actualParam remain as auxBluetoothVolume
                 }
                 
+                // Handle value conversion from Boss Cube (some parameters send 1-based values)
+                let uiValue = value;
+                
+                // Parameters that need -1 conversion (1-based Boss Cube to 0-based UI)
+                const needsMinusOne = ['looperControl'];
+                if (needsMinusOne.includes(key)) {
+                    uiValue = Math.max(0, value - 1);
+                }
+                
+                // Parameters that need -1 for EQ (1-100 Boss Cube to 0-100 UI)
+                const eqParams = ['micInstEQBass', 'micInstEQMiddle', 'micInstEQTreble', 
+                                 'guitarEQBass', 'guitarEQMiddle', 'guitarEQTreble', 'guitarGain'];
+                if (eqParams.includes(key)) {
+                    uiValue = Math.max(0, value - 1);
+                }
+                
                 // Update parameter value
-                param.current = value;
+                param.current = uiValue;
                 
                 // Notify callbacks about the update
                 if (this.onParameterUpdate) {
-                    this.onParameterUpdate(key, value, isPhysicalKnobChange);
+                    this.onParameterUpdate(key, uiValue, isPhysicalKnobChange);
                 }
                 
                 // If this is a physical knob change, also notify about it specifically
                 if (isPhysicalKnobChange && this.onPhysicalKnobChange) {
-                    this.onPhysicalKnobChange(key, param.name, value);
+                    this.onPhysicalKnobChange(key, param.name, uiValue);
                 }
                 
                 return;
             }
         }
         
-        console.log(`⚠️ Unknown parameter address: [${addressBytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
-        console.log(`Available parameters:`);
-        for (const [key, param] of Object.entries(this.parameters)) {
-            console.log(`  ${key}: ${param.name} - [${param.address.map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
-        }
+        const unknownAddr = addressBytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
+        const unknownType = isPhysicalKnobChange ? '🎛️' : '📖';
+        
+        // Log to UI for user visibility
+        this.log(`🔍 ${unknownAddr} = ${value} (unknown)`, 'warning');
     }
 
     /**
@@ -1781,7 +1923,7 @@ class BossCubeController {
             
         try {
             await this.cubeCharacteristic.writeValue(command);
-            this.log(`Sent parameter command: ${address.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')} = ${valueBytes.join(', ')}`, 'info');
+            this.log(`📤 ${address.map(b => b.toString(16).padStart(2, '0')).join(' ')} = ${valueBytes.join(',')}`, 'info');
         } catch (error) {
             this.log(`Failed to send parameter command: ${error.message}`, 'error');
             throw error;
@@ -1812,7 +1954,7 @@ class BossCubeController {
             // Create BLE MIDI command
             const command = this.createBLEMIDICommand(sysexData);
             
-            console.log('📤 Sending read request to Boss Cube:', Array.from(command).map(b => b.toString(16).padStart(2, '0')).join(' '));
+            // console.log('📤 Read request sent');
             
             // Send via Web Bluetooth
             await this.cubeCharacteristic.writeValueWithoutResponse(command);
@@ -1834,7 +1976,7 @@ class BossCubeController {
             throw new Error(`Unknown parameter: ${paramKey}`);
         }
         
-        console.log(`📖 Reading ${param.name} from Boss Cube...`);
+        // Reading parameter from Boss Cube
         return await this.sendParameterReadRequest(param.address);
     }
 
@@ -1885,23 +2027,25 @@ class BossCubeController {
     }
 
     /**
-     * Read all parameter values from Boss Cube (mixer + effects)
+     * Read all parameter values from Boss Cube (all categories)
      */
     async readAllValues() {
         if (!this.isCubeConnected) {
             throw new Error('Not connected to Boss Cube');
         }
         
-        console.log('📖 Reading all parameter values from Boss Cube...');
+        console.log('📖 Reading ALL parameter values from Boss Cube...');
         
-        // Read mixer values first
-        await this.readAllMixerValues();
-        
-        // Small delay between categories
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Then read effects values
-        await this.readAllEffectsValues();
+        // Read all parameters regardless of category
+        for (const [key, param] of Object.entries(this.parameters)) {
+            try {
+                await this.readParameter(key);
+                // Small delay between requests to avoid overwhelming the cube
+                await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (error) {
+                console.error(`Failed to read ${param.name}:`, error);
+            }
+        }
         
         console.log('✅ All parameter read requests sent');
     }
@@ -1922,12 +2066,27 @@ class BossCubeController {
         // Update internal value
         param.current = value;
 
-        // Handle 16-bit parameters
+        // Handle value conversion for Boss Cube (some parameters need 1-based values)
         let sendValue = value;
+        
+        // Parameters that need +1 conversion (0-based UI to 1-based Boss Cube)
+        const needsPlusOne = ['looperControl'];
+        if (needsPlusOne.includes(paramKey)) {
+            sendValue = value + 1;
+        }
+        
+        // Parameters that need +1 for EQ (0-100 UI to 1-100 Boss Cube)  
+        const eqParams = ['micInstEQBass', 'micInstEQMiddle', 'micInstEQTreble', 
+                         'guitarEQBass', 'guitarEQMiddle', 'guitarEQTreble', 'guitarGain'];
+        if (eqParams.includes(paramKey)) {
+            sendValue = value + 1;
+        }
+
+        // Handle 16-bit parameters
         if (param.is16Bit) {
             // For 16-bit parameters, send as two bytes
-            const high = Math.floor(value / 128);
-            const low = value % 128;
+            const high = Math.floor(sendValue / 128);
+            const low = sendValue % 128;
             sendValue = [high, low];
         }
         
@@ -2109,7 +2268,7 @@ class BossCubeController {
         const addressKey = addressBytes.join(',');
         this.pendingReadRequests.set(addressKey, now);
         this.lastReadRequestTime = now;
-        console.log(`📋 Tracking read request for address: [${addressBytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
+        console.log(`📋 Tracking read: ${addressBytes.map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
     }
 
     // Send initialization read command (0x11) to system addresses

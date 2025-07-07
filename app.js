@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Full Mixer Interface
 // Complete parameter control with dual Bluetooth support
 
-const VERSION = '2.17.7';
+const VERSION = '2.22.1';
 
 let bossCubeController = null;
 let currentParameterKey = 'masterVolume';
@@ -22,7 +22,7 @@ let pickupMode = {
 
 // UI Elements
 let statusEl, pedalStatusEl, logEl;
-let connectBtn, connectPedalBtn, debugBtn, readValuesBtn, tunerBtn;
+let connectBtn, connectPedalBtn, debugBtn, readValuesBtn;
 let mixerControlsEl, effectsControlsEl;
 let versionTextEl, refreshBtn;
 
@@ -54,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function() {
     connectPedalBtn = document.getElementById('connectPedalBtn');
     debugBtn = document.getElementById('debugBtn');
     readValuesBtn = document.getElementById('readValuesBtn');
-    tunerBtn = document.getElementById('tunerBtn');
     mixerControlsEl = document.getElementById('mixerControls');
     effectsControlsEl = document.getElementById('effectsControls');
     versionTextEl = document.getElementById('versionText');
@@ -71,12 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize settings modal
     initializeSettingsModal();
     
-    // Set up event listeners
-    connectBtn.addEventListener('click', connectToBossCube);
-    connectPedalBtn.addEventListener('click', handlePedalUIButton);
-    debugBtn.addEventListener('click', runDebugSequence);
-    readValuesBtn.addEventListener('click', readValuesFromCube);
-    tunerBtn.addEventListener('click', toggleTuner);
+    // Set up event listeners (removed duplicate connectBtn listener)
     
     refreshBtn.addEventListener('click', () => {
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -363,7 +357,22 @@ function createParameterControls() {
 function createEffectsInterface() {
     effectsControlsEl.innerHTML = `
         <div class="effects-section">
-            <h4>🎸 Guitar Amp</h4>
+            <h4>🔁 Looper Control</h4>
+            <div class="looper-buttons">
+                <button id="looperStopBtn" class="looper-btn" data-value="0">⏹️ Stop</button>
+                <button id="looperRecordBtn" class="looper-btn" data-value="1">🔴 Record</button>
+                <button id="looperPlayBtn" class="looper-btn" data-value="2">▶️ Play</button>
+                <button id="looperOverdubBtn" class="looper-btn" data-value="3">🔄 Overdub</button>
+            </div>
+        </div>
+
+        <div class="effects-section">
+            <h4>🎸 Guitar EQ & Amp</h4>
+            <div id="guitarEQControls" class="parameter-grid"></div>
+        </div>
+
+        <div class="effects-section">
+            <h4>🎸 Guitar Amp Types</h4>
             <div id="guitarAmpControls" class="parameter-grid"></div>
         </div>
 
@@ -380,13 +389,23 @@ function createEffectsInterface() {
         </div>
         
         <div class="effects-section">
-            <h4>🎸 Guitar Reverb</h4>
-            <div id="guitarReverbControls" class="parameter-grid"></div>
+            <h4>🎸 Guitar Delay</h4>
+            <div id="guitarDelayControls" class="parameter-grid"></div>
         </div>
         
         <div class="effects-section">
-            <h4>🎸 Guitar Delay</h4>
-            <div id="guitarDelayControls" class="parameter-grid"></div>
+            <h4>🌊 Shared Reverb</h4>
+            <div id="reverbControls" class="parameter-grid"></div>
+        </div>
+        
+        <div class="effects-section">
+            <h4>🔊 Reverb Levels</h4>
+            <div id="reverbLevelsControls" class="parameter-grid"></div>
+        </div>
+        
+        <div class="effects-section">
+            <h4>🎤 Mic/Inst EQ</h4>
+            <div id="micInstEQControls" class="parameter-grid"></div>
         </div>
         
         <div class="effects-section">
@@ -401,15 +420,75 @@ function createEffectsInterface() {
             </div>
             <div id="micInstEffectControls" class="parameter-grid"></div>
         </div>
-        
-        <div class="effects-section">
-            <h4>🎤 Reverb (Shared)</h4>
-            <div id="micInstReverbControls" class="parameter-grid"></div>
-        </div>
 
         <div class="effects-section">
-            <h4>🎵 Tuner Settings</h4>
-            <div id="tunerControls" class="parameter-grid"></div>
+            <h4>🎵 Tuner</h4>
+            <div class="tuner-container">
+                <div class="tuner-toggle">
+                    <button id="tunerToggleBtn" class="btn tuner" disabled>🎵 Tuner OFF</button>
+                </div>
+                
+                <div id="tunerStatus" class="tuner-status off">Tuner Off</div>
+                
+                <div id="tunerVisual" class="tuner-visual">
+                    <div id="tunerFrequencyDisplay" class="tuner-frequency-display">440Hz</div>
+                    <div id="tunerNoteDisplay" class="tuner-note-display">A</div>
+                    
+                    <div class="tuner-meter">
+                        <div class="tuner-scale">
+                            <span>♭</span>
+                            <span>-20</span>
+                            <span>-10</span>
+                            <span>0</span>
+                            <span>+10</span>
+                            <span>+20</span>
+                            <span>♯</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tuner-presets">
+                    <button class="tuner-preset-btn" data-freq="435">435Hz</button>
+                    <button class="tuner-preset-btn" data-freq="436">436Hz</button>
+                    <button class="tuner-preset-btn" data-freq="437">437Hz</button>
+                    <button class="tuner-preset-btn" data-freq="438">438Hz</button>
+                    <button class="tuner-preset-btn" data-freq="439">439Hz</button>
+                    <button class="tuner-preset-btn active" data-freq="440">440Hz</button>
+                    <button class="tuner-preset-btn" data-freq="441">441Hz</button>
+                    <button class="tuner-preset-btn" data-freq="442">442Hz</button>
+                    <button class="tuner-preset-btn" data-freq="443">443Hz</button>
+                    <button class="tuner-preset-btn" data-freq="444">444Hz</button>
+                    <button class="tuner-preset-btn" data-freq="445">445Hz</button>
+                </div>
+                
+                <div>
+                    <strong>Reference Key:</strong>
+                    <div class="tuner-key-presets">
+                        <button class="tuner-key-btn active" data-key="0">C</button>
+                        <button class="tuner-key-btn" data-key="1">Db</button>
+                        <button class="tuner-key-btn" data-key="2">D</button>
+                        <button class="tuner-key-btn" data-key="3">Eb</button>
+                        <button class="tuner-key-btn" data-key="4">E</button>
+                        <button class="tuner-key-btn" data-key="5">F</button>
+                        <button class="tuner-key-btn" data-key="6">Gb</button>
+                        <button class="tuner-key-btn" data-key="7">G</button>
+                        <button class="tuner-key-btn" data-key="8">Ab</button>
+                        <button class="tuner-key-btn" data-key="9">A</button>
+                        <button class="tuner-key-btn" data-key="10">Bb</button>
+                        <button class="tuner-key-btn" data-key="11">B</button>
+                    </div>
+                </div>
+                
+                <div class="tuner-controls-grid">
+                    <div id="tunerControls" class="parameter-grid"></div>
+                </div>
+                
+                <div class="tuner-help">
+                    <strong>How to use:</strong> Turn on the tuner, play your guitar/instrument, and the Boss Cube will detect the pitch. 
+                    Use the preset buttons for quick frequency selection, or fine-tune with the sliders. 
+                    The reference key helps with chromatic tuning.
+                </div>
+            </div>
         </div>
     `;
     
@@ -417,11 +496,20 @@ function createEffectsInterface() {
     setupEffectSelectors();
     
     // Initially populate all effect controls
+    updateLooperControls();
+    updateMicInstEQControls();
+    updateGuitarEQControls();
+    updateGuitarAmpControls();
     updateGuitarEffectControls();
     updateMicInstEffectControls();
     updateReverbDelayControls();
-    updateGuitarAmpControls();
     updateTunerControls();
+    
+    // Update looper button state to match current parameter value
+    const looperParam = bossCubeController.parameters.looperControl;
+    if (looperParam) {
+        updateLooperButtonState(looperParam.current);
+    }
 }
 
 function setupEffectSelectors() {
@@ -489,17 +577,6 @@ function updateMicInstEffectControls() {
 }
 
 function updateReverbDelayControls() {
-    // Guitar Reverb
-    const guitarReverbContainer = document.getElementById('guitarReverbControls');
-    if (guitarReverbContainer) {
-        guitarReverbContainer.innerHTML = '';
-        const guitarReverbParams = bossCubeController.getParametersByCategory('guitarReverb');
-        Object.entries(guitarReverbParams).forEach(([key, param]) => {
-            const control = createParameterControl(param, key);
-            guitarReverbContainer.appendChild(control);
-        });
-    }
-    
     // Guitar Delay
     const guitarDelayContainer = document.getElementById('guitarDelayControls');
     if (guitarDelayContainer) {
@@ -511,16 +588,104 @@ function updateReverbDelayControls() {
         });
     }
     
-    // Mic/Inst Reverb
-    const micInstReverbContainer = document.getElementById('micInstReverbControls');
-    if (micInstReverbContainer) {
-        micInstReverbContainer.innerHTML = '';
-        const micInstReverbParams = bossCubeController.getParametersByCategory('micInstReverb');
-        Object.entries(micInstReverbParams).forEach(([key, param]) => {
+    // Shared Reverb Controls
+    const reverbContainer = document.getElementById('reverbControls');
+    if (reverbContainer) {
+        reverbContainer.innerHTML = '';
+        const reverbParams = bossCubeController.getParametersByCategory('reverb');
+        Object.entries(reverbParams).forEach(([key, param]) => {
             const control = createParameterControl(param, key);
-            micInstReverbContainer.appendChild(control);
+            reverbContainer.appendChild(control);
         });
     }
+    
+    // Reverb Levels (separate for Guitar and Mic/Inst)
+    const reverbLevelsContainer = document.getElementById('reverbLevelsControls');
+    if (reverbLevelsContainer) {
+        reverbLevelsContainer.innerHTML = '';
+        const reverbLevelsParams = bossCubeController.getParametersByCategory('reverbLevels');
+        Object.entries(reverbLevelsParams).forEach(([key, param]) => {
+            const control = createParameterControl(param, key);
+            reverbLevelsContainer.appendChild(control);
+        });
+    }
+}
+
+function updateLooperControls() {
+    const buttons = document.querySelectorAll('.looper-btn');
+    if (!buttons.length) return;
+    
+    buttons.forEach(button => {
+        // Remove existing event listeners to prevent duplicates
+        button.replaceWith(button.cloneNode(true));
+    });
+    
+    // Re-select buttons after cloning
+    const newButtons = document.querySelectorAll('.looper-btn');
+    
+    newButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const value = parseInt(e.target.getAttribute('data-value'));
+            
+            if (!bossCubeController.isCubeConnected) {
+                log('Boss Cube not connected - cannot control looper', 'error');
+                return;
+            }
+            
+            try {
+                // Send looper command to Boss Cube using the regular setParameter method
+                await bossCubeController.setParameter('looperControl', value);
+                
+                // Update button visual state
+                updateLooperButtonState(value);
+                
+                const actionName = e.target.textContent.trim();
+                log(`🔁 Looper: ${actionName}`, 'success');
+                
+            } catch (error) {
+                log(`Failed to control looper: ${error.message}`, 'error');
+            }
+        });
+    });
+}
+
+function updateLooperButtonState(value) {
+    const buttons = document.querySelectorAll('.looper-btn');
+    
+    buttons.forEach(button => {
+        const buttonValue = parseInt(button.getAttribute('data-value'));
+        if (buttonValue === value) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+function updateMicInstEQControls() {
+    const container = document.getElementById('micInstEQControls');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const eqParams = bossCubeController.getParametersByCategory('micInstEQ');
+    
+    Object.entries(eqParams).forEach(([key, param]) => {
+        const control = createParameterControl(param, key);
+        container.appendChild(control);
+    });
+}
+
+function updateGuitarEQControls() {
+    const container = document.getElementById('guitarEQControls');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const eqParams = bossCubeController.getParametersByCategory('guitarEQ');
+    
+    Object.entries(eqParams).forEach(([key, param]) => {
+        const control = createParameterControl(param, key);
+        container.appendChild(control);
+    });
 }
 
 function updateGuitarAmpControls() {
@@ -547,6 +712,34 @@ function updateTunerControls() {
         const control = createParameterControl(param, key);
         container.appendChild(control);
     });
+    
+    // Set up the new tuner toggle button
+    const tunerToggleBtn = document.getElementById('tunerToggleBtn');
+    if (tunerToggleBtn) {
+        // Remove any existing event listeners
+        tunerToggleBtn.replaceWith(tunerToggleBtn.cloneNode(true));
+        const newTunerToggleBtn = document.getElementById('tunerToggleBtn');
+        
+        // Enable the button if Boss Cube is connected
+        if (bossCubeController.isCubeConnected) {
+            newTunerToggleBtn.disabled = false;
+        }
+        
+        // Update button text based on current state
+        updateTunerButtonState();
+        
+        // Add click handler
+        newTunerToggleBtn.addEventListener('click', toggleTuner);
+    }
+    
+    // Set up frequency preset buttons
+    setupTunerPresetButtons();
+    
+    // Set up key preset buttons
+    setupTunerKeyButtons();
+    
+    // Update visual display with current values
+    updateTunerVisualDisplay();
 }
 
 async function toggleTuner() {
@@ -558,14 +751,9 @@ async function toggleTuner() {
     try {
         tunerEnabled = !tunerEnabled;
         
-        // Update button appearance
-        if (tunerEnabled) {
-            tunerBtn.textContent = '🎵 Tuner ON';
-            tunerBtn.classList.add('active', 'tuner');
-        } else {
-            tunerBtn.textContent = '🎵 Tuner';
-            tunerBtn.classList.remove('active');
-        }
+        // Update button appearance and visual state
+        updateTunerButtonState();
+        updateTunerVisualState();
         
         // Send tuner control command to Boss Cube
         await bossCubeController.setTunerControl(tunerEnabled);
@@ -575,11 +763,175 @@ async function toggleTuner() {
     } catch (error) {
         // Revert button state on error
         tunerEnabled = !tunerEnabled;
-        tunerBtn.textContent = '🎵 Tuner';
-        tunerBtn.classList.remove('active');
+        updateTunerButtonState();
+        updateTunerVisualState();
         
         log(`Failed to control tuner: ${error.message}`, 'error');
     }
+}
+
+function updateTunerButtonState() {
+    // Update both the old tuner button (if it exists) and the new one
+    const oldTunerBtn = document.getElementById('tunerBtn');
+    const newTunerBtn = document.getElementById('tunerToggleBtn');
+    
+    if (oldTunerBtn) {
+        if (tunerEnabled) {
+            oldTunerBtn.textContent = '🎵 Tuner ON';
+            oldTunerBtn.classList.add('active', 'tuner');
+        } else {
+            oldTunerBtn.textContent = '🎵 Tuner';
+            oldTunerBtn.classList.remove('active');
+        }
+    }
+    
+    if (newTunerBtn) {
+        if (tunerEnabled) {
+            newTunerBtn.textContent = '🎵 Tuner ON';
+            newTunerBtn.classList.add('active');
+        } else {
+            newTunerBtn.textContent = '🎵 Tuner OFF';
+            newTunerBtn.classList.remove('active');
+        }
+    }
+}
+
+function updateTunerVisualState() {
+    const tunerStatus = document.getElementById('tunerStatus');
+    const tunerVisual = document.getElementById('tunerVisual');
+    
+    if (tunerStatus) {
+        if (tunerEnabled) {
+            tunerStatus.textContent = '🎵 Tuner Listening...';
+            tunerStatus.className = 'tuner-status listening';
+        } else {
+            tunerStatus.textContent = 'Tuner Off';
+            tunerStatus.className = 'tuner-status off';
+        }
+    }
+    
+    if (tunerVisual) {
+        if (tunerEnabled) {
+            tunerVisual.classList.add('active');
+        } else {
+            tunerVisual.classList.remove('active');
+        }
+    }
+}
+
+function setupTunerPresetButtons() {
+    const presetButtons = document.querySelectorAll('.tuner-preset-btn');
+    
+    presetButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const frequency = parseInt(e.target.getAttribute('data-freq'));
+            const pitchValue = frequency - 435; // Convert to parameter value (0-10)
+            
+            if (!bossCubeController.isCubeConnected) {
+                log('Boss Cube not connected - cannot set tuner frequency', 'error');
+                return;
+            }
+            
+            try {
+                // Update parameter
+                await bossCubeController.setParameter('tunerPitch', pitchValue);
+                
+                // Update visual display
+                updateTunerVisualDisplay();
+                
+                // Update button states
+                presetButtons.forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                log(`🎵 Tuner frequency set to ${frequency}Hz`, 'success');
+                
+            } catch (error) {
+                log(`Failed to set tuner frequency: ${error.message}`, 'error');
+            }
+        });
+    });
+}
+
+function setupTunerKeyButtons() {
+    const keyButtons = document.querySelectorAll('.tuner-key-btn');
+    
+    keyButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const keyValue = parseInt(e.target.getAttribute('data-key'));
+            
+            if (!bossCubeController.isCubeConnected) {
+                log('Boss Cube not connected - cannot set tuner key', 'error');
+                return;
+            }
+            
+            try {
+                // Update parameter
+                await bossCubeController.setParameter('tunerManualKey', keyValue);
+                
+                // Update visual display
+                updateTunerVisualDisplay();
+                
+                // Update button states
+                keyButtons.forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                const keyName = e.target.textContent;
+                log(`🎵 Tuner reference key set to ${keyName}`, 'success');
+                
+            } catch (error) {
+                log(`Failed to set tuner key: ${error.message}`, 'error');
+            }
+        });
+    });
+}
+
+function updateTunerVisualDisplay() {
+    const frequencyDisplay = document.getElementById('tunerFrequencyDisplay');
+    const noteDisplay = document.getElementById('tunerNoteDisplay');
+    
+    if (frequencyDisplay && bossCubeController.parameters.tunerPitch) {
+        const pitchParam = bossCubeController.parameters.tunerPitch;
+        const frequency = pitchParam.current + 435; // Convert from parameter value
+        frequencyDisplay.textContent = `${frequency}Hz`;
+    }
+    
+    if (noteDisplay && bossCubeController.parameters.tunerManualKey) {
+        const keyParam = bossCubeController.parameters.tunerManualKey;
+        const keyLabels = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+        noteDisplay.textContent = keyLabels[keyParam.current] || 'A';
+    }
+    
+    // Update preset button states to match current values
+    updateTunerPresetStates();
+    updateTunerKeyStates();
+}
+
+function updateTunerPresetStates() {
+    const presetButtons = document.querySelectorAll('.tuner-preset-btn');
+    const currentFreq = bossCubeController.parameters.tunerPitch?.current + 435;
+    
+    presetButtons.forEach(button => {
+        const buttonFreq = parseInt(button.getAttribute('data-freq'));
+        if (buttonFreq === currentFreq) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+function updateTunerKeyStates() {
+    const keyButtons = document.querySelectorAll('.tuner-key-btn');
+    const currentKey = bossCubeController.parameters.tunerManualKey?.current;
+    
+    keyButtons.forEach(button => {
+        const buttonKey = parseInt(button.getAttribute('data-key'));
+        if (buttonKey === currentKey) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
 }
 
 function toggleMasterBind() {
@@ -670,6 +1022,7 @@ function createParameterControl(param, key) {
         <div class="parameter-fill" data-param-key="${key}"></div>
         <div class="parameter-pedal-position" data-param-key="${key}"></div>
         <div class="parameter-label">${param.name}</div>
+        <div class="parameter-value">${initialDisplayValue}</div>
         <input type="range" 
                class="parameter-slider" 
                min="${param.min}" 
@@ -677,7 +1030,6 @@ function createParameterControl(param, key) {
                value="${param.current}"
                data-param-key="${key}"
                aria-label="${param.name}">
-        <div class="parameter-value">${initialDisplayValue}</div>
     `;
     
     // Set initial visual fill
@@ -1084,9 +1436,12 @@ async function connectToBossCube() {
         connectBtn.disabled = false;
         connectBtn.className = 'btn danger';
         
-        // Enable read values button and tuner button
+        // Enable read values button and tuner buttons
         readValuesBtn.disabled = false;
-        tunerBtn.disabled = false;
+        
+        // Enable the tuner button in effects section
+        const tunerToggleBtn = document.getElementById('tunerToggleBtn');
+        if (tunerToggleBtn) tunerToggleBtn.disabled = false;
         
         // Automatically enable notifications for physical knob changes
         try {
@@ -1127,14 +1482,16 @@ async function disconnectBossCube() {
         connectBtn.disabled = false;
         connectBtn.className = 'btn';
         
-        // Disable read values button and tuner button
+        // Disable read values button and tuner buttons
         readValuesBtn.disabled = true;
-        tunerBtn.disabled = true;
+        
+        // Disable the tuner button in effects section
+        const tunerToggleBtn = document.getElementById('tunerToggleBtn');
+        if (tunerToggleBtn) tunerToggleBtn.disabled = true;
         
         // Reset tuner state
         tunerEnabled = false;
-        tunerBtn.textContent = '🎵 Tuner';
-        tunerBtn.classList.remove('active');
+        updateTunerButtonState();
         
         // Reset master bind state
         masterBindEnabled = false;
@@ -1200,33 +1557,22 @@ async function disconnectPedal() {
 
 async function readCurrentValuesOnConnect() {
     try {
-        log('📖 Reading current values from Boss Cube...', 'info');
+        log('📖 Reading ALL current values from Boss Cube...', 'info');
         
         // Show status during reading
         statusEl.textContent = 'Reading current values...';
         statusEl.className = 'status info';
         
-        // Read all mixer values first (most important for live use)
-        await bossCubeController.readAllMixerValues();
+        // Read all parameter values (comprehensive)
+        await bossCubeController.readAllValues();
         
         // Small delay to allow responses to come in
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Also read key effects parameters
-        try {
-            await bossCubeController.readParameter('guitarReverbLevel');
-            await new Promise(resolve => setTimeout(resolve, 200));
-            await bossCubeController.readParameter('guitarReverbTime');
-            await new Promise(resolve => setTimeout(resolve, 200));
-            await bossCubeController.readParameter('guitarChorusLevel');
-        } catch (error) {
-            console.log('Failed to read some effects parameters:', error);
-        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         statusEl.textContent = 'Boss Cube Connected';
         statusEl.className = 'status success';
         
-        log('✅ Current values read from Boss Cube', 'success');
+        log('✅ All current values read from Boss Cube', 'success');
         
     } catch (error) {
         log(`❌ Failed to read current values: ${error.message}`, 'error');
@@ -1386,6 +1732,17 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     // Update the parameter display when Boss Cube sends us a value
     updateParameterDisplay(paramKey, value);
     
+    // Handle special controls that need custom updates
+    if (paramKey === 'looperControl') {
+        updateLooperButtonState(value);
+    }
+    
+    // Handle tuner parameter updates
+    const param = bossCubeController.parameters[paramKey];
+    if (param && param.category === 'tuner') {
+        updateTunerVisualDisplay();
+    }
+    
     // Reset pickup mode when physical knob changes are detected
     if (isPhysicalKnobChange && paramKey === currentParameterKey && pickupMode.active) {
         pickupMode.active = false;
@@ -1403,12 +1760,10 @@ function handlePhysicalKnobChange(paramKey, paramName, value) {
             log(`🔗 Master Out controlled via Aux volume knob: ${value}`, 'success');
         } else if (paramKey === 'auxBluetoothVolume') {
             log(`🔗 Aux volume knob position: ${value} (both sliders moving)`, 'info');
-        } else {
-            log(`🎛️ Physical knob: ${paramName} = ${value}`, 'info');
         }
-    } else {
-        log(`🎛️ Physical knob: ${paramName} = ${value}`, 'info');
+        // Skip regular logging for other knobs when binding is active
     }
+    // Remove the regular "Physical knob: ..." logging since it's handled in the controller now
 }
 
 function updateGuitarEffectButtonHighlight(activeEffect) {

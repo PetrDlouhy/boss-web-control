@@ -187,7 +187,7 @@
         .btn.warning:hover {
             background: #F57C00;
         }
-
+        
         .btn.tuner {
             background: #9C27B0;
         }
@@ -374,11 +374,14 @@
             border-radius: 8px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             transition: all 0.2s;
-            min-height: 60px;
+            min-height: 40px;
             cursor: pointer;
             overflow: hidden;
             user-select: none;
             border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
         }
         
         .parameter-control:hover {
@@ -424,31 +427,25 @@
         }
         
         .parameter-label {
-            position: absolute;
-            top: 8px;
-            left: 10px;
-            right: 10px;
             font-weight: bold;
             color: #333;
-            font-size: 0.8em;
-            line-height: 1.1;
+            font-size: 0.9em;
             z-index: 3;
             text-shadow: 0 1px 2px rgba(255,255,255,0.8);
             pointer-events: none;
+            flex: 1;
+            text-align: left;
         }
         
         .parameter-value {
-            position: absolute;
-            bottom: 8px;
-            left: 10px;
-            right: 10px;
             font-size: 0.9em;
             font-weight: bold;
             color: #fff;
-            text-align: center;
             z-index: 3;
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
             pointer-events: none;
+            text-align: right;
+            min-width: 60px;
         }
         
         .parameter-control.current .parameter-label {
@@ -531,7 +528,7 @@
             }
             
             .parameter-control {
-                min-height: 50px;
+                min-height: 44px;
             }
             
             .controls-section {
@@ -788,6 +785,298 @@
         .bind-info-overlay.show {
             display: block;
         }
+        
+        /* Looper Button Styles */
+        .looper-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .looper-btn {
+            padding: 12px 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #f8f9fa;
+            color: #495057;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            user-select: none;
+        }
+        
+        .looper-btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+        
+        .looper-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+        
+        /* Specific button colors */
+        .looper-btn[data-value="0"] {
+            /* Stop button - red theme */
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+        
+        .looper-btn[data-value="0"]:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .looper-btn[data-value="1"] {
+            /* Record button - red theme */
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+        
+        .looper-btn[data-value="1"]:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .looper-btn[data-value="2"] {
+            /* Play button - green theme */
+            border-color: #28a745;
+            color: #28a745;
+        }
+        
+        .looper-btn[data-value="2"]:hover {
+            background: #28a745;
+            color: white;
+        }
+        
+        .looper-btn[data-value="3"] {
+            /* Overdub button - orange theme */
+            border-color: #fd7e14;
+            color: #fd7e14;
+        }
+        
+        .looper-btn[data-value="3"]:hover {
+            background: #fd7e14;
+            color: white;
+        }
+        
+        /* Active state specific colors */
+        .looper-btn[data-value="0"].active {
+            background: #dc3545;
+            border-color: #c82333;
+        }
+        
+        .looper-btn[data-value="1"].active {
+            background: #dc3545;
+            border-color: #c82333;
+        }
+        
+        .looper-btn[data-value="2"].active {
+            background: #28a745;
+            border-color: #1e7e34;
+        }
+        
+        .looper-btn[data-value="3"].active {
+            background: #fd7e14;
+            border-color: #e55d00;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .looper-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Tuner Section Styles */
+        .tuner-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .tuner-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        
+        .tuner-toggle .btn {
+            min-width: 160px;
+            font-weight: bold;
+        }
+        
+        /* Enhanced Tuner Styles */
+        .tuner-visual {
+            background: #2c3e50;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            display: none; /* Hidden by default, shown when tuner is active */
+        }
+        
+        .tuner-visual.active {
+            display: block;
+        }
+        
+        .tuner-meter {
+            background: #34495e;
+            height: 40px;
+            border-radius: 20px;
+            position: relative;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .tuner-meter::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3px;
+            height: 60%;
+            background: #e74c3c;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+        
+        .tuner-scale {
+            display: flex;
+            justify-content: space-between;
+            color: #bdc3c7;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .tuner-frequency-display {
+            text-align: center;
+            color: #ecf0f1;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .tuner-note-display {
+            text-align: center;
+            color: #3498db;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .tuner-presets {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+            margin: 15px 0;
+        }
+        
+        .tuner-preset-btn {
+            padding: 8px 12px;
+            border: 2px solid #3498db;
+            border-radius: 6px;
+            background: transparent;
+            color: #3498db;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tuner-preset-btn:hover {
+            background: #3498db;
+            color: white;
+        }
+        
+        .tuner-preset-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .tuner-controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .tuner-help {
+            background: #ecf0f1;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #2c3e50;
+            line-height: 1.4;
+        }
+        
+        .tuner-help strong {
+            color: #e67e22;
+        }
+        
+        .tuner-status {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #7f8c8d;
+        }
+        
+        .tuner-status.listening {
+            color: #27ae60;
+        }
+        
+        .tuner-status.off {
+            color: #95a5a6;
+        }
+        
+        /* Quick Key Selection */
+        .tuner-key-presets {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+            margin: 10px 0;
+        }
+        
+        .tuner-key-btn {
+            padding: 8px 4px;
+            border: 2px solid #9b59b6;
+            border-radius: 4px;
+            background: transparent;
+            color: #9b59b6;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tuner-key-btn:hover {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        .tuner-key-btn.active {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .tuner-presets {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .tuner-key-presets {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .tuner-controls-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -801,7 +1090,7 @@
         
         <div class="header-right">
             <button id="settingsBtn" class="btn-secondary">⚙️ Settings</button>
-            <span id="versionText" class="version-text">v2.17.7</span>
+                            <span id="versionText" class="version-text">v2.22.0</span>
         </div>
         
         <div class="status-section">
@@ -820,7 +1109,6 @@
             <button id="connectBtn" class="btn">Connect Boss Cube</button>
             <button id="connectPedalBtn" class="btn" disabled>Connect Pedal (EV-1-WL)</button>
             <button id="readValuesBtn" class="btn" disabled>🔄 Reload Values</button>
-            <button id="tunerBtn" class="btn" disabled>🎵 Tuner</button>
         </div>
         
         <div class="mixer-container">

@@ -1,280 +1,271 @@
-# Boss Cube Web Control - Connection Test
+# Boss Cube Web Control
 
-A minimal Progressive Web App to test Web Bluetooth connection with Boss Cube II amplifier.
+**Open-source alternative to the official Boss CUBE Street II Editor app**
 
-## Features
+A comprehensive Progressive Web App implementing reverse-engineered SysEx protocols to provide complete wireless control over the Boss Cube II amplifier, with technical improvements and additional functionality not available in the official application.
 
-- ✅ **Full Mixer Interface** - All Boss Cube II parameters in one place
-- ✅ **Mixer Controls** - Master, Mic/Instrument, Guitar, Aux, iCube Link volumes
-- ✅ **Effects Controls** - Reverb, Chorus, Phaser, Tremolo, T.WAH with levels and switching
-- ✅ **EV-1-WL Pedal support** - Control any parameter with expression pedal via Bluetooth
-- ✅ **Parameter Switching** - Right/Left footswitches cycle through all parameters
-- ✅ **Dual Bluetooth connections** - Boss Cube + EV-1-WL pedal simultaneously
-- ✅ **Visual Current Parameter** - Highlighted control shows what pedal controls
-- ✅ **Quick Value Buttons** - 0, 50%, Max buttons for each parameter
-- ✅ **Click to Select** - Tap any parameter to make it pedal-controllable
-- ✅ **Real-time sync** - UI updates instantly with pedal movements
-- ✅ **Mobile-responsive design** - Works perfectly on phones and tablets
-- ✅ **PWA installable** - Add to home screen on Android
+**Current Version:** 2.22.1
 
-## Requirements
+---
+
+## 🔧 **Technical Improvements Over Official Boss App**
+
+### ⚠️ **Official App Technical Limitations**
+- **Disruptive UI Behavior** - Long-press triggers numerical edit mode, interrupting real-time control
+- **No Pedal Integration** - Missing EV-1-WL pedal support despite using same BLE MIDI protocol
+- **Incomplete Parameter Access** - Missing gain control and advanced parameter binding features
+- **Desktop-Only Interface** - No mobile/touch-optimized interface for portable use
+
+### ✅ **Technical Solutions Implemented**
+- **Direct Parameter Control** - Immediate slider response without disruptive edit modes
+- **Dual Bluetooth Architecture** - Simultaneous Boss Cube + EV-1-WL connectivity via BLE MIDI
+- **Complete SysEx Implementation** - Full parameter access including all discovered addresses
+- **Progressive Web App** - Cross-platform mobile interface with offline capability
+- **Advanced Control Features** - Pickup mode, parameter binding, real-time synchronization
+
+---
+
+## 🔧 **Technical Features**
+
+### 🎚️ **Complete Mixer Interface**
+- **Master Volume** - Overall amplifier output control
+- **Mic/Instrument Volume** - Input channel 1 level
+- **Guitar/Mic Volume** - Input channel 2 level  
+- **Aux/Bluetooth Volume** - External audio input level
+- **i-CUBE LINK Out** - External audio output level
+
+### 🎸 **Guitar Effects & Controls**
+- **Guitar EQ** - Bass, Middle, Treble, Gain controls
+- **Guitar Amp Types** - Complete amp type selection
+- **Guitar Effects** - Phaser, Chorus, Tremolo, T.WAH, Flanger with automatic switching
+- **Guitar Delay** - Comprehensive delay controls
+
+### 🎤 **Mic/Instrument Effects & Controls** 
+- **Mic/Inst EQ** - Bass, Middle, Treble controls
+- **Mic/Inst Effects** - Harmony, Chorus, Phaser, Flanger, Tremolo, T.WAH with automatic switching
+
+### 🌊 **Shared Reverb System**
+- **Shared Reverb Controls** - Type, Time, Pre-Delay, Low Cut, High Cut, Density, Knob Assign
+- **Separate Reverb Levels** - Independent effect levels for Guitar and Mic/Inst channels
+
+### 🔁 **Looper Controls**
+- **Stop** - Erase current loop
+- **Record** - Start/end recording
+- **Play** - Playback recorded loop
+- **Overdub** - Layer additional audio
+
+### 🎵 **Professional Tuner Interface**
+- **Visual Tuner Display** - Frequency and note detection
+- **Frequency Presets** - Quick selection buttons (435-445Hz)
+- **Reference Key Selection** - Chromatic tuning support (C through B)
+- **Pitch Parameters** - Fine-tuning controls
+
+### 🦶 **EV-1-WL Pedal Integration**
+- **Dual Bluetooth Connections** - Boss Cube + EV-1-WL simultaneously
+- **Any Parameter Control** - Expression pedal controls any mixer/effects parameter
+- **Footswitch Navigation** - Left/Right footswitches cycle through parameters
+- **Pickup Mode** - Seamless pedal position synchronization
+- **Visual Parameter Selection** - Orange highlighting shows active pedal control
+- **Touch to Select** - Tap any parameter to assign pedal control
+
+### 📱 **Mobile & Performance Features**
+- **Progressive Web App** - Install on mobile devices
+- **Responsive Design** - Optimized for phones, tablets, and desktop
+- **Wake Lock Support** - Prevents screen sleep during performances
+- **Master Bind** - Link Master Out to Aux volume knob
+- **Real-time Sync** - Bidirectional parameter synchronization
+- **Physical Knob Detection** - Responds to hardware control changes
+
+### ⚙️ **Advanced Features**
+- **Settings Management** - Customizable pedal CC codes and footswitch polarity
+- **Comprehensive Logging** - Detailed connection and parameter change logs
+- **Parameter Read/Write** - Full bidirectional communication
+- **Effect Switching** - Automatic effect mode activation
+- **Value Presets** - Quick 0%, 50%, 100% buttons for all parameters
+- **Debug Tools** - Connection testing and parameter validation
+---
+
+## 🔧 **Technical Requirements**
 
 ### Browser Support
 - **Chrome 56+** (recommended)
-- **Edge 79+**
+- **Edge 79+** 
 - **Opera 43+**
 
 **Note**: Web Bluetooth is NOT supported in Firefox or Safari.
 
 ### Connection Requirements
 - **HTTPS required** (or localhost for testing)
-- Boss Cube II must be in **Bluetooth pairing mode** (flashing Bluetooth LED)
+- Boss Cube II in **Bluetooth pairing mode** (flashing LED)
 - Boss Cube should NOT be connected to system Bluetooth
+- EV-1-WL pedal in pairing mode (if using pedal features)
 
-## Quick Start
+---
 
-### 1. Start Local HTTPS Server
+## 🚀 **Quick Start Guide**
+
+### 1. Setup Local Server
 
 ```bash
 # Navigate to project directory
 cd boss-cube-web-control
 
-# Option A: Python 3 (if available)
+# Choose one option:
+# Python 3
 python3 -m http.server 8000
 
-# Option B: Node.js (if available)
+# Node.js
 npx serve -p 8000
 
-# Option C: Simple Python 2
+# Python 2  
 python -m SimpleHTTPServer 8000
 ```
 
 ### 2. Access via HTTPS
 
-For Web Bluetooth to work, you need HTTPS. Use one of these methods:
-
-**Method A: Use ngrok (recommended for mobile testing)**
+**Method A: ngrok (recommended for mobile)**
 ```bash
-# Install ngrok if not already installed
-# Then run:
 ngrok http 8000
-```
-This gives you an HTTPS URL like `https://abc123.ngrok.io`
-
-**Method B: Use localhost (desktop only)**
-- Open: `https://localhost:8000`
-- Accept the security warning
-
-**Method C: Chrome flags (desktop only)**
-- Go to `chrome://flags/`
-- Enable "Insecure origins treated as secure"
-- Add `http://localhost:8000` to the list
-
-### 3. Prepare Boss Cube
-
-1. **Power on** your Boss Cube II
-2. **Enter Bluetooth mode** - press and hold Bluetooth button until LED flashes
-3. **Disconnect from system Bluetooth** if previously paired
-4. Keep Cube in discoverable mode (flashing Bluetooth LED)
-
-### 4. Test Connection
-
-1. Open the HTTPS URL in Chrome/Edge
-2. Click **"Connect to Boss Cube"**
-3. Select your Boss Cube from the device list
-4. Watch the log for connection status
-
-### 5. Test Commands
-
-If connection succeeds, try these tests:
-
-- **Master Volume Slider**: Should control amp volume in real-time
-- **Mute Button**: Should set volume to 0
-- **Unmute Button**: Should set volume to 50%
-- **Test Command**: Should set volume to 25%
-
-## Expected Results
-
-### ✅ Success Indicators
-- Device appears in Bluetooth picker dialog
-- Log shows "Successfully connected to Boss Cube!"
-- Status shows "Connected" in green
-- Volume controls affect the amplifier
-- SysEx commands appear in log
-
-### ❌ Common Issues
-
-**"No devices found"**
-- Boss Cube not in pairing mode (LED should flash)
-- Boss Cube already connected elsewhere
-- Bluetooth disabled on device
-
-**"Connection failed"**
-- Boss Cube connected to system Bluetooth (disconnect first)
-- Boss Cube paired to phone/tablet (disconnect first)
-- Boss Cube timeout (try power cycling)
-
-**"Web Bluetooth not supported"**
-- Wrong browser (use Chrome/Edge)
-- HTTP instead of HTTPS
-- Unsupported platform
-
-**"Service not found"**
-- Boss Cube may not be advertising BLE MIDI service
-- Try disconnecting from all devices and restarting Cube
-
-## Keyboard Shortcuts
-
-- **C**: Connect/Disconnect
-- **Space**: Mute/Unmute toggle
-- **T**: Send test command
-
-## Technical Details
-
-### SysEx Commands Sent
-
-The app sends standard Roland SysEx commands:
-
-```
-Master Volume: F0 41 10 00 00 00 00 09 12 20 00 00 04 [value] [checksum] F7
+# Use provided HTTPS URL: https://abc123.ngrok.io
 ```
 
-### BLE MIDI Format
-
-Commands are wrapped in BLE MIDI format:
+**Method B: localhost (desktop only)**
 ```
-[0x90] [timestamp] [0xF0] [sysex_data] [timestamp] [0xF7]
-```
-
-### Web Bluetooth Services Used
-
-- **Service**: `03b80e5a-ede8-4b33-a751-6ce34ec4c700` (BLE MIDI)
-- **Characteristic**: `7772e5db-3868-4112-a1a9-f2669d106bf3` (BLE MIDI I/O)
-
-## Mobile Testing (Android)
-
-1. **Use ngrok HTTPS URL** (required for mobile)
-2. **Install as PWA**: 
-   - Chrome menu → "Add to Home screen"
-   - App appears as native app icon
-3. **Test on phone**: Same functionality as desktop
-
-## Troubleshooting
-
-### Boss Cube Connection Issues
-
-1. **Power cycle the Boss Cube**
-2. **Clear Bluetooth cache**: Settings → Apps → Bluetooth → Storage → Clear Cache
-3. **Reset Bluetooth**: Turn off/on device Bluetooth
-4. **Check pairing mode**: LED should flash, not solid
-
-### Browser Issues
-
-1. **Clear browser cache**: Ctrl+Shift+Delete
-2. **Reset permissions**: Site settings → Reset permissions
-3. **Try incognito mode**: Rules out extension conflicts
-4. **Check console**: F12 → Console for detailed errors
-
-## Next Steps
-
-If this test works successfully:
-
-1. ✅ Web Bluetooth connection confirmed
-2. ✅ SysEx command sending works
-3. ✅ Boss Cube responds correctly
-4. → Ready to build full mixer interface
-5. → Add pedal control (Web MIDI API)
-6. → Implement all parameters from Python script
-
-## Files Structure
-
-```
-boss-cube-web-control/
-├── index.html              # Main interface
-├── manifest.json           # PWA manifest
-├── boss-cube-controller.js  # Core Bluetooth logic
-├── app.js                  # UI interaction handling
-└── README.md              # This file
+https://localhost:8000
+# Accept security warning
 ```
 
-## Compatibility
+### 3. Prepare Hardware
 
-| Platform | Chrome | Edge | Firefox | Safari |
-|----------|--------|------|---------|--------|
-| Windows  | ✅     | ✅   | ❌      | ❌     |
-| Linux    | ✅     | ✅   | ❌      | ❌     |
-| Android  | ✅     | ✅   | ❌      | ❌     |
-| iOS      | ❌     | ❌   | ❌      | ❌     |
+**Boss Cube II:**
+1. Power on amplifier
+2. Press and hold Bluetooth button until LED flashes
+3. Ensure not connected to system Bluetooth
 
-**Web Bluetooth is not supported on iOS devices.**
+**EV-1-WL Pedal (optional):**
+1. Power on pedal
+2. Put in Bluetooth pairing mode
+3. Ensure not connected to system Bluetooth
 
-## 🎛️ **Full Mixer Interface**
+### 4. Connect & Control
 
-The app now provides complete control over all Boss Cube II parameters:
-
-### Mixer Section:
-- **Master Volume** - Overall amplifier output
-- **Mic/Instrument Volume** - Input channel 1 
-- **Guitar/Mic Volume** - Input channel 2
-- **iCube Link/Aux/BT Volume** - External audio input
-- **iCube Link Out Volume** - External audio output
-- **Additional Mixer Channels** - Experimental addresses for discovery
-
-### Effects Section:
-- **Guitar Reverb Time** - 0-49 seconds
-- **Guitar Reverb Level** - Reverb intensity
-- **Guitar Chorus Level** - Chorus effect with automatic mode switching
-- **Guitar Phaser Level** - Phaser effect with automatic mode switching  
-- **Guitar Tremolo Level** - Tremolo effect with automatic mode switching
-- **Guitar T.WAH Level** - Touch-wah effect with automatic mode switching
-
-## 🦶 **Pedal Support (EV-1-WL)**
-
-### Connection:
-- **Put your EV-1-WL pedal in Bluetooth pairing mode**
-- **Click "Connect Pedal (EV-1-WL)" button** after Boss Cube is connected
-- **Select your pedal** from the Bluetooth device picker
-- **Green "🎹 Pedal: EV-1-WL" status** indicates successful connection
-
-### Controls:
-- **Expression pedal** → Real-time control of currently selected parameter via BLE MIDI
-- **Right footswitch** → Next parameter (cycles through all mixer and effects controls)
-- **Left footswitch** → Previous parameter
-
-### Features:
-- **Any Parameter Control** - Pedal can control Master Vol, Reverb, Chorus, etc.
-- **Visual Feedback** - Current parameter highlighted in orange on screen
-- **Parameter Cycling** - Footswitches let you switch between all 16 parameters
-- **Effect Switching** - Automatically activates effect modes (Chorus, Phaser, etc.)
-- **Bidirectional sync** - UI updates instantly when pedal moves
-- **Touch to Select** - Tap any parameter on screen to make it pedal-controlled
-- **Live performance ready** - Optimized for stage use with clear visual feedback
-
-## 🎯 **Quick Usage Guide**
-
-### Getting Started:
-1. **Connect Boss Cube** - Click "Connect Boss Cube", select your CUBE device
-2. **Connect Pedal** (optional) - Click "Connect Pedal", select your EV-1-WL 
-3. **Control Parameters** - Use sliders, buttons, or pedal to adjust any parameter
-
-### Pedal Control:
-1. **Current Parameter** - Shows which parameter the pedal controls (highlighted in orange)
-2. **Switch Parameters** - Use right/left footswitches OR tap any parameter on screen
-3. **Control Value** - Move expression pedal to adjust the selected parameter
-4. **Effect Switching** - Effects automatically activate when selected (Chorus, Phaser, etc.)
-
-### UI Features:
-- **Orange Highlight** - Shows current pedal-controlled parameter
-- **Real-time Updates** - All controls sync instantly with pedal movements
-- **Quick Buttons** - 0, 50%, Max buttons for rapid parameter setting
-- **Visual Feedback** - Parameter values update in real-time
-
-### Live Performance Tips:
-- **Pre-select Parameters** - Tap parameters you'll need during performance
-- **Use Footswitches** - Keep hands free by switching parameters with feet
-- **Watch Highlights** - Orange highlighting shows active parameter clearly
-- **Mobile Friendly** - Works great on phones and tablets for stage use
+1. **Open app** in Chrome/Edge via HTTPS URL
+2. **Connect Boss Cube** - Click "Connect Boss Cube", select device
+3. **Connect Pedal** (optional) - Click "Connect Pedal", select EV-1-WL
+4. **Control Parameters** - Use sliders, buttons, or pedal for real-time control
 
 ---
 
-*This is a test implementation. For production use, add proper error handling, device management, and more Boss Cube parameters.* 
+## 🎯 **Usage Guide**
+
+### Basic Controls
+- **Parameter Sliders** - Direct value control with visual feedback
+- **Effect Buttons** - Toggle between effect types (auto-switching)
+- **Looper Buttons** - One-click loop recording and playback
+
+### Pedal Control (EV-1-WL)
+- **Current Parameter** - Orange highlight shows pedal-controlled parameter
+- **Parameter Switching** - Right/Left footswitches OR tap any parameter
+- **Expression Control** - Real-time parameter adjustment via pedal movement
+- **Pickup Mode** - Automatic position synchronization when switching parameters
+
+### Live Performance Features
+- **Touch to Select** - Tap parameters for instant pedal assignment
+- **Visual Feedback** - Clear indication of active controls and values
+- **Mobile Support** - Works on phones/tablets for stage-side control
+- **Wake Lock** - Screen stays on during performances
+
+---
+
+## 🏗️ **Architecture**
+
+### Core Technologies
+- **Web Bluetooth API** - Direct Boss Cube communication
+- **BLE MIDI** - EV-1-WL pedal connectivity  
+- **Progressive Web App** - Mobile installation and offline capability
+- **Service Worker** - Caching and update management
+- **Local Storage** - Settings persistence
+
+### Communication Protocol
+- **SysEx Commands** - Roland-standard parameter control
+- **BLE MIDI Format** - Timestamped MIDI message wrapping
+- **Dual Bluetooth** - Independent Boss Cube and pedal connections
+- **Real-time Sync** - Bidirectional parameter state management
+
+### Technical Foundation
+This project is built on comprehensive reverse-engineered SysEx documentation from the [Boss Cube Street II SysEx project](https://github.com/PetrDlouhy/street-cube-II-sysex), which provides complete parameter mappings, command formats, and communication protocols discovered through Bluetooth HCI analysis of the official Boss Tone Studio app.
+
+### File Structure
+```
+boss-cube-web-control/
+├── index.html              # Main interface & UI
+├── app.js                  # UI logic & event handling  
+├── boss-cube-controller.js # Core Bluetooth & parameter logic
+├── manifest.json           # PWA configuration
+├── sw.js                   # Service worker for caching
+├── README.md              # Main documentation
+├── PLANNING.md            # High-level vision & goals
+├── TASKS.md              # Development roadmap
+└── HISTORY.md            # Version history & changelog
+```
+
+---
+
+## 🔍 **Troubleshooting**
+
+### Connection Issues
+**"No devices found"**
+- Boss Cube not in pairing mode (LED should flash)
+- Already connected to system Bluetooth
+- Bluetooth disabled on device
+
+**"Connection failed"**  
+- Boss Cube connected elsewhere (disconnect first)
+- Connection timeout (power cycle Cube)
+- HTTPS not enabled
+
+**"Service not found"**
+- Boss Cube not advertising BLE MIDI
+- Restart Cube and try again
+
+### Browser Issues
+- **Clear cache** - Ctrl+Shift+Delete  
+- **Reset permissions** - Site settings → Reset
+- **Try incognito** - Rules out extension conflicts
+- **Check console** - F12 → Console for errors
+
+---
+
+## 🔧 **Platform Compatibility**
+
+| Platform | Chrome | Edge | Firefox | Safari | Notes |
+|----------|--------|------|---------|--------|-------|
+| Windows  | ✅     | ✅   | ❌      | ❌     | Web Bluetooth support required |
+| Linux    | ✅     | ✅   | ❌      | ❌     | Web Bluetooth support required |
+| Android  | ✅     | ✅   | ❌      | ❌     | Mobile PWA installation supported |
+| iOS      | ❌     | ❌   | ❌      | ❌     | Web Bluetooth not implemented |
+
+**Requires Web Bluetooth API support (Chrome 56+, Edge 79+)**
+
+---
+
+## 🤝 **Contributing**
+
+This is an open-source project implementing reverse-engineered SysEx protocols for Boss Cube II control. Areas for contribution include:
+
+- **Protocol Discovery**: Mapping additional SysEx parameters and functions
+- **Feature Development**: Implementation of new control features and interfaces
+- **Testing**: Cross-platform compatibility and device testing
+- **Documentation**: Technical guides and user documentation improvements
+
+See the [Boss Cube Street II SysEx project](https://github.com/PetrDlouhy/street-cube-II-sysex) for protocol documentation and reverse-engineering methodology.
+
+---
+
+## 📄 **License**
+
+This open-source project implements documented SysEx protocols for educational and practical use. Use responsibly and ensure proper volume levels to protect hearing and equipment.
+
+---
+
+*For additional documentation, see PLANNING.md for project vision, TASKS.md for development roadmap, and HISTORY.md for version history.* 
