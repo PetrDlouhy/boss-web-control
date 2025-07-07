@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Service Worker
 // Enables PWA functionality with aggressive update strategy
 
-const VERSION = '2.22.14';
+const VERSION = '2.22.15';
 const CACHE_NAME = `boss-cube-control-v${VERSION}`;
 const urlsToCache = [
     '/',
@@ -40,13 +40,14 @@ self.addEventListener('install', event => {
     // This allows proper update detection
 });
 
-// Fetch event - network first for HTML/JS, cache for others
+// Fetch event - network first for HTML/JS/CSS to ensure updates
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     
-    // For HTML and JS files, try network first to get updates
+    // For HTML, JS and CSS files, try network first to get updates
     if (url.pathname.endsWith('.html') || 
         url.pathname.endsWith('.js') || 
+        url.pathname.endsWith('.css') || 
         url.pathname === '/') {
         
         event.respondWith(
@@ -104,6 +105,16 @@ self.addEventListener('message', event => {
     }
     
     if (event.data && event.data.action === 'skipWaiting') {
-        self.skipWaiting();
+        // Clear all caches before skipWaiting for immediate update
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    console.log('Force clearing cache for update:', cacheName);
+                    return caches.delete(cacheName);
+                })
+            );
+        }).then(() => {
+            self.skipWaiting();
+        });
     }
 }); 

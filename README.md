@@ -4,7 +4,7 @@
 
 A comprehensive Progressive Web App implementing reverse-engineered SysEx protocols to provide complete wireless control over the Boss Cube II amplifier, with technical improvements and additional functionality not available in the official application.
 
-**Current Version:** 2.22.14
+**Current Version:** 2.22.14-alpha.13 ([Release Process](RELEASE_PROCESS.md))
 
 ---
 
@@ -49,10 +49,19 @@ A comprehensive Progressive Web App implementing reverse-engineered SysEx protoc
 - **Separate Reverb Levels** - Independent effect levels for Guitar and Mic/Inst channels
 
 ### 🔁 **Looper Controls**
-- **Stop** - Erase current loop
-- **Record** - Start/end recording
-- **Play** - Playback recorded loop
-- **Overdub** - Layer additional audio
+- **Erase Loop** - Clear current loop content
+- **Paused** - Pause current loop operation
+- **Recording** - Record new loop content
+- **Playing** - Playback recorded loop
+- **Overdub** - Layer additional audio over existing loop
+- **Standby** - Looper ready state
+
+### 🔧 **Looper Settings**
+- **Recording Time** - Normal (45s/Stereo) or Long (90s/Mono) recording time
+- **Mic/Inst Assign** - Include Mic/Inst input in looper
+- **Guitar/Mic Assign** - Include Guitar/Mic input in looper
+- **Reverb Assign** - Include reverb effects in looper
+- **I-Cube Link/Aux/BT Assign** - Include external audio sources in looper
 
 ### 🎵 **Professional Tuner Interface**
 - **Visual Tuner Display** - Frequency and note detection

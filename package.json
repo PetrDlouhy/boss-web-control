@@ -1,6 +1,6 @@
 {
   "name": "boss-cube-web-control",
-  "version": "2.22.14",
+  "version": "2.22.14-alpha.13",
   "description": "Web-based control interface for Boss Cube Street II amplifier",
   "type": "module",
   "scripts": {

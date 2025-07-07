@@ -658,7 +658,8 @@ class BossCubeController {
                 let uiValue = value;
                 
                 // Parameters that need -1 conversion (1-based Boss Cube to 0-based UI)
-                const needsMinusOne = ['looperControl'];
+                // Note: looperControl removed - Boss Cube sends 0-based values (0-5), not 1-based
+                const needsMinusOne = [];
                 if (needsMinusOne.includes(key)) {
                     uiValue = Math.max(0, value - 1);
                 }

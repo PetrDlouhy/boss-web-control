@@ -3,7 +3,7 @@
 
 import BossCubeController from './boss-cube-controller.js';
 
-const VERSION = '2.22.14';
+const VERSION = '2.22.15';
 
 let bossCubeController = null;
 let currentParameterKey = 'masterVolume';
@@ -76,8 +76,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     refreshBtn.addEventListener('click', () => {
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            // Clear browser cache and reload aggressively
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        console.log('Clearing cache:', name);
+                        caches.delete(name);
+                    });
+                });
+            }
+            
             navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
-            window.location.reload();
+            
+            // Force reload with cache bypass
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 100);
+        } else {
+            // Fallback: force reload with cache bypass
+            window.location.reload(true);
         }
     });
     
@@ -359,13 +376,8 @@ function createParameterControls() {
 function createEffectsInterface() {
     effectsControlsEl.innerHTML = `
         <div class="effects-section">
-            <h4>🔁 Looper Control</h4>
-            <div class="looper-buttons">
-                <button id="looperStopBtn" class="looper-btn" data-value="0">⏹️ Stop</button>
-                <button id="looperRecordBtn" class="looper-btn" data-value="1">🔴 Record</button>
-                <button id="looperPlayBtn" class="looper-btn" data-value="2">▶️ Play</button>
-                <button id="looperOverdubBtn" class="looper-btn" data-value="3">🔄 Overdub</button>
-            </div>
+            <div id="looperControls"></div>
+            <div id="looperSettings"></div>
         </div>
 
         <div class="effects-section">
@@ -499,6 +511,7 @@ function createEffectsInterface() {
     
     // Initially populate all effect controls
     updateLooperControls();
+    updateLooperSettingsControls();
     updateMicInstEQControls();
     updateGuitarEQControls();
     updateGuitarAmpControls();
@@ -507,11 +520,7 @@ function createEffectsInterface() {
     updateReverbDelayControls();
     updateTunerControls();
     
-    // Update looper button state to match current parameter value
-    const looperParam = bossCubeController.parameters.looperControl;
-    if (looperParam) {
-        updateLooperButtonState(looperParam.current);
-    }
+    // Looper controls are set up in updateLooperControls() with current state
 }
 
 function setupEffectSelectors() {
@@ -614,54 +623,526 @@ function updateReverbDelayControls() {
 }
 
 function updateLooperControls() {
-    const buttons = document.querySelectorAll('.looper-btn');
-    if (!buttons.length) return;
+    const container = document.getElementById('looperControls');
+    if (!container) return;
     
-    buttons.forEach(button => {
-        // Remove existing event listeners to prevent duplicates
-        button.replaceWith(button.cloneNode(true));
-    });
+    // Create the looper control UI
+    const looperControl = bossCubeController.parameters.looperControl;
+    if (!looperControl) return;
     
-    // Re-select buttons after cloning
-    const newButtons = document.querySelectorAll('.looper-btn');
+    // Looper buttons with icons and descriptive labels
+    const looperButtons = [
+        { icon: '⏹️', title: 'Erase Loop', label: 'Erase' },      // 0
+        { icon: '⏸️', title: 'Paused', label: 'Paused' },         // 1  
+        { icon: '🔴', title: 'Recording', label: 'Record' },      // 2
+        { icon: '▶️', title: 'Playing', label: 'Play' },          // 3
+        { icon: '🔄', title: 'Overdub', label: 'Overdub' },       // 4
+        { icon: '⏯️', title: 'Standby', label: 'Standby' }        // 5
+    ];
     
-    newButtons.forEach(button => {
-        button.addEventListener('click', async (e) => {
-            const value = parseInt(e.target.getAttribute('data-value'));
-            
+    container.innerHTML = `
+        <div class="section-header">
+            <h4>🔁 Looper Control</h4>
+            <div class="header-buttons">
+                <button class="settings-btn" id="looperSettingsBtn" title="Looper Settings">⚙️</button>
+                <button class="info-btn" id="looperInfoBtn" title="Show looper controls help">ℹ️</button>
+            </div>
+        </div>
+        <div class="looper-buttons-improved">
+            ${looperButtons.map((btn, index) => `
+                <button class="looper-btn-improved ${looperControl.current === index ? 'active' : ''}" 
+                        data-value="${index}" 
+                        data-looper-value="${index}"
+                        title="${btn.title}">
+                    <div class="looper-icon">${btn.icon}</div>
+                    <div class="looper-label">${btn.label}</div>
+                </button>
+            `).join('')}
+        </div>
+        <style>
+            .section-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+            .header-buttons {
+                display: flex;
+                gap: 5px;
+            }
+            .settings-btn, .info-btn {
+                background: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .settings-btn:hover, .info-btn:hover {
+                background: #5a6268;
+            }
+            .looper-buttons-improved {
+                display: flex;
+                gap: 5px;
+                margin: 10px 0;
+            }
+            .looper-btn-improved {
+                flex: 1;
+                height: 48px;
+                border: 1px solid #ddd;
+                background: #f8f9fa;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 4px;
+            }
+            .looper-icon {
+                font-size: 16px;
+                line-height: 1;
+                margin-bottom: 2px;
+            }
+            .looper-label {
+                font-size: 8px;
+                line-height: 1;
+                font-weight: bold;
+                text-transform: uppercase;
+                opacity: 0.8;
+            }
+            .looper-btn-improved:hover {
+                background: #e9ecef;
+                border-color: #adb5bd;
+            }
+            .looper-btn-improved.active {
+                background: #28a745;
+                color: white;
+                border-color: #1e7e34;
+            }
+        </style>
+    `;
+    
+    // Set up looper buttons with improved styling
+    const looperBtns = container.querySelectorAll('.looper-btn-improved');
+    looperBtns.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
             if (!bossCubeController.isCubeConnected) {
                 log('Boss Cube not connected - cannot control looper', 'error');
                 return;
             }
             
+                        // Get the button element (in case we clicked on inner div)
+            const button = e.target.closest('.looper-btn-improved');
+            const value = parseInt(button.getAttribute('data-looper-value'));
+            
             try {
-                // Send looper command to Boss Cube using the regular setParameter method
                 await bossCubeController.setParameter('looperControl', value);
                 
-                // Update button visual state
-                updateLooperButtonState(value);
+                // Update parameter value locally for immediate UI response
+                looperControl.current = value;
                 
-                const actionName = e.target.textContent.trim();
+                // Update button visual state immediately
+                const allLooperBtns = container.querySelectorAll('.looper-btn-improved');
+                allLooperBtns.forEach((btn, index) => {
+                    if (index === value) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+                
+                const actionName = button.getAttribute('title');
                 log(`🔁 Looper: ${actionName}`, 'success');
-                
             } catch (error) {
                 log(`Failed to control looper: ${error.message}`, 'error');
             }
         });
     });
+    
+    // Setup info button
+    const infoBtn = document.getElementById('looperInfoBtn');
+    if (infoBtn) {
+        infoBtn.addEventListener('click', () => {
+            const helpText = `🔁 Looper Controls:
+⏹️ Erase Loop - Clear current loop content
+⏸️ Paused - Pause current loop operation  
+🔴 Recording - Record new loop content
+▶️ Playing - Playback recorded loop
+🔄 Overdub - Layer additional audio over existing loop
+⏯️ Standby - Looper ready state
+
+📅 Recording Time: Normal (45s/Stereo) or Long (90s/Mono)
+Settings control which audio sources are included in loops.`;
+            alert(helpText);
+        });
+    }
 }
 
-function updateLooperButtonState(value) {
-    const buttons = document.querySelectorAll('.looper-btn');
+function updateLooperSettingsControls() {
+    const container = document.getElementById('looperSettings');
+    if (!container) return;
     
-    buttons.forEach(button => {
-        const buttonValue = parseInt(button.getAttribute('data-value'));
-        if (buttonValue === value) {
-            button.classList.add('active');
+    const looperSettings = [
+        { 
+            key: 'looperMicInstAssign', 
+            id: 'looperMicInstBtn',
+            icon: '🎤', 
+            label: 'Mic/Inst',
+            title: 'Include Mic/Inst input in loop'
+        },
+        { 
+            key: 'looperGuitarMicAssign', 
+            id: 'looperGuitarBtn',
+            icon: '🎸', 
+            label: 'Guitar',
+            title: 'Include Guitar input in loop'
+        },
+        { 
+            key: 'looperReverbAssign', 
+            id: 'looperReverbBtn',
+            icon: '🌊', 
+            label: 'Reverb',
+            title: 'Include reverb effects in loop'
+        },
+        { 
+            key: 'looperICubeLinkAssign', 
+            id: 'looperAuxBtn',
+            icon: '🔗', 
+            label: 'Aux/BT',
+            title: 'Include I-Cube Link/Aux/BT in loop'
+        }
+    ];
+    
+    container.innerHTML = `
+        <div class="looper-settings-improved">
+            ${looperSettings.map(({ key, id, icon, label, title }) => {
+                const param = bossCubeController.parameters[key];
+                if (!param) return '';
+                
+                const isActive = param.current === 1;
+                let statusText = '';
+                
+                // Only show status text for Rec Time, others rely on color
+                if (key === 'looperRecTime') {
+                    statusText = isActive ? 'Long (90s/Mono)' : 'Normal (45s/Stereo)';
+                }
+                
+                return `
+                    <button id="${id}" 
+                            class="toggle-btn-improved ${isActive ? 'active' : ''}" 
+                            data-param="${key}"
+                            title="${title}">
+                        <div class="toggle-icon">${icon}</div>
+                        <div class="toggle-label">${label}</div>
+                        ${statusText ? `<div class="toggle-status">${statusText}</div>` : ''}
+                    </button>
+                `;
+            }).join('')}
+        </div>
+        <style>
+            .looper-settings-improved {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 6px;
+                margin: 10px 0;
+            }
+            .toggle-btn-improved {
+                height: 56px;
+                border: 1px solid #ddd;
+                background: #f8f9fa;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 6px;
+                text-align: center;
+                font-size: 11px;
+                line-height: 1.2;
+            }
+            .toggle-btn-improved:hover {
+                background: #e9ecef;
+                border-color: #adb5bd;
+            }
+            .toggle-btn-improved.active {
+                background: #007bff;
+                color: white;
+                border-color: #0056b3;
+            }
+            .toggle-icon {
+                font-size: 16px;
+                margin-bottom: 2px;
+            }
+            .toggle-label {
+                font-weight: bold;
+                font-size: 10px;
+                margin-bottom: 2px;
+            }
+            .toggle-status {
+                font-size: 9px;
+                opacity: 0.9;
+            }
+            .toggle-btn-improved.active .toggle-status {
+                opacity: 1;
+                font-weight: bold;
+            }
+            
+            /* Responsive breakpoints - keep 4 buttons even on mobile */
+            @media (max-width: 768px) {
+                .looper-settings-improved {
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 4px;
+                }
+            }
+            @media (max-width: 480px) {
+                .looper-settings-improved {
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 2px;
+                }
+                .toggle-btn-improved {
+                    height: 40px;
+                    font-size: 8px;
+                    padding: 2px;
+                }
+                .toggle-icon {
+                    font-size: 12px;
+                }
+                .toggle-label {
+                    font-size: 8px;
+                }
+                .toggle-status {
+                    font-size: 7px;
+                }
+            }
+            /* Very small screens - still try to keep 4 buttons */
+            @media (max-width: 360px) {
+                .looper-settings-improved {
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 1px;
+                }
+                .toggle-btn-improved {
+                    height: 36px;
+                    font-size: 7px;
+                    padding: 1px;
+                }
+                .toggle-icon {
+                    font-size: 10px;
+                }
+                .toggle-label {
+                    font-size: 7px;
+                }
+                .toggle-status {
+                    font-size: 6px;
+                }
+            }
+        </style>
+        
+        <!-- Looper Settings Modal -->
+        <div id="looperSettingsModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>⚙️ Looper Settings</h3>
+                    <button class="modal-close" id="closeLooperSettings">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-item">
+                        <label>📅 Recording Time:</label>
+                        <div class="rec-time-options">
+                            <button id="recTimeNormal" class="rec-time-btn" data-value="0">
+                                Normal<br><small>45s / Stereo</small>
+                            </button>
+                            <button id="recTimeLong" class="rec-time-btn" data-value="1">
+                                Long<br><small>90s / Mono</small>
+                            </button>
+                        </div>
+                        <p class="setting-description">
+                            Normal mode provides 45 seconds of stereo recording. 
+                            Long mode provides 90 seconds but in mono only.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Set up toggle buttons with proper cleanup and debouncing
+    setupLooperToggleButtons();
+    
+    // Set up settings modal handlers
+    setupLooperSettingsModal();
+}
+
+function setupLooperToggleButtons() {
+    const container = document.getElementById('looperSettings');
+    if (!container) return;
+    
+    const toggleButtons = container.querySelectorAll('.toggle-btn-improved');
+    
+    toggleButtons.forEach(button => {
+        // Remove any existing event listeners by cloning the button
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        const paramKey = newButton.getAttribute('data-param');
+        const param = bossCubeController.parameters[paramKey];
+        
+        if (!param) return;
+        
+        // Add debounced click handler
+        let isProcessing = false;
+        newButton.addEventListener('click', async () => {
+            if (isProcessing) return; // Prevent rapid clicks
+            
+            if (!bossCubeController.isCubeConnected) {
+                log('Boss Cube not connected - cannot change looper settings', 'error');
+                return;
+            }
+            
+            isProcessing = true;
+            newButton.disabled = true;
+            
+            try {
+                // Toggle the value (0 -> 1, 1 -> 0)
+                const newValue = param.current === 0 ? 1 : 0;
+                
+                // Send to Boss Cube
+                await bossCubeController.setParameter(paramKey, newValue);
+                
+                // Update parameter value locally for immediate UI response
+                param.current = newValue;
+                
+                // Update button visual state immediately
+                if (newValue === 1) {
+                    newButton.classList.add('active');
         } else {
-            button.classList.remove('active');
+                    newButton.classList.remove('active');
+                }
+                
+                // Update button text to reflect new state (only for Rec Time)
+                if (paramKey === 'looperRecTime') {
+                    const statusText = newValue === 1 ? 'Long (90s/Mono)' : 'Normal (45s/Stereo)';
+                    const statusElement = newButton.querySelector('.toggle-status');
+                    if (statusElement) {
+                        statusElement.textContent = statusText;
+                    }
+                }
+                
+                const settingName = getSettingDisplayName(paramKey);
+                const stateName = newValue === 1 ? 'On' : 'Off';
+                log(`🔧 ${settingName} ${stateName}`, 'success');
+                
+            } catch (error) {
+                log(`Failed to update looper setting: ${error.message}`, 'error');
+            } finally {
+                isProcessing = false;
+                newButton.disabled = false;
+            }
+        });
+    });
+}
+
+// Function removed - looper settings now use automatic UI updates via updateParameterDisplayFromCube
+
+function setupLooperSettingsModal() {
+    const settingsBtn = document.getElementById('looperSettingsBtn');
+    const modal = document.getElementById('looperSettingsModal');
+    const closeBtn = document.getElementById('closeLooperSettings');
+    const recTimeNormal = document.getElementById('recTimeNormal');
+    const recTimeLong = document.getElementById('recTimeLong');
+    
+    if (!settingsBtn || !modal || !closeBtn) return;
+    
+    // Open modal
+    settingsBtn.addEventListener('click', () => {
+        modal.style.display = 'flex';
+        
+        // Update button states based on current parameter
+        const param = bossCubeController.parameters.looperRecTime;
+        if (param) {
+            recTimeNormal.classList.toggle('active', param.current === 0);
+            recTimeLong.classList.toggle('active', param.current === 1);
         }
     });
+    
+    // Close modal
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Escape key to close modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Rec Time button handlers
+    if (recTimeNormal) {
+        recTimeNormal.addEventListener('click', () => setRecordingTime(0));
+    }
+    if (recTimeLong) {
+        recTimeLong.addEventListener('click', () => setRecordingTime(1));
+    }
+}
+
+async function setRecordingTime(value) {
+    if (!bossCubeController.isCubeConnected) {
+        log('Boss Cube not connected - cannot change recording time', 'error');
+        return;
+    }
+    
+    try {
+        // Send to Boss Cube
+        await bossCubeController.setParameter('looperRecTime', value);
+        
+        // Update parameter value locally for immediate UI response
+        const param = bossCubeController.parameters.looperRecTime;
+        if (param) {
+            param.current = value;
+        }
+        
+        // Update button states
+        const recTimeNormal = document.getElementById('recTimeNormal');
+        const recTimeLong = document.getElementById('recTimeLong');
+        
+        if (recTimeNormal && recTimeLong) {
+            recTimeNormal.classList.toggle('active', value === 0);
+            recTimeLong.classList.toggle('active', value === 1);
+        }
+        
+        const timeDesc = value === 0 ? 'Normal (45s/Stereo)' : 'Long (90s/Mono)';
+        log(`🔧 Recording Time set to ${timeDesc}`, 'success');
+        
+    } catch (error) {
+        log(`Failed to set recording time: ${error.message}`, 'error');
+    }
+}
+
+function getSettingDisplayName(paramKey) {
+    switch(paramKey) {
+        case 'looperRecTime': return 'Rec Time';
+        case 'looperMicInstAssign': return 'Mic/Inst';
+        case 'looperGuitarMicAssign': return 'Guitar';
+        case 'looperReverbAssign': return 'Reverb';
+        case 'looperICubeLinkAssign': return 'Aux/BT';
+        default: return paramKey;
+    }
 }
 
 function updateMicInstEQControls() {
@@ -1748,7 +2229,13 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     
     // Handle special controls that need custom updates
     if (paramKey === 'looperControl') {
-        updateLooperButtonState(value);
+        updateLooperControls();
+    }
+    
+    // Handle looper settings toggle buttons - regenerate the UI to show updated values
+    const looperSettingParams = ['looperRecTime', 'looperMicInstAssign', 'looperGuitarMicAssign', 'looperReverbAssign', 'looperICubeLinkAssign'];
+    if (looperSettingParams.includes(paramKey)) {
+        updateLooperSettingsControls();
     }
     
     // Handle tuner parameter updates

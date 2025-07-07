@@ -29,6 +29,15 @@ h1 {
     text-align: center;
 }
 
+h5 {
+    color: #555;
+    margin: 12px 0 8px 0;
+    font-size: 1.0em;
+    font-weight: 600;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 4px;
+}
+
 .subtitle {
     color: #666;
     margin-bottom: 8px;
@@ -776,109 +785,271 @@ h1 {
     display: block;
 }
 
-/* Looper Button Styles */
-.looper-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 8px;
-    margin-bottom: 16px;
+/* Section Header with Info Button */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
 }
 
-.looper-btn {
-    padding: 12px 16px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
+.info-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+.info-btn:hover {
+    background: #5a6268;
+}
+
+/* Compact Looper Button Styles - One Line */
+.looper-buttons-compact {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.looper-btn-compact {
+    padding: 8px 4px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
     background: #f8f9fa;
     color: #495057;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 16px;
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
     user-select: none;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
 }
 
-.looper-btn:hover {
+.looper-btn-compact:hover {
     background: #e9ecef;
     border-color: #adb5bd;
 }
 
-.looper-btn.active {
+.looper-btn-compact.active {
     background: #007bff;
     color: white;
     border-color: #0056b3;
 }
 
-/* Specific button colors */
-.looper-btn[data-value="0"] {
-    /* Stop button - red theme */
+/* Compact Looper Settings - Integrated Design */
+.looper-settings-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.setting-group {
+    /* Remove old styling - now just a container */
+    display: contents;
+}
+
+.setting-label {
+    /* Hide separate labels since they're now integrated */
+    display: none;
+}
+
+.toggle-btn {
+    background: #e9ecef;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    line-height: 1.2;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-btn:hover {
+    background: #dee2e6;
+    border-color: #ced4da;
+}
+
+.toggle-btn.active {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.toggle-btn.active:hover {
+    background: #218838;
+    border-color: #1e7e34;
+}
+
+/* Specific compact button colors */
+.looper-btn-compact[data-value="0"] {
+    /* Erase Loop button - red theme */
     border-color: #dc3545;
     color: #dc3545;
 }
 
-.looper-btn[data-value="0"]:hover {
+.looper-btn-compact[data-value="0"]:hover {
     background: #dc3545;
     color: white;
 }
 
-.looper-btn[data-value="1"] {
-    /* Record button - red theme */
+.looper-btn-compact[data-value="1"] {
+    /* Paused button - gray theme */
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+.looper-btn-compact[data-value="1"]:hover {
+    background: #6c757d;
+    color: white;
+}
+
+.looper-btn-compact[data-value="2"] {
+    /* Recording button - red theme */
     border-color: #dc3545;
     color: #dc3545;
 }
 
-.looper-btn[data-value="1"]:hover {
+.looper-btn-compact[data-value="2"]:hover {
     background: #dc3545;
     color: white;
 }
 
-.looper-btn[data-value="2"] {
-    /* Play button - green theme */
+.looper-btn-compact[data-value="3"] {
+    /* Playing button - green theme */
     border-color: #28a745;
     color: #28a745;
 }
 
-.looper-btn[data-value="2"]:hover {
+.looper-btn-compact[data-value="3"]:hover {
     background: #28a745;
     color: white;
 }
 
-.looper-btn[data-value="3"] {
+.looper-btn-compact[data-value="4"] {
     /* Overdub button - orange theme */
     border-color: #fd7e14;
     color: #fd7e14;
 }
 
-.looper-btn[data-value="3"]:hover {
+.looper-btn-compact[data-value="4"]:hover {
     background: #fd7e14;
     color: white;
 }
 
+.looper-btn-compact[data-value="5"] {
+    /* Standby button - blue theme */
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.looper-btn-compact[data-value="5"]:hover {
+    background: #007bff;
+    color: white;
+}
+
 /* Active state specific colors */
-.looper-btn[data-value="0"].active {
+.looper-btn-compact[data-value="0"].active {
     background: #dc3545;
     border-color: #c82333;
+    color: white;
 }
 
-.looper-btn[data-value="1"].active {
+.looper-btn-compact[data-value="1"].active {
+    background: #6c757d;
+    border-color: #545b62;
+    color: white;
+}
+
+.looper-btn-compact[data-value="2"].active {
     background: #dc3545;
     border-color: #c82333;
+    color: white;
 }
 
-.looper-btn[data-value="2"].active {
+.looper-btn-compact[data-value="3"].active {
     background: #28a745;
     border-color: #1e7e34;
+    color: white;
 }
 
-.looper-btn[data-value="3"].active {
+.looper-btn-compact[data-value="4"].active {
     background: #fd7e14;
     border-color: #e55d00;
+    color: white;
 }
 
-/* Mobile responsive */
+.looper-btn-compact[data-value="5"].active {
+    background: #007bff;
+    border-color: #0056b3;
+    color: white;
+}
+
+/* Mobile responsive for compact layout */
 @media (max-width: 768px) {
-    .looper-buttons {
+    .looper-buttons-compact {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 2px;
+    }
+    
+    .looper-btn-compact {
+        font-size: 14px;
+        min-width: 42px;
+        height: 32px;
+        padding: 4px 2px;
+    }
+    
+    .looper-settings-compact {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .looper-buttons-compact {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+    }
+    
+    .looper-btn-compact {
+        font-size: 12px;
+        min-width: 40px;
+        height: 30px;
+    }
+    
+    .looper-settings-compact {
         grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .toggle-btn {
+        font-size: 9px;
+        padding: 4px 6px;
+        min-height: 28px;
+    }
+}
+
+@media (max-width: 360px) {
+    .looper-settings-compact {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -1065,5 +1236,169 @@ h1 {
     .tuner-controls-grid {
         grid-template-columns: 1fr;
         gap: 10px;
+    }
+}
+
+/* Looper Settings Modal Styles */
+.settings-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+.settings-btn:hover {
+    background: #5a6268;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.setting-item {
+    margin-bottom: 20px;
+}
+
+.setting-item label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.rec-time-options {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.rec-time-btn {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.3;
+    transition: all 0.2s ease;
+}
+
+.rec-time-btn:hover {
+    border-color: #adb5bd;
+}
+
+.rec-time-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.rec-time-btn small {
+    display: block;
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+.setting-description {
+    font-size: 12px;
+    color: #6c757d;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Updated grid layout for 4 buttons per row */
+.looper-settings-improved {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin: 10px 0;
+}
+
+/* Responsive breakpoints for 4-button layout - keep 4 buttons even on mobile */
+@media (max-width: 768px) {
+    .looper-settings-improved {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .looper-settings-improved {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2px;
+    }
+    
+    .toggle-btn-improved {
+        height: 40px;
+        font-size: 8px;
+        padding: 2px;
+    }
+    
+    .toggle-icon {
+        font-size: 12px;
+    }
+    
+    .toggle-label {
+        font-size: 8px;
+    }
+    
+    .toggle-status {
+        font-size: 7px;
+    }
+}
+
+/* Very small screens - still try to keep 4 buttons */
+@media (max-width: 360px) {
+    .looper-settings-improved {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+    }
+    
+    .toggle-btn-improved {
+        height: 36px;
+        font-size: 7px;
+        padding: 1px;
+    }
+    
+    .toggle-icon {
+        font-size: 10px;
+    }
+    
+    .toggle-label {
+        font-size: 7px;
+    }
+    
+    .toggle-status {
+        font-size: 6px;
     }
 } 

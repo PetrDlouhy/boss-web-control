@@ -37,15 +37,72 @@ export const BOSS_CUBE_PARAMETERS = {
         category: 'mixer'
     },
 
-    // Looper Control (corrected address)
+    // Looper Control (updated to match README.md specification)
     looperControl: { 
         name: 'Looper Control', 
         address: [0x20, 0x00, 0x10, 0x01], 
-        min: 0, max: 3, current: 0,
-        valueLabels: ['Erase Loop', 'Start Recording', 'End Recording', 'Overdub'],
+        min: 0, max: 5, current: 0,
+        valueLabels: ['Erase Loop', 'Paused', 'Recording', 'Playing', 'Overdub', 'Standby'],
         displayValue: (value) => {
-            const labels = ['Erase Loop', 'Start Recording', 'End Recording', 'Overdub'];
+            const labels = ['Erase Loop', 'Paused', 'Recording', 'Playing', 'Overdub', 'Standby'];
             return labels[value] || 'Unknown';
+        },
+        category: 'looper'
+    },
+
+    // Looper Settings (verified addresses from README)
+    looperRecTime: { 
+        name: 'Recording Time', 
+        address: [0x00, 0x00, 0x00, 0x0A], 
+        min: 0, max: 1, current: 0,
+        valueLabels: ['Normal', 'Long'],
+        displayValue: (value) => {
+            const labels = ['Normal', 'Long'];
+            return labels[value] || 'Normal';
+        },
+        category: 'looper'
+    },
+    looperMicInstAssign: { 
+        name: 'Mic/Inst Assign', 
+        address: [0x00, 0x00, 0x00, 0x0B], 
+        min: 0, max: 1, current: 0,
+        valueLabels: ['Off', 'On'],
+        displayValue: (value) => {
+            const labels = ['Off', 'On'];
+            return labels[value] || 'Off';
+        },
+        category: 'looper'
+    },
+    looperGuitarMicAssign: { 
+        name: 'Guitar/Mic Assign', 
+        address: [0x00, 0x00, 0x00, 0x0C], 
+        min: 0, max: 1, current: 0,
+        valueLabels: ['Off', 'On'],
+        displayValue: (value) => {
+            const labels = ['Off', 'On'];
+            return labels[value] || 'Off';
+        },
+        category: 'looper'
+    },
+    looperReverbAssign: { 
+        name: 'Reverb Assign', 
+        address: [0x00, 0x00, 0x00, 0x0D], 
+        min: 0, max: 1, current: 0,
+        valueLabels: ['Off', 'On'],
+        displayValue: (value) => {
+            const labels = ['Off', 'On'];
+            return labels[value] || 'Off';
+        },
+        category: 'looper'
+    },
+    looperICubeLinkAssign: { 
+        name: 'I-Cube Link/Aux/BT Assign', 
+        address: [0x00, 0x00, 0x00, 0x0E], 
+        min: 0, max: 1, current: 0,
+        valueLabels: ['Off', 'On'],
+        displayValue: (value) => {
+            const labels = ['Off', 'On'];
+            return labels[value] || 'Off';
         },
         category: 'looper'
     },
