@@ -4,7 +4,7 @@
 
 A comprehensive Progressive Web App implementing reverse-engineered SysEx protocols to provide complete wireless control over the Boss Cube II amplifier, with technical improvements and additional functionality not available in the official application.
 
-**Current Version:** 2.22.1
+**Current Version:** 2.22.14
 
 ---
 
@@ -174,6 +174,101 @@ https://localhost:8000
 - **Visual Feedback** - Clear indication of active controls and values
 - **Mobile Support** - Works on phones/tablets for stage-side control
 - **Wake Lock** - Screen stays on during performances
+
+---
+
+## 🧪 **Testing & Development**
+
+### Running Tests
+
+This project includes comprehensive unit tests to ensure code quality and prevent regressions, particularly for the critical MIDI parsing functions that handle pedal communication.
+
+**Browser Tests (Interactive):**
+```bash
+# Start local server
+npm start
+
+# Open test runner in browser
+https://localhost:8080/test-runner.html
+```
+
+**Headless Tests (CI/CD):**
+```bash
+# Install dependencies
+npm install
+
+# Run automated tests
+npm test
+```
+
+**Manual Testing:**
+```bash
+# Browser-based test runner
+npm run test:browser
+
+# Start development server
+npm start
+
+# Manual test for "Read Values" functionality
+# Open: https://localhost:8080/manual-test-read-values.html
+```
+
+### Test Coverage
+
+The test suite includes:
+
+**🦶 Pedal Communication Tests:**
+- **BLE MIDI Parsing** - Multiple messages per packet processing
+- **MIDI Byte Validation** - Control/value byte validation (< 0x80)
+- **Value Range Validation** - Pedal values must be 0-127
+- **Duplicate Filtering** - Prevents duplicate value processing that caused lag
+- **Button Press Detection** - Footswitch polarity handling
+- **Error Handling** - Unknown CC codes and invalid data
+- **Regression Tests** - Specific scenarios that previously caused pedal lag
+
+**🎛️ Boss Cube Controller Tests:**
+- **Sequential Parameter Reading** - Prevents GATT operation conflicts
+- **Timing Validation** - Ensures proper delays between operations
+- **"Read Values" Functionality** - Tests the fixed concurrent operation issue
+- **Parameter Categorization** - Mixer, effects, EQ, looper organization
+- **Error Handling** - Graceful failure recovery
+- **Integration Testing** - End-to-end parameter reading flows
+- **Regression Tests** - Ensures no concurrent GATT operations
+
+**🧪 Manual Hardware Testing:**
+- **Real Device Testing** - `manual-test-read-values.html` for testing with actual Boss Cube
+- **GATT Operation Monitoring** - Real-time verification of sequential reading
+- **Performance Measurement** - Timing analysis of parameter reading operations
+
+### Continuous Integration
+
+Tests run automatically on GitHub Actions when you:
+- Push to main/master/develop branches
+- Create pull requests
+- Modify code in the `boss-cube-web-control/` directory
+
+**Test Matrix:**
+- Node.js 18.x and 20.x
+- Security audits
+- Code quality checks
+- Automated PR comments with test results
+
+### Development Setup
+
+```bash
+# Clone repository
+git clone [your-repo-url]
+cd boss-cube-web-control
+
+# Install dependencies
+npm install
+
+# Start development server with auto-reload
+npm start
+
+# Run tests during development
+npm test
+```
 
 ---
 

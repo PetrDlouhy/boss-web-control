@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PedalCommunication Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .results {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 400px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .status.running {
+            color: #007bff;
+        }
+        .status.passed {
+            color: #28a745;
+        }
+        .status.failed {
+            color: #dc3545;
+        }
+        .description {
+            background: #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .description h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .test-list {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .test-list ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .test-list li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Boss Cube Web Control Unit Tests</h1>
+        
+        <div class="description">
+            <h3>About These Tests</h3>
+            <p>
+                These comprehensive unit tests ensure code quality and prevent regressions across all major components of the Boss Cube Web Control application.
+            </p>
+            
+            <div class="test-list">
+                <strong>🦶 Pedal Communication Tests:</strong>
+                <ul>
+                    <li><strong>BLE MIDI Parsing</strong> - Processing multiple messages per packet</li>
+                    <li><strong>MIDI Byte Validation</strong> - Ensuring control/value bytes are < 0x80</li>
+                    <li><strong>Value Range Validation</strong> - Pedal values must be 0-127</li>
+                    <li><strong>Duplicate Filtering</strong> - Preventing duplicate value processing</li>
+                    <li><strong>Button Press Detection</strong> - Footswitch polarity handling</li>
+                    <li><strong>Error Handling</strong> - Unknown CC codes and invalid data</li>
+                    <li><strong>Regression Tests</strong> - Specific scenario that caused pedal lag</li>
+                </ul>
+                
+                <strong>🎛️ Boss Cube Controller Tests:</strong>
+                <ul>
+                    <li><strong>Sequential Parameter Reading</strong> - Prevents GATT operation conflicts</li>
+                    <li><strong>Timing Validation</strong> - Ensures proper delays between operations</li>
+                    <li><strong>"Read Values" Functionality</strong> - Tests the fixed concurrent operation issue</li>
+                    <li><strong>Parameter Categorization</strong> - Mixer, effects, EQ, looper organization</li>
+                    <li><strong>Error Handling</strong> - Graceful failure recovery</li>
+                    <li><strong>Integration Testing</strong> - End-to-end parameter reading flows</li>
+                    <li><strong>Regression Tests</strong> - Ensures no concurrent GATT operations</li>
+                </ul>
+                
+                <strong>📡 Boss Cube Communication Tests:</strong>
+                <ul>
+                    <li><strong>SysEx Parsing</strong> - Boss Cube specific SysEx format validation</li>
+                    <li><strong>Multi-Packet BLE MIDI</strong> - Handling messages split across packets</li>
+                    <li><strong>Header Validation</strong> - Boss Cube specific header [0x41, 0x10, 0x00, 0x00, 0x00, 0x00, 0x09]</li>
+                    <li><strong>Physical Knob Detection</strong> - Distinguishing knob changes from read responses</li>
+                    <li><strong>Parameter Value Extraction</strong> - Correct value parsing from SysEx data</li>
+                    <li><strong>Invalid SysEx Handling</strong> - Graceful handling of malformed messages</li>
+                    <li><strong>Buffer Management</strong> - SysEx buffering and timeout handling</li>
+                </ul>
+                
+                <strong>🔄 Reload Values UI Tests:</strong>
+                <ul>
+                    <li><strong>Button State Management</strong> - Disable/enable during operation</li>
+                    <li><strong>Duplicate Call Prevention</strong> - Ignoring clicks while operation in progress</li>
+                    <li><strong>Connection Validation</strong> - Ensuring Boss Cube is connected before operation</li>
+                    <li><strong>Error Handling</strong> - Graceful failure recovery with button state restoration</li>
+                    <li><strong>UI Feedback</strong> - Button text changes ("📖 Read Values" ↔ "🔄 Reload Values")</li>
+                    <li><strong>Controller Integration</strong> - Calling readAllValues() method correctly</li>
+                    <li><strong>Regression Tests</strong> - Verification that fixes work correctly</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-controls">
+            <button id="runTests" onclick="runTests()">🚀 Run All Tests</button>
+            <button id="clearResults" onclick="clearResults()">🗑️ Clear Results</button>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="results" class="results">Click "Run All Tests" to execute the test suite...</div>
+    </div>
+
+    <script type="module">
+        import './pedal-communication.test.js';
+        import './boss-cube-controller.test.js';
+        import './boss-cube-communication.test.js';
+        import './reload-values.test.js';
+
+        window.runTests = async function() {
+            const runButton = document.getElementById('runTests');
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            runButton.disabled = true;
+            statusDiv.textContent = '🔄 Running tests...';
+            statusDiv.className = 'status running';
+            resultsDiv.textContent = '';
+            
+            // Capture console output
+            const originalConsoleLog = console.log;
+            const originalConsoleError = console.error;
+            let output = '';
+            
+            console.log = (...args) => {
+                output += args.join(' ') + '\n';
+                resultsDiv.textContent = output;
+                originalConsoleLog(...args);
+            };
+            
+            console.error = (...args) => {
+                output += args.join(' ') + '\n';
+                resultsDiv.textContent = output;
+                originalConsoleError(...args);
+            };
+            
+            try {
+                // Run pedal communication tests
+                const pedalTestsSuccess = await window.runPedalCommunicationTests();
+                
+                output += '\n' + '='.repeat(50) + '\n\n';
+                resultsDiv.textContent = output;
+                
+                // Run Boss Cube controller tests
+                const controllerTestsSuccess = await window.runBossCubeControllerTests();
+                
+                output += '\n' + '='.repeat(50) + '\n\n';
+                resultsDiv.textContent = output;
+                
+                // Run Boss Cube communication tests
+                const communicationTestsSuccess = await window.BossCubeCommunicationTests.runAllTests();
+                const communicationSuccess = communicationTestsSuccess.failed === 0;
+                
+                output += '\n' + '='.repeat(50) + '\n\n';
+                resultsDiv.textContent = output;
+                
+                // Run Reload Values tests
+                const reloadValuesTestsSuccess = await window.runReloadValuesTests();
+                
+                const allTestsSuccess = pedalTestsSuccess && controllerTestsSuccess && communicationSuccess && reloadValuesTestsSuccess;
+                
+                if (allTestsSuccess) {
+                    statusDiv.textContent = '✅ All tests passed!';
+                    statusDiv.className = 'status passed';
+                } else {
+                    statusDiv.textContent = '❌ Some tests failed!';
+                    statusDiv.className = 'status failed';
+                }
+            } catch (error) {
+                output += `Error running tests: ${error.message}\n`;
+                resultsDiv.textContent = output;
+                statusDiv.textContent = '💥 Test execution failed!';
+                statusDiv.className = 'status failed';
+            } finally {
+                // Restore console
+                console.log = originalConsoleLog;
+                console.error = originalConsoleError;
+                runButton.disabled = false;
+            }
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').textContent = 'Click "Run All Tests" to execute the test suite...';
+            document.getElementById('status').textContent = '';
+            document.getElementById('status').className = 'status';
+        };
+    </script>
+</body>
+</html> 

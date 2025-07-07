@@ -1,0 +1,37 @@
+{
+  "name": "boss-cube-web-control",
+  "version": "2.22.14",
+  "description": "Web-based control interface for Boss Cube Street II amplifier",
+  "type": "module",
+  "scripts": {
+    "test": "node test-runner-headless.js",
+    "test:browser": "open test-runner.html",
+    "start": "npx http-server -p 8080 -c-1",
+    "lint": "echo 'Linting not configured yet'"
+  },
+  "keywords": [
+    "boss-cube",
+    "bluetooth",
+    "midi",
+    "web-bluetooth",
+    "amplifier",
+    "sysex"
+  ],
+  "author": "Boss Cube Web Control Contributors",
+  "license": "MIT",
+  "devDependencies": {
+    "puppeteer": "^21.0.0",
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/boss-cube-web-control.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/boss-cube-web-control/issues"
+  },
+  "homepage": "https://github.com/your-username/boss-cube-web-control#readme"
+} 

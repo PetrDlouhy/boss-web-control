@@ -1,7 +1,9 @@
 // Boss Cube Web Control - Full Mixer Interface
 // Complete parameter control with dual Bluetooth support
 
-const VERSION = '2.22.1';
+import BossCubeController from './boss-cube-controller.js';
+
+const VERSION = '2.22.14';
 
 let bossCubeController = null;
 let currentParameterKey = 'masterVolume';
@@ -1556,6 +1558,9 @@ async function disconnectPedal() {
 }
 
 async function readCurrentValuesOnConnect() {
+    const connectCallId = Math.random().toString(36).substr(2, 9);
+    log(`🔍 DEBUG: [${connectCallId}] readCurrentValuesOnConnect() called during connection`, 'info');
+    
     try {
         log('📖 Reading ALL current values from Boss Cube...', 'info');
         
@@ -1704,8 +1709,17 @@ function throttledPedalLog(paramName, value) {
 }
 
 async function readValuesFromCube() {
+    const buttonCallId = Math.random().toString(36).substr(2, 9);
+    log(`🔍 DEBUG: [${buttonCallId}] readValuesFromCube() called from UI button`, 'info');
+    
     if (!bossCubeController.isCubeConnected) {
         log('Boss Cube not connected - cannot read values', 'error');
+        return;
+    }
+    
+    // Prevent multiple simultaneous calls by checking if button is already disabled
+    if (readValuesBtn.disabled) {
+        log(`⚠️ [${buttonCallId}] Read operation already in progress - ignoring duplicate request`, 'warning');
         return;
     }
     
@@ -1713,7 +1727,7 @@ async function readValuesFromCube() {
         readValuesBtn.disabled = true;
         readValuesBtn.textContent = '🔄 Reload Values';
         
-        log('🔄 Reloading all parameter values from Boss Cube...', 'info');
+        log(`🔄 [${buttonCallId}] Reloading all parameter values from Boss Cube...`, 'info');
         
         // Read all mixer and effects values
         await bossCubeController.readAllValues();

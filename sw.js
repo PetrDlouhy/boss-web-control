@@ -1,17 +1,30 @@
 // Boss Cube Web Control - Service Worker
 // Enables PWA functionality with aggressive update strategy
 
-const VERSION = '2.16.1';
+const VERSION = '2.22.14';
 const CACHE_NAME = `boss-cube-control-v${VERSION}`;
 const urlsToCache = [
     '/',
     '/index.html',
+    '/styles.css',
     '/app.js',
     '/boss-cube-controller.js',
-    '/manifest.json'
+    '/boss-cube-communication.js',
+    '/pedal-communication.js',
+    '/parameters.js',
+    '/effect-definitions.js',
+    '/constants.js',
+    '/manifest.json',
+    '/pedal-communication.test.js',
+    '/boss-cube-controller.test.js',
+    '/boss-cube-communication.test.js',
+    '/reload-values.test.js',
+    '/test-runner.html',
+    '/manual-test-read-values.html',
+    '/package.json'
 ];
 
-// Install event - cache resources and skip waiting
+// Install event - cache resources
 self.addEventListener('install', event => {
     console.log(`Service Worker ${VERSION} installing...`);
     
@@ -23,8 +36,8 @@ self.addEventListener('install', event => {
             })
     );
     
-    // Skip waiting to activate immediately
-    self.skipWaiting();
+    // Only skip waiting when explicitly requested via message
+    // This allows proper update detection
 });
 
 // Fetch event - network first for HTML/JS, cache for others
@@ -84,13 +97,13 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Message handling for version requests
+// Message handling for version requests and skip waiting
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'GET_VERSION') {
         event.ports[0].postMessage({ version: VERSION });
     }
     
-    if (event.data && event.data.type === 'SKIP_WAITING') {
+    if (event.data && event.data.action === 'skipWaiting') {
         self.skipWaiting();
     }
 }); 

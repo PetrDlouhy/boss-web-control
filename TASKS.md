@@ -84,6 +84,8 @@
 #### **FEAD-004: Live performance setups**
 - **Description**: Allow selection of controls for Live show. Organize them for effective usage during performances including footswitch and pedal controls.
 
+#### **Dark mode**
+
 ---
 
 ## 🔬 **Research & Discovery Tasks**
