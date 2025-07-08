@@ -2,10 +2,12 @@
 // Complete parameter control with dual Bluetooth support
 
 import BossCubeController from './boss-cube-controller.js';
+import TemplateLoader from './template-loader.js';
 
-const VERSION = '2.22.15';
+const VERSION = '2.22.16-alpha.4';
 
 let bossCubeController = null;
+let templateLoader = null;
 let currentParameterKey = 'masterVolume';
 let pedalExpression = 64; // Current pedal expression value (0-127)
 
@@ -47,7 +49,7 @@ let settings = {
 };
 
 // Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Get DOM elements
     statusEl = document.getElementById('status');
     pedalStatusEl = document.getElementById('pedalStatus');
@@ -98,8 +100,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Initialize controller
+    // Initialize controller and template loader
     bossCubeController = new BossCubeController();
+    templateLoader = new TemplateLoader();
     
     // Apply current settings to controller
     applySettingsToController();
@@ -108,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     
     // Create parameter controls
-    createParameterControls();
+    await createParameterControls();
     
     // Select initial parameter
     selectParameter(currentParameterKey);
@@ -351,174 +354,52 @@ function handleParameterChange(event) {
     log(`🔄 Parameter switched to: ${parameter.name}`, 'info');
 }
 
-function createParameterControls() {
+async function createParameterControls() {
     // Clear existing controls
     mixerControlsEl.innerHTML = '';
     effectsControlsEl.innerHTML = '';
     
     // Create mixer controls
     const mixerParams = bossCubeController.getParametersByCategory('mixer');
-    Object.entries(mixerParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
+    for (const [key, param] of Object.entries(mixerParams)) {
+        const control = await createParameterControl(param, key);
         mixerControlsEl.appendChild(control);
         
         // Add bind control after Master Out parameter
         if (key === 'masterVolume') {
-            const bindControl = createMasterBindControl();
+            const bindControl = await createMasterBindControl();
             mixerControlsEl.appendChild(bindControl);
         }
-    });
+    }
     
     // Create effects interface with selectors and controls
-    createEffectsInterface();
+    await createEffectsInterface();
 }
 
-function createEffectsInterface() {
-    effectsControlsEl.innerHTML = `
-        <div class="effects-section">
-            <div id="looperControls"></div>
-            <div id="looperSettings"></div>
-        </div>
-
-        <div class="effects-section">
-            <h4>🎸 Guitar EQ & Amp</h4>
-            <div id="guitarEQControls" class="parameter-grid"></div>
-        </div>
-
-        <div class="effects-section">
-            <h4>🎸 Guitar Amp Types</h4>
-            <div id="guitarAmpControls" class="parameter-grid"></div>
-        </div>
-
-        <div class="effects-section">
-            <h4>🎸 Guitar Effects</h4>
-            <div class="effect-buttons">
-                <button class="effect-btn" data-effect="phaser">Phaser</button>
-                <button class="effect-btn" data-effect="chorus">Chorus</button>
-                <button class="effect-btn" data-effect="tremolo">Tremolo</button>
-                <button class="effect-btn" data-effect="twah">T.WAH</button>
-                <button class="effect-btn" data-effect="flanger">Flanger</button>
-            </div>
-            <div id="guitarEffectControls" class="parameter-grid"></div>
-        </div>
-        
-        <div class="effects-section">
-            <h4>🎸 Guitar Delay</h4>
-            <div id="guitarDelayControls" class="parameter-grid"></div>
-        </div>
-        
-        <div class="effects-section">
-            <h4>🌊 Shared Reverb</h4>
-            <div id="reverbControls" class="parameter-grid"></div>
-        </div>
-        
-        <div class="effects-section">
-            <h4>🔊 Reverb Levels</h4>
-            <div id="reverbLevelsControls" class="parameter-grid"></div>
-        </div>
-        
-        <div class="effects-section">
-            <h4>🎤 Mic/Inst EQ</h4>
-            <div id="micInstEQControls" class="parameter-grid"></div>
-        </div>
-        
-        <div class="effects-section">
-            <h4>🎤 Mic/Inst Effects</h4>
-            <div class="effect-buttons">
-                <button class="effect-btn" data-effect="harmony">Harmony</button>
-                <button class="effect-btn" data-effect="chorus">Chorus</button>
-                <button class="effect-btn" data-effect="phaser">Phaser</button>
-                <button class="effect-btn" data-effect="flanger">Flanger</button>
-                <button class="effect-btn" data-effect="tremolo">Tremolo</button>
-                <button class="effect-btn" data-effect="twah">T.WAH</button>
-            </div>
-            <div id="micInstEffectControls" class="parameter-grid"></div>
-        </div>
-
-        <div class="effects-section">
-            <h4>🎵 Tuner</h4>
-            <div class="tuner-container">
-                <div class="tuner-toggle">
-                    <button id="tunerToggleBtn" class="btn tuner" disabled>🎵 Tuner OFF</button>
-                </div>
-                
-                <div id="tunerStatus" class="tuner-status off">Tuner Off</div>
-                
-                <div id="tunerVisual" class="tuner-visual">
-                    <div id="tunerFrequencyDisplay" class="tuner-frequency-display">440Hz</div>
-                    <div id="tunerNoteDisplay" class="tuner-note-display">A</div>
-                    
-                    <div class="tuner-meter">
-                        <div class="tuner-scale">
-                            <span>♭</span>
-                            <span>-20</span>
-                            <span>-10</span>
-                            <span>0</span>
-                            <span>+10</span>
-                            <span>+20</span>
-                            <span>♯</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="tuner-presets">
-                    <button class="tuner-preset-btn" data-freq="435">435Hz</button>
-                    <button class="tuner-preset-btn" data-freq="436">436Hz</button>
-                    <button class="tuner-preset-btn" data-freq="437">437Hz</button>
-                    <button class="tuner-preset-btn" data-freq="438">438Hz</button>
-                    <button class="tuner-preset-btn" data-freq="439">439Hz</button>
-                    <button class="tuner-preset-btn active" data-freq="440">440Hz</button>
-                    <button class="tuner-preset-btn" data-freq="441">441Hz</button>
-                    <button class="tuner-preset-btn" data-freq="442">442Hz</button>
-                    <button class="tuner-preset-btn" data-freq="443">443Hz</button>
-                    <button class="tuner-preset-btn" data-freq="444">444Hz</button>
-                    <button class="tuner-preset-btn" data-freq="445">445Hz</button>
-                </div>
-                
-                <div>
-                    <strong>Reference Key:</strong>
-                    <div class="tuner-key-presets">
-                        <button class="tuner-key-btn active" data-key="0">C</button>
-                        <button class="tuner-key-btn" data-key="1">Db</button>
-                        <button class="tuner-key-btn" data-key="2">D</button>
-                        <button class="tuner-key-btn" data-key="3">Eb</button>
-                        <button class="tuner-key-btn" data-key="4">E</button>
-                        <button class="tuner-key-btn" data-key="5">F</button>
-                        <button class="tuner-key-btn" data-key="6">Gb</button>
-                        <button class="tuner-key-btn" data-key="7">G</button>
-                        <button class="tuner-key-btn" data-key="8">Ab</button>
-                        <button class="tuner-key-btn" data-key="9">A</button>
-                        <button class="tuner-key-btn" data-key="10">Bb</button>
-                        <button class="tuner-key-btn" data-key="11">B</button>
-                    </div>
-                </div>
-                
-                <div class="tuner-controls-grid">
-                    <div id="tunerControls" class="parameter-grid"></div>
-                </div>
-                
-                <div class="tuner-help">
-                    <strong>How to use:</strong> Turn on the tuner, play your guitar/instrument, and the Boss Cube will detect the pitch. 
-                    Use the preset buttons for quick frequency selection, or fine-tune with the sliders. 
-                    The reference key helps with chromatic tuning.
-                </div>
-            </div>
-        </div>
-    `;
+async function createEffectsInterface() {
+    try {
+        const effectsHTML = await templateLoader.loadTemplate('templates/effects-interface.html');
+        effectsControlsEl.innerHTML = effectsHTML;
+    } catch (error) {
+        console.error('Failed to load effects interface template:', error);
+        // Fallback to empty content
+        effectsControlsEl.innerHTML = '<div class="error">Failed to load effects interface</div>';
+        return;
+    }
     
     // Set up effect selectors
     setupEffectSelectors();
     
     // Initially populate all effect controls
-    updateLooperControls();
-    updateLooperSettingsControls();
-    updateMicInstEQControls();
-    updateGuitarEQControls();
-    updateGuitarAmpControls();
-    updateGuitarEffectControls();
-    updateMicInstEffectControls();
-    updateReverbDelayControls();
-    updateTunerControls();
+    await updateLooperControls();
+    await updateLooperSettingsControls();
+    await updateMicInstEQControls();
+    await updateGuitarEQControls();
+    await updateGuitarAmpControls();
+    await updateGuitarEffectControls();
+    await updateMicInstEffectControls();
+    await updateReverbDelayControls();
+    await updateTunerControls();
     
     // Looper controls are set up in updateLooperControls() with current state
 }
@@ -561,42 +442,42 @@ function setupEffectSelectors() {
     updateMicInstEffectButtonHighlight(bossCubeController.currentMicInstEffect);
 }
 
-function updateGuitarEffectControls() {
+async function updateGuitarEffectControls() {
     const container = document.getElementById('guitarEffectControls');
     if (!container) return;
     
     container.innerHTML = '';
     const effectParams = bossCubeController.getCurrentGuitarEffectParameters();
     
-    Object.entries(effectParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
+    for (const [key, param] of Object.entries(effectParams)) {
+        const control = await createParameterControl(param, key);
         container.appendChild(control);
-    });
+    }
 }
 
-function updateMicInstEffectControls() {
+async function updateMicInstEffectControls() {
     const container = document.getElementById('micInstEffectControls');
     if (!container) return;
     
     container.innerHTML = '';
     const effectParams = bossCubeController.getCurrentMicInstEffectParameters();
     
-    Object.entries(effectParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
+    for (const [key, param] of Object.entries(effectParams)) {
+        const control = await createParameterControl(param, key);
         container.appendChild(control);
-    });
+    }
 }
 
-function updateReverbDelayControls() {
+async function updateReverbDelayControls() {
     // Guitar Delay
     const guitarDelayContainer = document.getElementById('guitarDelayControls');
     if (guitarDelayContainer) {
         guitarDelayContainer.innerHTML = '';
         const guitarDelayParams = bossCubeController.getParametersByCategory('guitarDelay');
-        Object.entries(guitarDelayParams).forEach(([key, param]) => {
-            const control = createParameterControl(param, key);
+        for (const [key, param] of Object.entries(guitarDelayParams)) {
+            const control = await createParameterControl(param, key);
             guitarDelayContainer.appendChild(control);
-        });
+        }
     }
     
     // Shared Reverb Controls
@@ -604,10 +485,10 @@ function updateReverbDelayControls() {
     if (reverbContainer) {
         reverbContainer.innerHTML = '';
         const reverbParams = bossCubeController.getParametersByCategory('reverb');
-        Object.entries(reverbParams).forEach(([key, param]) => {
-            const control = createParameterControl(param, key);
+        for (const [key, param] of Object.entries(reverbParams)) {
+            const control = await createParameterControl(param, key);
             reverbContainer.appendChild(control);
-        });
+        }
     }
     
     // Reverb Levels (separate for Guitar and Mic/Inst)
@@ -615,14 +496,14 @@ function updateReverbDelayControls() {
     if (reverbLevelsContainer) {
         reverbLevelsContainer.innerHTML = '';
         const reverbLevelsParams = bossCubeController.getParametersByCategory('reverbLevels');
-        Object.entries(reverbLevelsParams).forEach(([key, param]) => {
-            const control = createParameterControl(param, key);
+        for (const [key, param] of Object.entries(reverbLevelsParams)) {
+            const control = await createParameterControl(param, key);
             reverbLevelsContainer.appendChild(control);
-        });
+        }
     }
 }
 
-function updateLooperControls() {
+async function updateLooperControls() {
     const container = document.getElementById('looperControls');
     if (!container) return;
     
@@ -640,94 +521,28 @@ function updateLooperControls() {
         { icon: '⏯️', title: 'Standby', label: 'Standby' }        // 5
     ];
     
-    container.innerHTML = `
-        <div class="section-header">
-            <h4>🔁 Looper Control</h4>
-            <div class="header-buttons">
-                <button class="settings-btn" id="looperSettingsBtn" title="Looper Settings">⚙️</button>
-                <button class="info-btn" id="looperInfoBtn" title="Show looper controls help">ℹ️</button>
-            </div>
-        </div>
-        <div class="looper-buttons-improved">
-            ${looperButtons.map((btn, index) => `
-                <button class="looper-btn-improved ${looperControl.current === index ? 'active' : ''}" 
-                        data-value="${index}" 
-                        data-looper-value="${index}"
-                        title="${btn.title}">
-                    <div class="looper-icon">${btn.icon}</div>
-                    <div class="looper-label">${btn.label}</div>
-                </button>
-            `).join('')}
-        </div>
-        <style>
-            .section-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-            }
-            .header-buttons {
-                display: flex;
-                gap: 5px;
-            }
-            .settings-btn, .info-btn {
-                background: #6c757d;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                width: 28px;
-                height: 28px;
-                font-size: 14px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .settings-btn:hover, .info-btn:hover {
-                background: #5a6268;
-            }
-            .looper-buttons-improved {
-                display: flex;
-                gap: 5px;
-                margin: 10px 0;
-            }
-            .looper-btn-improved {
-                flex: 1;
-                height: 48px;
-                border: 1px solid #ddd;
-                background: #f8f9fa;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 4px;
-            }
-            .looper-icon {
-                font-size: 16px;
-                line-height: 1;
-                margin-bottom: 2px;
-            }
-            .looper-label {
-                font-size: 8px;
-                line-height: 1;
-                font-weight: bold;
-                text-transform: uppercase;
-                opacity: 0.8;
-            }
-            .looper-btn-improved:hover {
-                background: #e9ecef;
-                border-color: #adb5bd;
-            }
-            .looper-btn-improved.active {
-                background: #28a745;
-                color: white;
-                border-color: #1e7e34;
-            }
-        </style>
-    `;
+    try {
+        const buttonsHTML = looperButtons.map((btn, index) => `
+            <button class="looper-btn-improved ${looperControl.current === index ? 'active' : ''}" 
+                    data-value="${index}" 
+                    data-looper-value="${index}"
+                    title="${btn.title}">
+                <div class="looper-icon">${btn.icon}</div>
+                <div class="looper-label">${btn.label}</div>
+            </button>
+        `).join('');
+        
+        const looperHTML = await templateLoader.renderTemplate('templates/looper-controls.html', {
+            LOOPER_BUTTONS: buttonsHTML
+        });
+        
+        container.innerHTML = looperHTML;
+    } catch (error) {
+        console.error('Failed to load looper controls template:', error);
+        // Fallback to basic content
+        container.innerHTML = '<div class="error">Failed to load looper controls</div>';
+        return;
+    }
     
     // Set up looper buttons with improved styling
     const looperBtns = container.querySelectorAll('.looper-btn-improved');
@@ -785,7 +600,7 @@ Settings control which audio sources are included in loops.`;
     }
 }
 
-function updateLooperSettingsControls() {
+async function updateLooperSettingsControls() {
     const container = document.getElementById('looperSettings');
     if (!container) return;
     
@@ -820,159 +635,42 @@ function updateLooperSettingsControls() {
         }
     ];
     
-    container.innerHTML = `
-        <div class="looper-settings-improved">
-            ${looperSettings.map(({ key, id, icon, label, title }) => {
-                const param = bossCubeController.parameters[key];
-                if (!param) return '';
-                
-                const isActive = param.current === 1;
-                let statusText = '';
-                
-                // Only show status text for Rec Time, others rely on color
-                if (key === 'looperRecTime') {
-                    statusText = isActive ? 'Long (90s/Mono)' : 'Normal (45s/Stereo)';
-                }
-                
-                return `
-                    <button id="${id}" 
-                            class="toggle-btn-improved ${isActive ? 'active' : ''}" 
-                            data-param="${key}"
-                            title="${title}">
-                        <div class="toggle-icon">${icon}</div>
-                        <div class="toggle-label">${label}</div>
-                        ${statusText ? `<div class="toggle-status">${statusText}</div>` : ''}
-                    </button>
-                `;
-            }).join('')}
-        </div>
-        <style>
-            .looper-settings-improved {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 6px;
-                margin: 10px 0;
-            }
-            .toggle-btn-improved {
-                height: 56px;
-                border: 1px solid #ddd;
-                background: #f8f9fa;
-                border-radius: 6px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 6px;
-                text-align: center;
-                font-size: 11px;
-                line-height: 1.2;
-            }
-            .toggle-btn-improved:hover {
-                background: #e9ecef;
-                border-color: #adb5bd;
-            }
-            .toggle-btn-improved.active {
-                background: #007bff;
-                color: white;
-                border-color: #0056b3;
-            }
-            .toggle-icon {
-                font-size: 16px;
-                margin-bottom: 2px;
-            }
-            .toggle-label {
-                font-weight: bold;
-                font-size: 10px;
-                margin-bottom: 2px;
-            }
-            .toggle-status {
-                font-size: 9px;
-                opacity: 0.9;
-            }
-            .toggle-btn-improved.active .toggle-status {
-                opacity: 1;
-                font-weight: bold;
+    try {
+        const buttonsHTML = looperSettings.map(({ key, id, icon, label, title }) => {
+            const param = bossCubeController.parameters[key];
+            if (!param) return '';
+            
+            const isActive = param.current === 1;
+            let statusText = '';
+            
+            // Only show status text for Rec Time, others rely on color
+            if (key === 'looperRecTime') {
+                statusText = isActive ? 'Long (90s/Mono)' : 'Normal (45s/Stereo)';
             }
             
-            /* Responsive breakpoints - keep 4 buttons even on mobile */
-            @media (max-width: 768px) {
-                .looper-settings-improved {
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 4px;
-                }
-            }
-            @media (max-width: 480px) {
-                .looper-settings-improved {
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 2px;
-                }
-                .toggle-btn-improved {
-                    height: 40px;
-                    font-size: 8px;
-                    padding: 2px;
-                }
-                .toggle-icon {
-                    font-size: 12px;
-                }
-                .toggle-label {
-                    font-size: 8px;
-                }
-                .toggle-status {
-                    font-size: 7px;
-                }
-            }
-            /* Very small screens - still try to keep 4 buttons */
-            @media (max-width: 360px) {
-                .looper-settings-improved {
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 1px;
-                }
-                .toggle-btn-improved {
-                    height: 36px;
-                    font-size: 7px;
-                    padding: 1px;
-                }
-                .toggle-icon {
-                    font-size: 10px;
-                }
-                .toggle-label {
-                    font-size: 7px;
-                }
-                .toggle-status {
-                    font-size: 6px;
-                }
-            }
-        </style>
+            return `
+                <button id="${id}" 
+                        class="toggle-btn-improved ${isActive ? 'active' : ''}" 
+                        data-param="${key}"
+                        title="${title}">
+                    <div class="toggle-icon">${icon}</div>
+                    <div class="toggle-label">${label}</div>
+                    ${statusText ? `<div class="toggle-status">${statusText}</div>` : ''}
+                </button>
+            `;
+        }).join('');
         
-        <!-- Looper Settings Modal -->
-        <div id="looperSettingsModal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>⚙️ Looper Settings</h3>
-                    <button class="modal-close" id="closeLooperSettings">×</button>
-                </div>
-                <div class="modal-body">
-                    <div class="setting-item">
-                        <label>📅 Recording Time:</label>
-                        <div class="rec-time-options">
-                            <button id="recTimeNormal" class="rec-time-btn" data-value="0">
-                                Normal<br><small>45s / Stereo</small>
-                            </button>
-                            <button id="recTimeLong" class="rec-time-btn" data-value="1">
-                                Long<br><small>90s / Mono</small>
-                            </button>
-                        </div>
-                        <p class="setting-description">
-                            Normal mode provides 45 seconds of stereo recording. 
-                            Long mode provides 90 seconds but in mono only.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+        const settingsHTML = await templateLoader.renderTemplate('templates/looper-settings.html', {
+            LOOPER_SETTING_BUTTONS: buttonsHTML
+        });
+        
+        container.innerHTML = settingsHTML;
+    } catch (error) {
+        console.error('Failed to load looper settings template:', error);
+        // Fallback to basic content
+        container.innerHTML = '<div class="error">Failed to load looper settings</div>';
+        return;
+    }
     
     // Set up toggle buttons with proper cleanup and debouncing
     setupLooperToggleButtons();
@@ -1145,56 +843,56 @@ function getSettingDisplayName(paramKey) {
     }
 }
 
-function updateMicInstEQControls() {
+async function updateMicInstEQControls() {
     const container = document.getElementById('micInstEQControls');
     if (!container) return;
     
     container.innerHTML = '';
     const eqParams = bossCubeController.getParametersByCategory('micInstEQ');
     
-    Object.entries(eqParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
+    for (const [key, param] of Object.entries(eqParams)) {
+        const control = await createParameterControl(param, key);
         container.appendChild(control);
-    });
+    }
 }
 
-function updateGuitarEQControls() {
+async function updateGuitarEQControls() {
     const container = document.getElementById('guitarEQControls');
     if (!container) return;
     
     container.innerHTML = '';
     const eqParams = bossCubeController.getParametersByCategory('guitarEQ');
     
-    Object.entries(eqParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
+    for (const [key, param] of Object.entries(eqParams)) {
+        const control = await createParameterControl(param, key);
         container.appendChild(control);
-    });
+    }
 }
 
-function updateGuitarAmpControls() {
+async function updateGuitarAmpControls() {
     const container = document.getElementById('guitarAmpControls');
     if (!container) return;
     
     container.innerHTML = '';
     const ampParams = bossCubeController.getParametersByCategory('guitarAmp');
     
-    Object.entries(ampParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
+    for (const [key, param] of Object.entries(ampParams)) {
+        const control = await createParameterControl(param, key);
         container.appendChild(control);
-    });
+    }
 }
 
-function updateTunerControls() {
+async function updateTunerControls() {
     const container = document.getElementById('tunerControls');
     if (!container) return;
     
     container.innerHTML = '';
     const tunerParams = bossCubeController.getParametersByCategory('tuner');
     
-    Object.entries(tunerParams).forEach(([key, param]) => {
-        const control = createParameterControl(param, key);
+    for (const [key, param] of Object.entries(tunerParams)) {
+        const control = await createParameterControl(param, key);
         container.appendChild(control);
-    });
+    }
     
     // Set up the new tuner toggle button
     const tunerToggleBtn = document.getElementById('tunerToggleBtn');
@@ -1455,13 +1153,21 @@ function handleBindInfoEscape(e) {
     }
 }
 
-function createMasterBindControl() {
+async function createMasterBindControl() {
     const bindControl = document.createElement('div');
     bindControl.className = 'mixer-bind-control';
-    bindControl.innerHTML = `
-        <div class="bind-main-text">🔗 Bind Master Out with Aux</div>
-        <button class="bind-info-icon" type="button">i</button>
-    `;
+    
+    try {
+        const bindHTML = await templateLoader.loadTemplate('templates/master-bind-control.html');
+        bindControl.innerHTML = bindHTML;
+    } catch (error) {
+        console.error('Failed to load master bind control template:', error);
+        // Fallback to inline HTML
+        bindControl.innerHTML = `
+            <div class="bind-main-text">🔗 Bind Master Out with Aux</div>
+            <button class="bind-info-icon" type="button">i</button>
+        `;
+    }
     
     // Store references
     masterBindControl = bindControl;
@@ -1485,7 +1191,7 @@ function createMasterBindControl() {
     return bindControl;
 }
 
-function createParameterControl(param, key) {
+async function createParameterControl(param, key) {
     const control = document.createElement('div');
     control.className = 'parameter-control';
     control.setAttribute('data-param-key', key);
@@ -1500,20 +1206,21 @@ function createParameterControl(param, key) {
         initialDisplayValue = `${param.current}/${param.max}`;
     }
     
-    // Create the interactive structure with visual fill
-    control.innerHTML = `
-        <div class="parameter-fill" data-param-key="${key}"></div>
-        <div class="parameter-pedal-position" data-param-key="${key}"></div>
-        <div class="parameter-label">${param.name}</div>
-        <div class="parameter-value">${initialDisplayValue}</div>
-        <input type="range" 
-               class="parameter-slider" 
-               min="${param.min}" 
-               max="${param.max}" 
-               value="${param.current}"
-               data-param-key="${key}"
-               aria-label="${param.name}">
-    `;
+    try {
+        const paramHTML = await templateLoader.renderTemplate('templates/parameter-control.html', {
+            PARAM_KEY: key,
+            PARAM_NAME: param.name,
+            PARAM_VALUE: initialDisplayValue,
+            PARAM_MIN: param.min,
+            PARAM_MAX: param.max,
+            PARAM_CURRENT: param.current
+        });
+        control.innerHTML = paramHTML;
+    } catch (error) {
+        console.error('Failed to load parameter control template:', error);
+        control.innerHTML = '<div class="error">Template load failed</div>';
+        throw error; // Re-throw to indicate critical failure
+    }
     
     // Set initial visual fill
     updateParameterFill(key, param.current, param.min, param.max);
@@ -2229,13 +1936,19 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     
     // Handle special controls that need custom updates
     if (paramKey === 'looperControl') {
-        updateLooperControls();
+        // Fire and forget - just update the UI asynchronously
+        updateLooperControls().catch(error => {
+            console.error('Failed to update looper controls UI:', error);
+        });
     }
     
     // Handle looper settings toggle buttons - regenerate the UI to show updated values
     const looperSettingParams = ['looperRecTime', 'looperMicInstAssign', 'looperGuitarMicAssign', 'looperReverbAssign', 'looperICubeLinkAssign'];
     if (looperSettingParams.includes(paramKey)) {
-        updateLooperSettingsControls();
+        // Fire and forget - just update the UI asynchronously
+        updateLooperSettingsControls().catch(error => {
+            console.error('Failed to update looper settings UI:', error);
+        });
     }
     
     // Handle tuner parameter updates

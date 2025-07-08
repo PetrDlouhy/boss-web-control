@@ -1,5 +1,69 @@
 # Boss Cube II Web Control - Version History
 
+## Version 2.22.16-alpha.4 (2025-01-20)
+
+### 🏗️ **Code Structure Refactoring**
+
+This release focuses on improving code maintainability by separating HTML and CSS from JavaScript code, creating a cleaner and more organized codebase structure.
+
+### ✨ **What's New for Developers**
+
+#### 📁 **Template System**
+- **Extracted HTML templates**: Moved inline HTML from JavaScript to separate template files
+- **Template loader utility**: Created `TemplateLoader` class for loading and processing HTML templates
+- **Variable substitution**: Templates support placeholders like `{{PARAM_KEY}}` for dynamic content
+- **Template caching**: Efficient template caching system to avoid repeated network requests
+
+#### 📁 **Separated CSS Styles**  
+- **Main styles**: Moved `styles.css` to `styles/styles.css` for consistency
+- **Looper controls CSS**: Moved embedded CSS to `styles/looper-controls.css`
+- **Looper settings CSS**: Extracted styles to `styles/looper-settings.css`
+- **Responsive design preserved**: All mobile breakpoints and responsive behavior maintained
+- **CSS organization**: All styles are now properly organized in dedicated `styles/` folder
+
+#### 📁 **New File Structure**
+```
+boss-cube-web-control/
+├── templates/
+│   ├── effects-interface.html
+│   ├── looper-controls.html
+│   ├── looper-settings.html
+│   ├── master-bind-control.html
+│   └── parameter-control.html
+├── styles/
+│   ├── styles.css (moved from root)
+│   ├── looper-controls.css
+│   └── looper-settings.css
+├── template-loader.js
+└── app.js (now cleaner and more maintainable)
+```
+
+### 🔧 **Behind-the-Scenes Improvements**
+- **Cleaner JavaScript**: Removed ~500 lines of inline HTML and CSS from `app.js`
+- **Complete extraction**: All embedded HTML blocks removed, including looper settings function
+- **Organized styles folder**: Moved all CSS files into dedicated `styles/` directory
+- **Better maintainability**: HTML structure changes no longer require JavaScript edits
+- **Async template loading**: All template operations use modern async/await patterns
+- **Fail-fast error handling**: Removed fallback HTML from critical components - if templates fail to load, the app properly fails rather than degrading
+- **Code separation**: Clear separation of concerns between structure (HTML), style (CSS), and behavior (JS)
+
+### 🛠️ **Technical Changes**
+- **Template loader module**: New `TemplateLoader` class handles all template operations
+- **Async function updates**: Functions using templates converted to async/await
+- **Template variables**: Support for dynamic content injection via template variables
+- **Backwards compatibility**: All existing functionality preserved with new architecture
+
+### 📈 **Benefits**
+- **Easier maintenance**: Designers can edit HTML/CSS without touching JavaScript
+- **Better code organization**: Clear separation between presentation and logic
+- **Improved readability**: JavaScript code is now focused on functionality
+- **Template reusability**: HTML templates can be reused across different contexts
+- **Development efficiency**: Faster development cycles with organized code structure
+
+**Upgrading from v2.22.15**: No user-visible changes. All functionality remains identical with completely refactored and organized code structure behind the scenes.
+
+---
+
 ## Version 2.22.15 (2025-01-20)
 
 ### 🎯 **Major Looper Interface Redesign**

@@ -1,0 +1,129 @@
+<div class="effects-section">
+    <div id="looperControls"></div>
+    <div id="looperSettings"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🎸 Guitar EQ & Amp</h4>
+    <div id="guitarEQControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🎸 Guitar Amp Types</h4>
+    <div id="guitarAmpControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🎸 Guitar Effects</h4>
+    <div class="effect-buttons">
+        <button class="effect-btn" data-effect="phaser">Phaser</button>
+        <button class="effect-btn" data-effect="chorus">Chorus</button>
+        <button class="effect-btn" data-effect="tremolo">Tremolo</button>
+        <button class="effect-btn" data-effect="twah">T.WAH</button>
+        <button class="effect-btn" data-effect="flanger">Flanger</button>
+    </div>
+    <div id="guitarEffectControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🎸 Guitar Delay</h4>
+    <div id="guitarDelayControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🌊 Shared Reverb</h4>
+    <div id="reverbControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🔊 Reverb Levels</h4>
+    <div id="reverbLevelsControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🎤 Mic/Inst EQ</h4>
+    <div id="micInstEQControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🎤 Mic/Inst Effects</h4>
+    <div class="effect-buttons">
+        <button class="effect-btn" data-effect="harmony">Harmony</button>
+        <button class="effect-btn" data-effect="chorus">Chorus</button>
+        <button class="effect-btn" data-effect="phaser">Phaser</button>
+        <button class="effect-btn" data-effect="flanger">Flanger</button>
+        <button class="effect-btn" data-effect="tremolo">Tremolo</button>
+        <button class="effect-btn" data-effect="twah">T.WAH</button>
+    </div>
+    <div id="micInstEffectControls" class="parameter-grid"></div>
+</div>
+
+<div class="effects-section">
+    <h4>🎵 Tuner</h4>
+    <div class="tuner-container">
+        <div class="tuner-toggle">
+            <button id="tunerToggleBtn" class="btn tuner" disabled>🎵 Tuner OFF</button>
+        </div>
+        
+        <div id="tunerStatus" class="tuner-status off">Tuner Off</div>
+        
+        <div id="tunerVisual" class="tuner-visual">
+            <div id="tunerFrequencyDisplay" class="tuner-frequency-display">440Hz</div>
+            <div id="tunerNoteDisplay" class="tuner-note-display">A</div>
+            
+            <div class="tuner-meter">
+                <div class="tuner-scale">
+                    <span>♭</span>
+                    <span>-20</span>
+                    <span>-10</span>
+                    <span>0</span>
+                    <span>+10</span>
+                    <span>+20</span>
+                    <span>♯</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tuner-presets">
+            <button class="tuner-preset-btn" data-freq="435">435Hz</button>
+            <button class="tuner-preset-btn" data-freq="436">436Hz</button>
+            <button class="tuner-preset-btn" data-freq="437">437Hz</button>
+            <button class="tuner-preset-btn" data-freq="438">438Hz</button>
+            <button class="tuner-preset-btn" data-freq="439">439Hz</button>
+            <button class="tuner-preset-btn active" data-freq="440">440Hz</button>
+            <button class="tuner-preset-btn" data-freq="441">441Hz</button>
+            <button class="tuner-preset-btn" data-freq="442">442Hz</button>
+            <button class="tuner-preset-btn" data-freq="443">443Hz</button>
+            <button class="tuner-preset-btn" data-freq="444">444Hz</button>
+            <button class="tuner-preset-btn" data-freq="445">445Hz</button>
+        </div>
+        
+        <div>
+            <strong>Reference Key:</strong>
+            <div class="tuner-key-presets">
+                <button class="tuner-key-btn active" data-key="0">C</button>
+                <button class="tuner-key-btn" data-key="1">Db</button>
+                <button class="tuner-key-btn" data-key="2">D</button>
+                <button class="tuner-key-btn" data-key="3">Eb</button>
+                <button class="tuner-key-btn" data-key="4">E</button>
+                <button class="tuner-key-btn" data-key="5">F</button>
+                <button class="tuner-key-btn" data-key="6">Gb</button>
+                <button class="tuner-key-btn" data-key="7">G</button>
+                <button class="tuner-key-btn" data-key="8">Ab</button>
+                <button class="tuner-key-btn" data-key="9">A</button>
+                <button class="tuner-key-btn" data-key="10">Bb</button>
+                <button class="tuner-key-btn" data-key="11">B</button>
+            </div>
+        </div>
+        
+        <div class="tuner-controls-grid">
+            <div id="tunerControls" class="parameter-grid"></div>
+        </div>
+        
+        <div class="tuner-help">
+            <strong>How to use:</strong> Turn on the tuner, play your guitar/instrument, and the Boss Cube will detect the pitch. 
+            Use the preset buttons for quick frequency selection, or fine-tune with the sliders. 
+            The reference key helps with chromatic tuning.
+        </div>
+    </div>
+</div> 

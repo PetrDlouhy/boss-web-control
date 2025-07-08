@@ -657,13 +657,6 @@ class BossCubeController {
                 // Handle value conversion from Boss Cube (some parameters send 1-based values)
                 let uiValue = value;
                 
-                // Parameters that need -1 conversion (1-based Boss Cube to 0-based UI)
-                // Note: looperControl removed - Boss Cube sends 0-based values (0-5), not 1-based
-                const needsMinusOne = [];
-                if (needsMinusOne.includes(key)) {
-                    uiValue = Math.max(0, value - 1);
-                }
-                
                 // Parameters that need -1 for EQ (1-100 Boss Cube to 0-100 UI)
                 const eqParams = ['micInstEQBass', 'micInstEQMiddle', 'micInstEQTreble', 
                                  'guitarEQBass', 'guitarEQMiddle', 'guitarEQTreble', 'guitarGain'];

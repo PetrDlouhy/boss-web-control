@@ -1,0 +1,75 @@
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.settings-btn, .info-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-btn:hover, .info-btn:hover {
+    background: #5a6268;
+}
+
+.looper-buttons-improved {
+    display: flex;
+    gap: 5px;
+    margin: 10px 0;
+}
+
+.looper-btn-improved {
+    flex: 1;
+    height: 48px;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+
+.looper-icon {
+    font-size: 16px;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.looper-label {
+    font-size: 8px;
+    line-height: 1;
+    font-weight: bold;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+.looper-btn-improved:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.looper-btn-improved.active {
+    background: #28a745;
+    color: white;
+    border-color: #1e7e34;
+} 
