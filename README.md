@@ -4,7 +4,7 @@
 
 A comprehensive Progressive Web App implementing reverse-engineered SysEx protocols to provide complete wireless control over the Boss Cube II amplifier, with technical improvements and additional functionality not available in the official application.
 
-**Current Version:** 2.22.14-alpha.13 ([Release Process](RELEASE_PROCESS.md))
+**Current Version:** 2.23.0 ([Release Process](RELEASE_PROCESS.md))
 
 ---
 
@@ -69,6 +69,16 @@ A comprehensive Progressive Web App implementing reverse-engineered SysEx protoc
 - **Reference Key Selection** - Chromatic tuning support (C through B)
 - **Pitch Parameters** - Fine-tuning controls
 
+### 🎭 **Live Performance Mode**
+- **Fullscreen Performance Interface** - Dedicated immersive live control interface
+- **Custom Preset Creation** - Build personalized control layouts for different songs/sets
+- **Drag & Drop Organization** - Mobile-friendly preset reordering with touch support
+- **Long Hold Parameter Selection** - 800ms hold to assign pedal control instantly
+- **Advanced Pickup Mode** - Automatic activation for seamless parameter transitions
+- **Mobile-Optimized Controls** - Touch-friendly interface designed for stage use
+- **Preset Management** - Save, edit, duplicate, and organize performance configurations
+- **Fullscreen Lock** - Prevents accidental interface changes during performance
+
 ### 🦶 **EV-1-WL Pedal Integration**
 - **Dual Bluetooth Connections** - Boss Cube + EV-1-WL simultaneously
 - **Any Parameter Control** - Expression pedal controls any mixer/effects parameter
@@ -76,6 +86,26 @@ A comprehensive Progressive Web App implementing reverse-engineered SysEx protoc
 - **Pickup Mode** - Seamless pedal position synchronization
 - **Visual Parameter Selection** - Orange highlighting shows active pedal control
 - **Touch to Select** - Tap any parameter to assign pedal control
+
+#### **Pickup Mode System**
+
+Pickup mode prevents parameter jumps when pedal position doesn't match control value, ensuring smooth transitions during live performance.
+
+**How It Works:**
+- **Detection**: Activates when pedal position differs from control value by >3 units
+- **Visual Feedback**: Red line indicator shows current pedal position
+- **Control Freeze**: Parameter stays at target value until pedal reaches it
+- **Exit Conditions**: Deactivates when pedal reaches target (±3 units) or crosses it
+
+**Activation Scenarios:**
+- **Main App**: Manual slider/control changes only
+- **Live Performance**: Automatic activation on pedal/control mismatch
+- **Parameter Switch**: Auto-activates if new parameter differs from pedal position
+
+**Benefits:**
+- **No Parameter Jumps**: Smooth value transitions during parameter switching
+- **Live Performance Ready**: Seamless preset/parameter changes mid-performance  
+- **Visual Clarity**: Always know where pedal position is relative to control value
 
 ### 📱 **Mobile & Performance Features**
 - **Progressive Web App** - Install on mobile devices
@@ -178,7 +208,15 @@ https://localhost:8000
 - **Expression Control** - Real-time parameter adjustment via pedal movement
 - **Pickup Mode** - Automatic position synchronization when switching parameters
 
-### Live Performance Features
+### Live Performance Mode
+- **Activate Mode** - Click "🎭 Live Performance" button to enter fullscreen mode
+- **Create Presets** - Use the gear icon to create custom control layouts
+- **Parameter Selection** - Long hold (800ms) any control to assign pedal control
+- **Drag & Drop** - Reorder presets by dragging in the preset list
+- **Fullscreen Control** - Immersive interface designed for stage use
+- **Mobile Optimized** - Touch-friendly controls for phones and tablets
+
+### Basic Live Performance Features
 - **Touch to Select** - Tap parameters for instant pedal assignment
 - **Visual Feedback** - Clear indication of active controls and values
 - **Mobile Support** - Works on phones/tablets for stage-side control

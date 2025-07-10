@@ -3,30 +3,31 @@
 
 import BossCubeController from './boss-cube-controller.js';
 import TemplateLoader from './template-loader.js';
+import { LivePerformance } from './live-performance.js';
 
-const VERSION = '2.22.16-alpha.4';
+const VERSION = '2.23.0';
 
 let bossCubeController = null;
 let templateLoader = null;
 let currentParameterKey = 'masterVolume';
 let pedalExpression = 64; // Current pedal expression value (0-127)
+let lastPedalValue = null; // Previous pedal value for crossing detection
 
 // Screen Wake Lock
 let wakeLock = null;
 let wakeLockSupported = false;
 
-// Pickup mode state
+// Pickup mode state (using global pedal position from controller)
 let pickupMode = {
     active: false,
-    pedalValue: 0,
-    controlValue: 0,
-    threshold: 3, // Pickup threshold in parameter units for capture
-    activationThreshold: 15 // Activation threshold as percentage for new parameter selection
+    threshold: 3, // Pickup threshold in parameter units for capture/exit
+    targetControlValue: null, // Static target value to converge to
+    activeParameter: null // Parameter key that is currently in pickup mode
 };
 
 // UI Elements
 let statusEl, pedalStatusEl, logEl;
-let connectBtn, connectPedalBtn, debugBtn, readValuesBtn;
+let connectBtn, connectPedalBtn, debugBtn, readValuesBtn, livePerformanceBtn;
 let mixerControlsEl, effectsControlsEl;
 let versionTextEl, refreshBtn;
 
@@ -37,6 +38,9 @@ let tunerEnabled = false;
 let masterBindEnabled = false;
 let masterBindControl, masterBindInfoIcon;
 let bindInfoOverlay, bindInfoPopup;
+
+// Live performance mode
+let livePerformance = null;
 
 // Settings management
 let settings = {
@@ -58,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     connectPedalBtn = document.getElementById('connectPedalBtn');
     debugBtn = document.getElementById('debugBtn');
     readValuesBtn = document.getElementById('readValuesBtn');
+    livePerformanceBtn = document.getElementById('livePerformanceBtn');
     mixerControlsEl = document.getElementById('mixerControls');
     effectsControlsEl = document.getElementById('effectsControls');
     versionTextEl = document.getElementById('versionText');
@@ -103,6 +108,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize controller and template loader
     bossCubeController = new BossCubeController();
     templateLoader = new TemplateLoader();
+    
+    // Initialize live performance mode after controller and template loader are ready
+    const livePerformanceOverlay = document.getElementById('livePerformanceOverlay');
+    livePerformance = new LivePerformance(bossCubeController, templateLoader, log);
+    livePerformance.initialize(livePerformanceOverlay);
+    
+    // Expose global functions for live performance mode
+    window.pendingAnimationUpdates = pendingAnimationUpdates;
+    window.processPendingAnimationUpdates = processPendingAnimationUpdates;
+    window.updateParameterDisplay = updateParameterDisplay;
+    window.selectParameter = selectParameter;
     
     // Apply current settings to controller
     applySettingsToController();
@@ -180,6 +196,9 @@ function setupEventListeners() {
     debugBtn.addEventListener('click', runDebugSequence);
     readValuesBtn.addEventListener('click', readValuesFromCube);
     
+    // Live performance button
+    livePerformanceBtn.addEventListener('click', () => livePerformance.toggle());
+    
     // Set up pedal event listeners
     bossCubeController.onPedalEvent((event) => {
         switch (event.type) {
@@ -219,43 +238,37 @@ function setupEventListeners() {
     };
 }
 
+/**
+ * Handle pedal volume changes with pickup mode exit detection
+ * 
+ * Main app only exits pickup mode during pedal movement - activation only
+ * occurs through manual control changes via updateParameterValue().
+ * 
+ * @param {Object} event - Pedal event object
+ * @param {number} event.value - Converted parameter value
+ * @param {Object} event.parameter - Parameter object
+ * @param {string} event.parameterKey - Parameter identifier
+ */
 function handlePedalVolumeChange(event) {
-    const { value, pedalValue, parameter, parameterKey } = event;
+    const { value, parameter, parameterKey } = event;
     
-    // Store previous pedal value to detect crossing
-    const previousPedalValue = pickupMode.pedalValue;
+    // Store previous pedal value for crossing detection
+    const previousPedalValue = lastPedalValue || value;
+    lastPedalValue = value;
     
-    // Update pickup mode state
-    pickupMode.pedalValue = value;
-    
-    // Don't update control value from parameter.current - keep the actual UI control value
-    // Only update if we don't have a control value yet
-    if (pickupMode.controlValue === 0) {
-        pickupMode.controlValue = parameter.current;
-    }
-    
-    // If we're not in pickup mode, update control value immediately to prevent false activation
-    if (!pickupMode.active) {
-        pickupMode.controlValue = value;
-    }
-    
-    // Check if we need to enter pickup mode
-    const valueDifference = Math.abs(pickupMode.pedalValue - pickupMode.controlValue);
-    
-    if (!pickupMode.active && valueDifference > pickupMode.threshold) {
-        // Enter pickup mode - pedal and control positions don't match
-        pickupMode.active = true;
-        updatePickupModeVisuals(parameterKey, true);
-        bossCubeController.enablePickupMode();
-        log(`🎯 Pickup mode activated`, 'info');
-    } else if (pickupMode.active) {
-        // Check if we should exit pickup mode
+    if (pickupMode.active) {
+        // In pickup mode - check if we should exit
+        const targetValue = pickupMode.targetControlValue;
+        const valueDifference = Math.abs(value - targetValue);
         const shouldExit = valueDifference <= pickupMode.threshold || 
-                          hasCrossedTarget(previousPedalValue, pickupMode.pedalValue, pickupMode.controlValue);
+                          hasCrossedTarget(previousPedalValue, value, targetValue);
         
         if (shouldExit) {
-            // Exit pickup mode - pedal has reached control position or crossed it
+            // Exit pickup mode - pedal has reached target position or crossed it
             pickupMode.active = false;
+            pickupMode.targetControlValue = null;
+            pickupMode.activeParameter = null;
+            
             updatePickupModeVisuals(parameterKey, false);
             bossCubeController.disablePickupMode();
             log(`✅ Pickup mode deactivated`, 'success');
@@ -265,9 +278,6 @@ function handlePedalVolumeChange(event) {
     if (pickupMode.active) {
         // In pickup mode - update pedal position indicator but don't change parameter
         updatePedalPositionIndicator(parameterKey, value);
-        
-        // Don't update the parameter value or send to Boss Cube while in pickup mode
-        // Just update the visual pedal indicator
     } else {
         // Normal mode - update parameter value
     updateParameterDisplayFast(parameterKey, value);
@@ -331,17 +341,19 @@ function handleParameterChange(event) {
             }
         }
         pickupMode.active = false;
+        pickupMode.targetControlValue = null;
+        pickupMode.activeParameter = null;
         bossCubeController.disablePickupMode();
     }
     
-    // Initialize pickup mode state for the new parameter
-    pickupMode.controlValue = parameter.current;
-    // Keep existing pedal value and check if pickup mode should be activated
-    if (pickupMode.pedalValue !== 0) {
-        const valueDifference = Math.abs(pickupMode.pedalValue - pickupMode.controlValue);
-        const percentageDifference = (valueDifference / parameter.max) * 100;
-        if (percentageDifference > pickupMode.activationThreshold) {
+    // Check if pickup mode should be activated for new parameter using global pedal position
+    const globalPedalPosition = bossCubeController.getGlobalPedalPosition(parameter);
+    if (globalPedalPosition !== null) {
+        const valueDifference = Math.abs(globalPedalPosition - parameter.current);
+        if (valueDifference > pickupMode.threshold) {
             pickupMode.active = true;
+            pickupMode.targetControlValue = parameter.current;
+            pickupMode.activeParameter = currentParameterKey;
             updatePickupModeVisuals(currentParameterKey, true);
             bossCubeController.enablePickupMode();
             log(`🎯 Pickup mode activated after parameter switch`, 'info');
@@ -389,6 +401,9 @@ async function createEffectsInterface() {
     
     // Set up effect selectors
     setupEffectSelectors();
+    
+    // Set up collapsible sections
+    setupCollapsibleSections();
     
     // Initially populate all effect controls
     await updateLooperControls();
@@ -440,6 +455,59 @@ function setupEffectSelectors() {
     // Set initial highlights
     updateGuitarEffectButtonHighlight(bossCubeController.currentGuitarEffect);
     updateMicInstEffectButtonHighlight(bossCubeController.currentMicInstEffect);
+}
+
+function setupCollapsibleSections() {
+    const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
+    const COLLAPSED_SECTIONS_KEY = 'boss-cube-collapsed-sections';
+    
+    // Load collapsed state from localStorage
+    let collapsedSections = new Set();
+    try {
+        const saved = localStorage.getItem(COLLAPSED_SECTIONS_KEY);
+        if (saved) {
+            collapsedSections = new Set(JSON.parse(saved));
+        }
+    } catch (error) {
+        console.warn('Failed to load collapsed sections from localStorage:', error);
+    }
+    
+    // Apply saved collapsed state and set up event listeners
+    collapsibleHeaders.forEach(header => {
+        const targetId = header.dataset.target;
+        const section = header.closest('.collapsible-section');
+        
+        if (targetId && section) {
+            // Apply saved collapsed state
+            if (collapsedSections.has(targetId)) {
+                section.classList.add('collapsed');
+            }
+            
+            // Add click event listener
+            header.addEventListener('click', () => {
+                const isCollapsed = section.classList.contains('collapsed');
+                
+                if (isCollapsed) {
+                    // Expand section
+                    section.classList.remove('collapsed');
+                    collapsedSections.delete(targetId);
+                    log(`📖 Expanded section: ${header.querySelector('h4').textContent}`, 'info');
+                } else {
+                    // Collapse section
+                    section.classList.add('collapsed');
+                    collapsedSections.add(targetId);
+                    log(`📕 Collapsed section: ${header.querySelector('h4').textContent}`, 'info');
+                }
+                
+                // Save state to localStorage
+                try {
+                    localStorage.setItem(COLLAPSED_SECTIONS_KEY, JSON.stringify([...collapsedSections]));
+                } catch (error) {
+                    console.warn('Failed to save collapsed sections to localStorage:', error);
+                }
+            });
+        }
+    });
 }
 
 async function updateGuitarEffectControls() {
@@ -523,13 +591,13 @@ async function updateLooperControls() {
     
     try {
         const buttonsHTML = looperButtons.map((btn, index) => `
-            <button class="looper-btn-improved ${looperControl.current === index ? 'active' : ''}" 
-                    data-value="${index}" 
-                    data-looper-value="${index}"
-                    title="${btn.title}">
-                <div class="looper-icon">${btn.icon}</div>
-                <div class="looper-label">${btn.label}</div>
-            </button>
+                <button class="looper-btn-improved ${looperControl.current === index ? 'active' : ''}" 
+                        data-value="${index}" 
+                        data-looper-value="${index}"
+                        title="${btn.title}">
+                    <div class="looper-icon">${btn.icon}</div>
+                    <div class="looper-label">${btn.label}</div>
+                </button>
         `).join('');
         
         const looperHTML = await templateLoader.renderTemplate('templates/looper-controls.html', {
@@ -542,7 +610,7 @@ async function updateLooperControls() {
         // Fallback to basic content
         container.innerHTML = '<div class="error">Failed to load looper controls</div>';
         return;
-    }
+            }
     
     // Set up looper buttons with improved styling
     const looperBtns = container.querySelectorAll('.looper-btn-improved');
@@ -637,27 +705,27 @@ async function updateLooperSettingsControls() {
     
     try {
         const buttonsHTML = looperSettings.map(({ key, id, icon, label, title }) => {
-            const param = bossCubeController.parameters[key];
-            if (!param) return '';
-            
-            const isActive = param.current === 1;
-            let statusText = '';
-            
-            // Only show status text for Rec Time, others rely on color
-            if (key === 'looperRecTime') {
-                statusText = isActive ? 'Long (90s/Mono)' : 'Normal (45s/Stereo)';
-            }
-            
-            return `
-                <button id="${id}" 
-                        class="toggle-btn-improved ${isActive ? 'active' : ''}" 
-                        data-param="${key}"
-                        title="${title}">
-                    <div class="toggle-icon">${icon}</div>
-                    <div class="toggle-label">${label}</div>
-                    ${statusText ? `<div class="toggle-status">${statusText}</div>` : ''}
-                </button>
-            `;
+                const param = bossCubeController.parameters[key];
+                if (!param) return '';
+                
+                const isActive = param.current === 1;
+                let statusText = '';
+                
+                // Only show status text for Rec Time, others rely on color
+                if (key === 'looperRecTime') {
+                    statusText = isActive ? 'Long (90s/Mono)' : 'Normal (45s/Stereo)';
+                }
+                
+                return `
+                    <button id="${id}" 
+                            class="toggle-btn-improved ${isActive ? 'active' : ''}" 
+                            data-param="${key}"
+                            title="${title}">
+                        <div class="toggle-icon">${icon}</div>
+                        <div class="toggle-label">${label}</div>
+                        ${statusText ? `<div class="toggle-status">${statusText}</div>` : ''}
+                    </button>
+                `;
         }).join('');
         
         const settingsHTML = await templateLoader.renderTemplate('templates/looper-settings.html', {
@@ -1163,10 +1231,10 @@ async function createMasterBindControl() {
     } catch (error) {
         console.error('Failed to load master bind control template:', error);
         // Fallback to inline HTML
-        bindControl.innerHTML = `
-            <div class="bind-main-text">🔗 Bind Master Out with Aux</div>
-            <button class="bind-info-icon" type="button">i</button>
-        `;
+    bindControl.innerHTML = `
+        <div class="bind-main-text">🔗 Bind Master Out with Aux</div>
+        <button class="bind-info-icon" type="button">i</button>
+    `;
     }
     
     // Store references
@@ -1438,6 +1506,15 @@ function updateParameterSelection() {
     });
 }
 
+/**
+ * Update parameter value with pickup mode activation on manual changes
+ * 
+ * Activates pickup mode when user manually changes a control and pedal position
+ * differs significantly. This ensures smooth transitions when pedal takes over.
+ * 
+ * @param {string} key - Parameter key identifier
+ * @param {number} value - New parameter value
+ */
 function updateParameterValue(key, value) {
     if (!bossCubeController.parameters[key]) return;
     
@@ -1448,17 +1525,19 @@ function updateParameterValue(key, value) {
     
     // Update pickup mode state when control is changed manually
     if (key === currentParameterKey) {
-        pickupMode.controlValue = value;
+        // Get global pedal position for this parameter
+        const globalPedalPosition = bossCubeController.getGlobalPedalPosition(param);
         
         // If pedal position is significantly different, enter pickup mode
-        if (!pickupMode.active && pickupMode.pedalValue !== 0) {
-            const valueDifference = Math.abs(pickupMode.pedalValue - pickupMode.controlValue);
-            const percentageDifference = (valueDifference / param.max) * 100;
-            if (percentageDifference > pickupMode.activationThreshold) {
+        if (!pickupMode.active && globalPedalPosition !== null) {
+            const valueDifference = Math.abs(globalPedalPosition - value);
+            if (valueDifference > pickupMode.threshold) {
                 pickupMode.active = true;
+                pickupMode.targetControlValue = value; // Target is the manually set control value
+                pickupMode.activeParameter = key;
                 updatePickupModeVisuals(key, true);
                 bossCubeController.enablePickupMode();
-                log(`🎯 Pickup mode activated`, 'info');
+                log(`🎯 Pickup mode activated (control set to ${value})`, 'info');
             }
         }
     }
@@ -1573,8 +1652,12 @@ function updatePickupModeVisuals(key, active) {
         if (control) {
             if (active) {
                 control.classList.add('pickup-mode');
-                // Update pedal position indicator when entering pickup mode
-                updatePedalPositionIndicator(key, pickupMode.pedalValue);
+                // Update pedal position indicator when entering pickup mode using global pedal position
+                const param = bossCubeController.parameters[key];
+                const globalPedalPosition = bossCubeController.getGlobalPedalPosition(param);
+                if (globalPedalPosition !== null) {
+                    updatePedalPositionIndicator(key, globalPedalPosition);
+                }
             } else {
                 control.classList.remove('pickup-mode');
             }
@@ -1934,6 +2017,11 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     // Update the parameter display when Boss Cube sends us a value
     updateParameterDisplay(paramKey, value);
     
+    // Update Live Performance mode controls if active
+    if (livePerformance && livePerformance.isActive) {
+        livePerformance.updateLivePerformanceDisplay(paramKey, value);
+    }
+    
     // Handle special controls that need custom updates
     if (paramKey === 'looperControl') {
         // Fire and forget - just update the UI asynchronously
@@ -1961,9 +2049,13 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     if (isPhysicalKnobChange && paramKey === currentParameterKey && pickupMode.active) {
         pickupMode.active = false;
         updatePickupModeVisuals(paramKey, false);
-        pickupMode.controlValue = value;
         bossCubeController.disablePickupMode();
         log(`🎛️ Physical knob change detected - pickup mode reset`, 'info');
+    }
+    
+    // Reset pickup mode in Live Performance mode when physical knob changes are detected
+    if (isPhysicalKnobChange && livePerformance && livePerformance.isActive) {
+        livePerformance.handlePhysicalKnobChange(paramKey, value);
     }
 }
 
@@ -2193,8 +2285,11 @@ async function releaseWakeLock() {
 
 
 async function handleVisibilityChange() {
-    if (wakeLock !== null && document.visibilityState === 'visible') {
-        // Re-acquire wake lock when page becomes visible again
+    if (document.hidden) {
+        await releaseWakeLock();
+    } else {
         await acquireWakeLock();
     }
 } 
+
+// Live Performance Mode functionality moved to live-performance.js 

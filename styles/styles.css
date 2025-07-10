@@ -1402,3 +1402,1063 @@ h5 {
         font-size: 6px;
     }
 } 
+
+/* Collapsible sections */
+.collapsible-section {
+    margin-bottom: 20px;
+}
+
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px 4px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+    user-select: none;
+    margin-bottom: 8px;
+}
+
+.collapsible-header:hover {
+    background-color: #f0f0f0;
+}
+
+.collapsible-header h4 {
+    margin: 0;
+    color: #333;
+    font-size: 1em;
+    font-weight: bold;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4px;
+    flex: 1;
+}
+
+.collapse-arrow {
+    font-size: 0.8em;
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+    font-weight: bold;
+    color: #666;
+    min-width: 12px;
+    text-align: center;
+}
+
+.collapsible-section.collapsed .collapse-arrow {
+    transform: rotate(-90deg);
+}
+
+.section-content {
+    overflow: hidden;
+    max-height: 2000px;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+    opacity: 1;
+}
+
+.collapsible-section.collapsed .section-content {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+}
+
+.collapsible-section.collapsed .section-content > * {
+    margin-bottom: 0;
+}
+
+.collapsible-section.collapsed .collapsible-header {
+    margin-bottom: 0;
+}
+
+.collapsible-section.collapsed .collapsible-header h4 {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .collapsible-header {
+        padding: 6px 2px;
+    }
+    
+    .collapsible-header h4 {
+        font-size: 0.95em;
+    }
+    
+    .collapse-arrow {
+        font-size: 0.7em;
+        margin-right: 6px;
+    }
+} 
+
+/* Live Performance Mode */
+.live-performance-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: none;
+    z-index: 1000;
+}
+
+.live-performance-overlay.active {
+    display: block;
+}
+
+.live-performance-container {
+    background: white;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.live-performance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    flex-shrink: 0;
+}
+
+.live-performance-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.live-performance-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5em;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.live-performance-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.live-performance-content {
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.live-performance-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 20px;
+}
+
+.live-performance-control {
+    position: relative;
+    background: linear-gradient(to right, #e0e0e0 0%, #f5f5f5 100%);
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    min-height: 40px;
+    cursor: pointer;
+    overflow: hidden;
+    user-select: none;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    outline: none; /* Remove focus outline */
+    -webkit-tap-highlight-color: transparent; /* Remove mobile tap highlight */
+    -webkit-user-select: none; /* Additional user-select prevention */
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.live-performance-control:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.live-performance-control:focus {
+    outline: none; /* Remove focus outline */
+}
+
+.live-performance-control:active {
+    outline: none; /* Remove active outline */
+}
+
+.live-performance-control.current {
+    border-color: #ff9800;
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+}
+
+.live-performance-control .parameter-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(to right, #2196F3 0%, rgba(33, 150, 243, 0.7) 100%);
+    transition: width 0.05s ease-out;
+    border-radius: 6px 0 0 6px;
+    will-change: width;
+}
+
+.live-performance-control.current .parameter-fill {
+    background: linear-gradient(to right, #ff9800 0%, rgba(255, 152, 0, 0.7) 100%);
+}
+
+.live-performance-control .parameter-label {
+    font-weight: bold;
+    color: #333;
+    font-size: 0.9em;
+    z-index: 3;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+    flex: 1;
+    text-align: left;
+}
+
+.live-performance-control .parameter-value {
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #fff;
+    z-index: 3;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    text-align: right;
+    min-width: 60px;
+}
+
+.live-performance-control.current .parameter-label {
+    color: #000;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.live-performance-control .parameter-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.live-performance-control .pedal-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.7em;
+    color: #2196F3;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 4;
+    opacity: 0.8;
+}
+
+/* Pickup mode styles for Live Performance controls */
+.live-performance-control.current.pickup-mode .parameter-pedal-position {
+    opacity: 1;
+}
+
+/* Temporary pedal position visibility when switching parameters */
+.live-performance-control.show-pedal-position .parameter-pedal-position {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .live-performance-header {
+        padding: 12px 16px;
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+    
+    .live-performance-header h2 {
+        font-size: 0;
+        order: 1;
+        width: auto;
+        text-align: center;
+        margin: 0;
+    }
+    
+    .live-performance-header h2::after {
+        content: "🎭";
+        font-size: 1.5rem;
+    }
+    
+    .header-actions {
+        order: 2;
+        width: auto;
+        justify-content: center;
+        gap: 8px;
+        flex: 1;
+    }
+    
+    .preset-select-header {
+        min-width: 140px;
+        font-size: 0.8em;
+        padding: 6px 8px;
+    }
+    
+    .config-btn {
+        font-size: 1em;
+        padding: 6px 8px;
+    }
+    
+    .live-performance-close {
+        padding: 6px 8px;
+        font-size: 1em;
+    }
+    
+    .live-performance-content {
+        padding: 12px;
+    }
+    
+    .live-performance-controls {
+        gap: 8px;
+        padding: 12px 20px;
+    }
+    
+    .live-performance-control {
+        min-height: 44px;
+        padding: 8px 12px;
+    }
+} 
+
+/* Live Performance Preset Selection */
+.live-performance-preset-section {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #e0e0e0;
+}
+
+/* Custom Preset Management */
+.preset-management {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.preset-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.preset-list-header label {
+    font-weight: bold;
+    color: #333;
+    font-size: 1em;
+}
+
+.preset-list {
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.empty-presets {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+}
+
+.empty-presets p {
+    margin: 0;
+}
+
+.preset-item {
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.preset-item:hover {
+    border-color: #2196F3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.preset-item.active {
+    border-color: #2196F3;
+    background: #e3f2fd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 12px rgba(33, 150, 243, 0.2);
+}
+
+.preset-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.preset-item-name {
+    font-weight: bold;
+    color: #333;
+    font-size: 1em;
+}
+
+.preset-item-controls {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.preset-item-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.preset-edit-btn,
+.preset-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    transition: all 0.2s;
+}
+
+.preset-edit-btn {
+    color: #2196F3;
+}
+
+.preset-edit-btn:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
+.preset-delete-btn {
+    color: #dc3545;
+}
+
+.preset-delete-btn:hover {
+    background: rgba(220, 53, 69, 0.1);
+}
+
+/* Settings Modal Preset Management */
+.preset-management-full {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.preset-management-full .preset-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0;
+}
+
+.preset-management-full h4 {
+    margin: 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.preset-list-full {
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+/* Legacy styles for backward compatibility */
+.preset-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.preset-selector label {
+    font-weight: bold;
+    color: #333;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.preset-select {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.preset-select:hover {
+    border-color: #adb5bd;
+}
+
+.preset-select:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.preset-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.preset-btn {
+    background: white;
+    border: 2px solid #2196F3;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+    color: #2196F3;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 70px;
+    text-align: center;
+}
+
+.preset-btn:hover {
+    background: #e3f2fd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.preset-btn:focus {
+    outline: none;
+    border-color: #1976D2;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.preset-btn.active {
+    background: #2196F3;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+@media (max-width: 768px) {
+    .live-performance-preset-section {
+        padding: 12px 16px;
+    }
+    
+    .preset-list-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .preset-list-header label {
+        text-align: center;
+    }
+    
+    .preset-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 16px;
+    }
+    
+    .preset-item-info {
+        text-align: center;
+    }
+    
+    .preset-item-actions {
+        justify-content: center;
+    }
+    
+    /* Legacy responsive styles */
+    .preset-selector {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .preset-selector label {
+        text-align: center;
+    }
+    
+    .preset-buttons {
+        gap: 4px;
+    }
+    
+    .preset-btn {
+        font-size: 0.8em;
+        padding: 6px 8px;
+        min-width: 60px;
+    }
+}
+
+/* Live Performance Header Actions */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.preset-select-header {
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    color: white;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    min-width: 200px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.preset-select-header:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.preset-select-header:focus {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.preset-select-header option {
+    background: #2c3e50;
+    color: white;
+    padding: 8px;
+}
+
+.config-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.config-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Preset Configuration Modal */
+.preset-config-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+}
+
+/* Edit Preset Modal (when opened from Settings) should be above Settings Modal */
+#presetConfigModal {
+    z-index: 1002;
+}
+
+.preset-config-modal.active {
+    display: flex;
+}
+
+.preset-config-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    width: 95%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.preset-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.preset-config-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+}
+
+.preset-config-body {
+    padding: 0;
+    flex: 1;
+}
+
+.preset-tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+.preset-tab {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.preset-tab:hover {
+    background: #e9ecef;
+}
+
+.preset-tab.active {
+    background: white;
+    color: #2196F3;
+    border-bottom: 2px solid #2196F3;
+}
+
+.preset-config-section {
+    padding: 20px;
+}
+
+.preset-name-section {
+    margin-bottom: 24px;
+}
+
+.preset-name-section label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.preset-name-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 1em;
+    transition: border-color 0.2s;
+}
+
+.preset-name-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.preset-icon-section {
+    margin-bottom: 24px;
+}
+
+.preset-icon-section label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.preset-icon-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 1em;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.preset-icon-select:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.controls-selection {
+    margin-bottom: 24px;
+}
+
+.controls-selection h4 {
+    margin: 0 0 16px 0;
+    color: #333;
+}
+
+.controls-categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.control-category {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.control-category h5 {
+    margin: 0 0 12px 0;
+    color: #333;
+    font-size: 0.9em;
+    font-weight: bold;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 8px;
+}
+
+.control-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.control-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.control-option label {
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #555;
+    flex: 1;
+}
+
+.selected-controls {
+    margin-top: 20px;
+}
+
+.selected-controls h4 {
+    margin: 0 0 16px 0;
+    color: #333;
+}
+
+.selected-controls-list {
+    min-height: 100px;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.selected-controls-list.empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #999;
+    font-style: italic;
+}
+
+.selected-control-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: move;
+    transition: all 0.2s;
+}
+
+.selected-control-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.selected-control-item.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+.drag-placeholder {
+    opacity: 0.7;
+    background: #f0f0f0 !important;
+    border: 2px dashed #007bff !important;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.drag-handle {
+    color: #999;
+    font-size: 1.2em;
+    cursor: move;
+    touch-action: none; /* Prevent mobile scrolling on drag handle */
+    user-select: none; /* Prevent text selection during drag */
+}
+
+.selected-control-label {
+    flex: 1;
+    font-weight: 500;
+    color: #333;
+}
+
+.selected-control-key {
+    font-size: 0.8em;
+    color: #666;
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.remove-control {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.remove-control:hover {
+    background: #c82333;
+}
+
+.pedal-control-checkbox {
+    background: none;
+    border: 2px solid #6c757d;
+    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.8em;
+    color: transparent;
+}
+
+.pedal-control-checkbox.checked {
+    background: #2196F3;
+    border-color: #2196F3;
+    color: white;
+}
+
+.pedal-control-checkbox:hover {
+    border-color: #2196F3;
+    background: rgba(33, 150, 243, 0.1);
+}
+
+.pedal-control-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: #e3f2fd;
+    border-radius: 6px;
+    border-left: 4px solid #2196F3;
+}
+
+.pedal-control-info p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #1565C0;
+}
+
+.preset-config-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-top: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+.footer-actions {
+    display: flex;
+    gap: 12px;
+}
+
+@media (max-width: 768px) {
+    .preset-config-content {
+        width: 98%;
+        max-height: 95vh;
+    }
+    
+    .preset-config-header {
+        padding: 12px 16px;
+    }
+    
+    .preset-config-section {
+        padding: 16px;
+    }
+    
+    .controls-categories {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .preset-tabs {
+        flex-direction: column;
+    }
+    
+    .preset-tab {
+        border-bottom: 1px solid #eee;
+    }
+    
+    .preset-tab.active {
+        border-bottom: 2px solid #2196F3;
+    }
+    
+    .preset-config-footer {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .footer-actions {
+        width: 100%;
+        justify-content: center;
+    }
+}
+

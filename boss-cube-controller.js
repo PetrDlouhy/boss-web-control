@@ -26,6 +26,12 @@ class BossCubeController {
             suppressHardwareUpdates: false
         };
         
+        // Global pedal position (shared across all parameters)
+        this.globalPedalState = {
+            rawValue: 0, // 0-127 MIDI value from pedal
+            lastUpdateTime: 0
+        };
+        
 
         
         // Pedal throttling and debouncing for smooth performance
@@ -251,12 +257,24 @@ class BossCubeController {
     // ===== PEDAL HANDLING METHODS =====
 
     /**
-     * Handle pedal volume change (CC 127, value 0-127) with smart throttling
+     * Handle pedal volume change with pickup mode support
+     * 
+     * Processes expression pedal input (CC 127, 0-127) and manages pickup mode state.
+     * Pickup mode prevents parameter jumps when pedal position doesn't match control value.
+     * 
+     * @param {number} pedalValue - Raw MIDI value from pedal (0-127)
      */
     handlePedalVolumeChange(pedalValue) {
+        // Update global pedal position
+        this.globalPedalState.rawValue = pedalValue;
+        this.globalPedalState.lastUpdateTime = Date.now();
+        
         // Get current parameter and convert pedal value to parameter range
         const param = this.getCurrentParameter();
         const paramValue = Math.round((pedalValue / 127) * param.max);
+        
+        // Store original control value for pickup mode detection
+        const originalControlValue = param.current;
         
         // Update internal parameter immediately (no lag in UI)
         param.current = paramValue;
@@ -272,7 +290,8 @@ class BossCubeController {
                     value: paramValue, 
                     pedalValue,
                     parameter: param,
-                    parameterKey: this.currentParameterKey
+                    parameterKey: this.currentParameterKey,
+                    originalControlValue: originalControlValue  // Always include for pickup mode
                 });
             } catch (error) {
                 console.error('Error in pedal callback:', error);
@@ -456,6 +475,24 @@ class BossCubeController {
      */
     isPickupModeActive() {
         return this.pickupMode.enabled;
+    }
+
+    /**
+     * Get global pedal position converted to specific parameter's scale
+     */
+    getGlobalPedalPosition(param) {
+        if (this.globalPedalState.rawValue === 0) {
+            return null; // No pedal position recorded yet
+        }
+        
+        return Math.round((this.globalPedalState.rawValue / 127) * param.max);
+    }
+
+    /**
+     * Get raw global pedal position (0-127)
+     */
+    getRawGlobalPedalPosition() {
+        return this.globalPedalState.rawValue;
     }
 
     // ===== PEDAL EVENT MANAGEMENT =====

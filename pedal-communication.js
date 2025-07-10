@@ -170,11 +170,11 @@ export class PedalCommunication {
      * Handle MIDI CC message from pedal
      */
     handleMIDICC(ccNumber, ccValue) {
-        // Debug logging for unexpected CC codes (can be commented out after debugging)
+        // Debug logging for unexpected CC codes
         if (ccNumber !== this.pedalCCCodes.pedalControl && 
             ccNumber !== this.pedalCCCodes.previousParameter && 
             ccNumber !== this.pedalCCCodes.nextParameter) {
-            console.log(`🎛️ Unknown pedal CC: CC${ccNumber} = ${ccValue}`);
+            console.log(`🎛️ Unknown pedal CC: CC${ccNumber} = ${ccValue} (Expected: ${this.pedalCCCodes.previousParameter}, ${this.pedalCCCodes.nextParameter}, ${this.pedalCCCodes.pedalControl})`);
             return;
         }
         

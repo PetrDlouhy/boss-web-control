@@ -81,7 +81,7 @@
 - **Effort**: Large
 - **Dependencies**: Hardware testing
 
-#### **FEAD-004: Live performance setups**
+#### **FEAT-004: Live performance setups**
 - **Description**: Allow selection of controls for Live show. Organize them for effective usage during performances including footswitch and pedal controls.
 
 #### **Dark mode**

@@ -40,6 +40,7 @@
             <button id="connectBtn" class="btn">Connect Boss Cube</button>
             <button id="connectPedalBtn" class="btn" disabled>Connect Pedal (EV-1-WL)</button>
             <button id="readValuesBtn" class="btn" disabled>🔄 Reload Values</button>
+            <button id="livePerformanceBtn" class="btn warning">🎭 Live Performance</button>
         </div>
         
         <div class="mixer-container">
@@ -131,6 +132,9 @@
         <p>Use the Aux volume knob to control Master Out volume. This is a workaround for the missing physical Master Out knob on the Boss Cube II.</p>
         <p><strong>When enabled:</strong> Turning the Aux knob will move both sliders and control the Master Out volume.</p>
     </div>
+
+    <!-- Live Performance Overlay -->
+    <div id="livePerformanceOverlay" class="live-performance-overlay"></div>
 
     <script type="module" src="boss-cube-controller.js"></script>
     <script type="module" src="app.js"></script>
