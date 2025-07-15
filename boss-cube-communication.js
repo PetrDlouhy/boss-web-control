@@ -257,6 +257,95 @@ export class BossCubeCommunication {
     }
 
     /**
+     * Decode Boss Cube tuner data from 6-byte structured format
+     * @param {Array} valueBytes - Array of 6 bytes containing tuner data
+     * @returns {Object} Decoded tuner information
+     */
+    /**
+     * Decode 6-byte Boss Cube tuner data into musical pitch information
+     * @param {Array} valueBytes - 6 bytes of tuner data
+     * @returns {Object|null} Decoded tuner information or null if invalid
+     */
+    decodeTunerData(valueBytes) {
+        // Debug entry point
+        this.log(`🔧 Tuner decode called with: ${JSON.stringify(valueBytes)}`, 'debug');
+        
+        // Add debugging for input validation
+        if (!valueBytes || !Array.isArray(valueBytes)) {
+            this.log(`🔧 Tuner decode error: Invalid input type: ${typeof valueBytes}`, 'error');
+            return null;
+        }
+        
+        if (valueBytes.length !== 6) {
+            this.log(`🔧 Tuner decode error: Invalid length ${valueBytes.length}, expected 6`, 'error');
+            return null;
+        }
+        
+        // Check for "no signal" condition
+        if (valueBytes.every(b => b === 0)) {
+            // Log no signal with raw bytes
+            const hexBytes = valueBytes.map(b => (typeof b === 'number' ? b : 0).toString(16).padStart(2, '0')).join(' ');
+            this.log(`🎵 Tuner: No Signal [${hexBytes}]`, 'info');
+            return {
+                hasSignal: false,
+                frequency: 0,
+                note: '--',
+                octave: 0,
+                centsDeviation: 0,
+                signalStrength: 0,
+                status: 'No Signal',
+                rawBytes: valueBytes
+            };
+        }
+        
+        // Extract data from bytes
+        const midiNote = valueBytes[0];           // MIDI note number (e.g., 64 = E4)
+        const tunerHigh = valueBytes[1];          // Tuning data high bits (0-2)
+        const tunerLow = valueBytes[2];           // Tuning data low bits (0-15)
+        const signalByte = valueBytes[4];         // Signal strength
+        
+        // Calculate note name and octave
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const note = noteNames[midiNote % 12];
+        const octave = Math.floor(midiNote / 12) - 1;
+        
+        // Calculate cents deviation from 6-bit tuning value
+        const tunerValue = (tunerHigh << 4) | tunerLow;  // Combine to 6-bit value (0-47)
+        const centsDeviation = (tunerValue - 18) * 3;    // Center=18, scale=3¢ per step
+        
+        // Calculate frequency from note + cents
+        const baseFrequency = 440 * Math.pow(2, (midiNote - 69) / 12);  // A4=440Hz, MIDI 69
+        const frequency = baseFrequency * Math.pow(2, centsDeviation / 1200);
+        
+        // Calculate signal strength and status
+        const signalStrength = (signalByte / 127) * 100;
+        const status = Math.abs(centsDeviation) < 3 ? 'In Tune' 
+                     : centsDeviation > 0 ? 'Sharp' : 'Flat';
+        
+        // Log tuner data with raw bytes (with error handling)
+        this.log("FOO");
+        try {
+            const hexBytes = valueBytes.map(b => (typeof b === 'number' ? b : 0).toString(16).padStart(2, '0')).join(' ');
+            this.log(`🎵 Tuner: ${note}${octave} ${frequency.toFixed(1)}Hz ${centsDeviation > 0 ? '+' : ''}${centsDeviation}¢ (${status}) [${hexBytes}]`, 'info');
+        } catch (error) {
+            // Fallback logging without raw bytes if there's an error
+            this.log("Bar");
+            this.log(`🎵 Tuner: ${note}${octave} ${frequency.toFixed(1)}Hz ${centsDeviation > 0 ? '+' : ''}${centsDeviation}¢ (${status}) [Error: ${error.message}]`, 'info');
+        }
+        
+        return {
+            hasSignal: true,
+            frequency: Math.round(frequency * 10) / 10,
+            note: note,
+            octave: octave,
+            centsDeviation: centsDeviation,
+            signalStrength: Math.round(signalStrength),
+            status: status,
+            rawBytes: valueBytes
+        };
+    }
+
+    /**
      * Parse Boss Cube SysEx message (restored from working v2.22.1)
      */
     parseBossCubeSysEx(sysexData) {
@@ -278,15 +367,40 @@ export class BossCubeCommunication {
         const command = sysexData[7]; // 0x12 for response to read request
         
         if (command === 0x12) {
-            // This is a data response - extract address and value
-            const addressBytes = sysexData.slice(8, 12); // 4 bytes for address
+            // Data response - extract address and value
+            const addressBytes = sysexData.slice(8, 12);
+            const addressStr = addressBytes.map(b => b.toString(16).padStart(2, '0')).join('');
+            const isTunerData = addressStr === '7f000300';
             
-            // Value is typically at position 12
-            let valueIndex = 12;
-            let value = sysexData[valueIndex];
+            // Calculate value size and position
+            const valueBytes = sysexData.length - 13; // SysEx length minus header, command, address, and checksum
+            const valueStart = 12;
+            const valueEnd = sysexData.length - 1;
+            
+            if (valueBytes <= 0) {
+                this.log(`⚠️ Invalid SysEx message: no value bytes detected (length=${sysexData.length})`, 'warning');
+                return;
+            }
+            
+            let value;
+            this.log(`moo ${isTunerData} ${valueBytes}`);
+            if (isTunerData && valueBytes === 6) {
+                // Decode 6-byte tuner data
+                const tunerBytes = sysexData.slice(valueStart, valueEnd);
+                value = this.decodeTunerData(tunerBytes) || 0;
+            } else if (valueBytes === 1) {
+                // Single-byte parameter
+                value = sysexData[valueStart];
+            } else {
+                // Multi-byte parameter using Roland 7-bit format
+                value = 0;
+                for (let i = 0; i < valueBytes; i++) {
+                    value = (value << 7) | sysexData[valueStart + i];
+                }
+            }
             
             // Update parameter
-            this.updateParameterFromCube(addressBytes, value);
+            this.updateParameterFromCube(addressBytes, value, false);
         }
     }
 

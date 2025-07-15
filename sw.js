@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Service Worker
 // Enables PWA functionality with aggressive update strategy
 
-const VERSION = '2.23.0';
+const VERSION = '2.23.1-alpha.16';
 const CACHE_NAME = `boss-cube-control-v${VERSION}`;
 const urlsToCache = [
     '/',
@@ -24,7 +24,7 @@ const urlsToCache = [
     '/package.json'
 ];
 
-// Install event - cache resources
+// Install event - cache resources aggressively
 self.addEventListener('install', event => {
     console.log(`Service Worker ${VERSION} installing...`);
     
@@ -34,22 +34,29 @@ self.addEventListener('install', event => {
                 console.log('Service worker caching files with version:', VERSION);
                 return cache.addAll(urlsToCache);
             })
+            .then(() => {
+                console.log(`Service Worker ${VERSION} cache populated`);
+                // Skip waiting immediately for development versions to ensure quick updates
+                if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
+                    return self.skipWaiting();
+                }
+            })
     );
-    
-    // Only skip waiting when explicitly requested via message
-    // This allows proper update detection
 });
 
-// Fetch event - network first for HTML/JS/CSS to ensure updates
+// Fetch event - network first for critical files during development
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     
-    // For HTML, JS and CSS files, try network first to get updates
-    if (url.pathname.endsWith('.html') || 
+    // For development versions, always try network first for JS/CSS/HTML
+    const isDevelopment = VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc');
+    
+    if (isDevelopment && (
+        url.pathname.endsWith('.html') || 
         url.pathname.endsWith('.js') || 
         url.pathname.endsWith('.css') || 
-        url.pathname === '/') {
-        
+        url.pathname === '/'
+    )) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
@@ -67,21 +74,26 @@ self.addEventListener('fetch', event => {
                 })
         );
     } else {
-        // For other files, use cache first
+        // For stable versions or other files, use cache first
         event.respondWith(
             caches.match(event.request)
-                .then(response => response || fetch(event.request))
+                .then(response => {
+                    if (response) {
+                        return response;
+                    }
+                    return fetch(event.request);
+                })
         );
     }
 });
 
-// Activate event - cleanup old caches and claim clients
+// Activate event - aggressive cleanup and immediate control
 self.addEventListener('activate', event => {
     console.log(`Service Worker ${VERSION} activating...`);
     
     event.waitUntil(
         Promise.all([
-            // Clear old caches
+            // Clear ALL old caches aggressively
             caches.keys().then(cacheNames => {
                 return Promise.all(
                     cacheNames.map(cacheName => {
@@ -98,14 +110,15 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Message handling for version requests and skip waiting
+// Enhanced message handling for version requests and cache management
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'GET_VERSION') {
         event.ports[0].postMessage({ version: VERSION });
     }
     
     if (event.data && event.data.action === 'skipWaiting') {
-        // Clear all caches before skipWaiting for immediate update
+        console.log('Forced update requested, clearing all caches...');
+        // Clear ALL caches before skipWaiting for immediate update
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
@@ -114,7 +127,20 @@ self.addEventListener('message', event => {
                 })
             );
         }).then(() => {
+            console.log('All caches cleared, skipping waiting...');
             self.skipWaiting();
+        });
+    }
+    
+    if (event.data && event.data.action === 'clearCache') {
+        // Manual cache clear request
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    console.log('Manual cache clear:', cacheName);
+                    return caches.delete(cacheName);
+                })
+            );
         });
     }
 }); 

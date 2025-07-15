@@ -565,6 +565,15 @@ export const BOSS_CUBE_PARAMETERS = {
         category: 'tuner'
     },
 
+    // Real-time tuner pitch data (discovered) - internal use only, not displayed as control
+    tunerPitchData: {
+        name: 'Tuner Pitch Data',
+        address: [0x7F, 0x00, 0x03, 0x00],
+        min: 0, max: 2097151, current: 1048576, // Auto-detected size, up to 3 bytes = 21 bits
+        isMultiByte: true, // Dynamically sized parameter
+        category: 'internal' // Changed from 'tuner' to 'internal' to hide from UI
+    },
+
     // Mic/Inst General Settings (verified addresses from README)
     micInstEQType: { 
         name: 'Mic/Inst EQ Type', 

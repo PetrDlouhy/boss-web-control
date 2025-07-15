@@ -5,7 +5,7 @@ import BossCubeController from './boss-cube-controller.js';
 import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
 
-const VERSION = '2.23.0';
+const VERSION = '2.23.1-alpha.16';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -82,26 +82,42 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Set up event listeners (removed duplicate connectBtn listener)
     
     refreshBtn.addEventListener('click', () => {
+        log('🔄 Force refreshing app...', 'info');
+        
+        // Disable button to prevent multiple clicks
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = '🔄 Updating...';
+        
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            // Clear browser cache and reload aggressively
+            // Method 1: Clear caches via service worker
+            navigator.serviceWorker.controller.postMessage({ action: 'clearCache' });
+            
+            // Method 2: Clear caches directly
             if ('caches' in window) {
                 caches.keys().then(names => {
-                    names.forEach(name => {
-                        console.log('Clearing cache:', name);
-                        caches.delete(name);
-                    });
+                    return Promise.all(
+                        names.map(name => {
+                            console.log('Clearing cache:', name);
+                            return caches.delete(name);
+                        })
+                    );
+                }).then(() => {
+                    console.log('All caches cleared by app');
                 });
             }
             
+            // Method 3: Force service worker update
             navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
             
-            // Force reload with cache bypass
+            // Method 4: Force reload with cache bypass after delay
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 500);
+        } else {
+            // Fallback: Hard reload for browsers without service worker
             setTimeout(() => {
                 window.location.reload(true);
             }, 100);
-        } else {
-            // Fallback: force reload with cache bypass
-            window.location.reload(true);
         }
     });
     
@@ -155,24 +171,51 @@ function initializeVersioning() {
         versionTextEl.textContent = `v${VERSION}`;
     }
     
+    // Always show refresh button for development versions (alpha, beta, rc)
+    if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
+        if (refreshBtn) {
+            refreshBtn.style.display = 'inline-block';
+            refreshBtn.textContent = '🔄 Force Update';
+            refreshBtn.title = 'Force cache refresh (development mode)';
+        }
+    }
+    
     // Register service worker and check for updates
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
             .then(registration => {
                 console.log('Service Worker registered:', registration);
                 
+                // Check for updates immediately
+                registration.update();
+                
+                // Check for updates on page focus
+                window.addEventListener('focus', () => {
+                    registration.update();
+                });
+                
+                // Check for updates periodically (every 30 seconds during development)
+                if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
+                    setInterval(() => {
+                        registration.update();
+                    }, 30000);
+                }
+                
                 // Check for updates
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
                     if (newWorker) {
+                        log('🔄 New version detected, preparing update...', 'info');
+                        
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 // New version available
                                 if (refreshBtn) {
                                     refreshBtn.style.display = 'inline-block';
                                     refreshBtn.textContent = '🔄 Update Available';
+                                    refreshBtn.classList.add('btn-update-pulse');
                                 }
-                                log('🔄 New version available - click Update Available to refresh', 'info');
+                                log('🔄 New version available - click "Update Available" to refresh', 'success');
                             }
                         });
                     }
@@ -180,12 +223,42 @@ function initializeVersioning() {
                 
                 // Listen for controlling service worker changes
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    log('🔄 App updated, reloading...', 'info');
                     window.location.reload();
                 });
+                
+                // Manual version checking via service worker message
+                if (navigator.serviceWorker.controller) {
+                    const messageChannel = new MessageChannel();
+                    messageChannel.port1.onmessage = (event) => {
+                        const swVersion = event.data.version;
+                        if (swVersion && swVersion !== VERSION) {
+                            log(`🔄 Version mismatch detected: App=${VERSION}, SW=${swVersion}`, 'warning');
+                            if (refreshBtn) {
+                                refreshBtn.style.display = 'inline-block';
+                                refreshBtn.textContent = '🔄 Version Mismatch';
+                                refreshBtn.classList.add('btn-update-pulse');
+                            }
+                        }
+                    };
+                    navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
+                }
+                
             })
             .catch(error => {
                 console.error('Service Worker registration failed:', error);
+                // Still show refresh button as fallback
+                if (refreshBtn) {
+                    refreshBtn.style.display = 'inline-block';
+                    refreshBtn.textContent = '🔄 Refresh App';
+                }
             });
+    } else {
+        // No service worker support - always show refresh button
+        if (refreshBtn) {
+            refreshBtn.style.display = 'inline-block';
+            refreshBtn.textContent = '🔄 Refresh App';
+        }
     }
 }
 
@@ -1046,24 +1119,32 @@ function updateTunerButtonState() {
 }
 
 function updateTunerVisualState() {
-    const tunerStatus = document.getElementById('tunerStatus');
     const tunerVisual = document.getElementById('tunerVisual');
-    
-    if (tunerStatus) {
-        if (tunerEnabled) {
-            tunerStatus.textContent = '🎵 Tuner Listening...';
-            tunerStatus.className = 'tuner-status listening';
-        } else {
-            tunerStatus.textContent = 'Tuner Off';
-            tunerStatus.className = 'tuner-status off';
-        }
-    }
     
     if (tunerVisual) {
         if (tunerEnabled) {
             tunerVisual.classList.add('active');
+            tunerVisual.style.display = 'block';
         } else {
             tunerVisual.classList.remove('active');
+            tunerVisual.style.display = 'none';
+            
+            // Clear display when tuner is off
+            const tunerFrequencyDisplay = document.getElementById('tunerFrequencyDisplay');
+            const tunerNoteDisplay = document.getElementById('tunerNoteDisplay');
+            
+            if (tunerFrequencyDisplay) {
+                tunerFrequencyDisplay.textContent = '440Hz';
+            }
+            if (tunerNoteDisplay) {
+                tunerNoteDisplay.textContent = 'A';
+            }
+            
+            // Remove needle
+            const tunerNeedle = document.querySelector('.tuner-needle');
+            if (tunerNeedle) {
+                tunerNeedle.remove();
+            }
         }
     }
 }
@@ -1149,6 +1230,9 @@ function updateTunerVisualDisplay() {
         const keyLabels = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
         noteDisplay.textContent = keyLabels[keyParam.current] || 'A';
     }
+    
+    // Note: Real-time tuner display is now handled by the controller's updateTunerDisplay method
+    // This old logic is no longer needed since we use structured tuner data
     
     // Update preset button states to match current values
     updateTunerPresetStates();
@@ -2043,6 +2127,8 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     const param = bossCubeController.parameters[paramKey];
     if (param && param.category === 'tuner') {
         updateTunerVisualDisplay();
+        
+        // Tuner data logging is now handled in the communication module
     }
     
     // Reset pickup mode when physical knob changes are detected

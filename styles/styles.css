@@ -45,11 +45,56 @@ h5 {
     text-align: center;
 }
 
+/* Version and update button styles */
 .version-info {
-    text-align: center;
-    margin-bottom: 16px;
-    font-size: 0.8em;
-    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+#versionText {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #666;
+}
+
+#refreshBtn {
+    padding: 4px 8px;
+    font-size: 11px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#refreshBtn:hover {
+    background: #2980b9;
+    transform: scale(1.05);
+}
+
+/* Pulse animation for update available */
+.btn-update-pulse {
+    animation: updatePulse 2s ease-in-out infinite;
+    background: #e74c3c !important;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+}
+
+@keyframes updatePulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(231, 76, 60, 0.8);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+    }
 }
 
 .btn-small {
@@ -482,7 +527,8 @@ h5 {
     padding: 12px;
     background: #f5f5f5;
     border-radius: 8px;
-    max-height: 180px;
+    max-height: 500px;
+    height: 500px;
     overflow-y: auto;
     font-family: monospace;
     font-size: 0.75em;
@@ -1078,10 +1124,15 @@ h5 {
     padding: 20px;
     margin: 15px 0;
     display: none; /* Hidden by default, shown when tuner is active */
+    position: relative;
 }
 
 .tuner-visual.active {
     display: block;
+}
+
+.tuner-meter {
+    position: relative;
 }
 
 .tuner-meter {
@@ -1103,6 +1154,19 @@ h5 {
     background: #e74c3c;
     transform: translate(-50%, -50%);
     z-index: 2;
+}
+
+.tuner-needle {
+    position: absolute;
+    top: 50%;
+    width: 3px;
+    height: 60%;
+    background: #e74c3c;
+    transform: translate(-50%, -50%);
+    transition: left 0.1s ease;
+    z-index: 3;
+    border-radius: 1px;
+    box-shadow: 0 0 4px rgba(231, 76, 60, 0.8);
 }
 
 .tuner-scale {
@@ -1192,6 +1256,14 @@ h5 {
 
 .tuner-status.off {
     color: #95a5a6;
+}
+
+.tuner-status.in-tune {
+    color: #2ecc71;
+}
+
+.tuner-status.tuning {
+    color: #f1c40f;
 }
 
 /* Quick Key Selection */

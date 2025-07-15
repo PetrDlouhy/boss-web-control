@@ -2,6 +2,7 @@ This document is a code of conduct for AI to develop this app.
 
 Main checkpoints:
 - Follow semantic versioning with appendix parts for development versions (e.g., 2.22.14-alpha.1, 2.22.14-beta.2, 2.22.14-rc.1). Increment appendix during development after every change so I can see that something changed and the app updates.
+- **Quick version increment**: Use `./bump` script for fast version increments during development (updates constants.js, app.js, sw.js automatically)
 - Read README.md, PLANNING.md, TASKS.md documents to understand the app.
 - Documentation of Boss Cube Street II SysEx protocol is in the ../street-cube-II-sysex/README.md (relative to this file).
 - For pickup mode functionality, see PICKUP_MODE.md for technical implementation details.
@@ -38,3 +39,25 @@ Main checkpoints:
 - Pickup mode changes must update both main app and Live Performance implementations
 - Mobile features require testing on actual touch devices, not just browser dev tools
 - Version releases must check actual git dates and update all JavaScript files consistently
+
+## Development Workflow
+
+**Standard Development Cycle** (in order of usage):
+
+1. **Make code changes** (fix bugs, add features, etc.)
+2. **Increment version**: `./bump` (fastest) or `npm run bump`
+3. **Test changes**: User refreshes browser to get new cached version
+4. **Debug if needed**: Add `this.log()` messages (not `console.log()`) for user-visible debugging
+5. **Repeat cycle**: Bump version again after each significant change
+
+**Version Bump Scripts Available**:
+- `./bump` - Fastest option for rapid development
+- `npm run bump` - Standard Node.js workflow
+- `node increment-version.js` - Direct script execution
+- See `VERSION-BUMP.md` for complete documentation
+
+**Key Points**:
+- **Always increment version** after code changes to force cache refresh on mobile
+- **Use app logging** (`this.log()`) not browser console (`console.log()`) for debugging
+- **Mobile testing** requires cache busting via version increments
+- **Debug first** before implementing complex solutions

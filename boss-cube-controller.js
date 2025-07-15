@@ -48,6 +48,9 @@ class BossCubeController {
         // Parameters from imported definitions
         this.parameters = BOSS_CUBE_PARAMETERS;
         
+        // Cube state for storing current values
+        this.cubeState = {};
+        
         // Current parameter selection for pedal control
         this.currentParameterKey = 'masterVolume';
         this.parameterKeys = Object.keys(this.parameters);
@@ -681,63 +684,44 @@ class BossCubeController {
     // ===== PARAMETER MANAGEMENT =====
 
     /**
-     * Update parameter from Boss Cube response
+     * Update parameter in cube state from incoming cube data
      */
-    updateParameterFromCube(addressBytes, value, isPhysicalKnobChange = false) {
-        const addressStr = addressBytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
+    updateParameterFromCube(addressBytes, value, isPhysicalKnobChange) {
+        const cubeAddress = addressBytes.join(' ');
+        const paramAddress = addressBytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
         
-        // Find parameter by address
-        for (const [key, param] of Object.entries(this.parameters)) {
-            if (param.address.length === addressBytes.length &&
-                param.address.every((byte, index) => byte === addressBytes[index])) {
+        // Look up parameter definition
+        const paramDef = this.findParameterByAddress(addressBytes);
+
+        if (paramDef) {
+            // Handle structured tuner data specially
+            if (paramDef.name === 'Tuner Pitch Data' && typeof value === 'object' && value.hasSignal !== undefined) {
+                // Store structured tuner data
+                this.cubeState[paramDef.id] = value;
                 
-                // Handle value conversion from Boss Cube (some parameters send 1-based values)
-                let uiValue = value;
+                // Update tuner display with structured data
+                this.updateTunerDisplay(value);
                 
-                // Parameters that need -1 for EQ (1-100 Boss Cube to 0-100 UI)
-                const eqParams = ['micInstEQBass', 'micInstEQMiddle', 'micInstEQTreble', 
-                                 'guitarEQBass', 'guitarEQMiddle', 'guitarEQTreble', 'guitarGain'];
-                if (eqParams.includes(key)) {
-                    uiValue = Math.max(0, value - 1);
-                }
+                // Log structured tuner data (detailed logging already done in communication module)
+                // Skipping additional logging to avoid duplication
+            } else {
+                // Handle normal numeric parameters
+                this.cubeState[paramDef.id] = value;
                 
-                // Handle Master Out binding
-                if (key === 'auxBluetoothVolume' && isPhysicalKnobChange && 
-                    this.checkMasterBindEnabled && this.checkMasterBindEnabled()) {
-                    
-                    this.log(`🔗 BINDING ACTIVE! Aux knob value: ${value} - updating both sliders`, 'info');
-                    
-                    // Update master volume on the amp
-                    this.setParameter('masterVolume', value).catch(error => {
-                        console.error('Failed to set master volume during binding:', error);
-                    });
-                    
-                    // Update master volume parameter and UI
-                    this.parameters.masterVolume.current = value;
-                    if (this.onParameterUpdate) {
-                        this.onParameterUpdate('masterVolume', value, isPhysicalKnobChange);
-                    }
-                }
+                // Update UI for this parameter
+                this.updateUIFromParameter(paramDef.id, value);
                 
-                // Update parameter current value
-                param.current = uiValue;
-                
-                // Notify parameter update callback
-                if (this.onParameterUpdate) {
-                    this.onParameterUpdate(key, uiValue, isPhysicalKnobChange);
-                }
-                
-                // Log the update
-                const updateType = isPhysicalKnobChange ? '🎛️' : '📖';
-                this.log(`${updateType} ${addressStr} = ${value} (${param.name})`, 
-                        isPhysicalKnobChange ? 'info' : 'success');
-                
-                return; // Found and processed parameter
+                this.log(`📊 ${paramDef.name}: ${value}`, 'debug');
+            }
+        } else {
+            // Log unknown parameter with improved formatting
+            if (typeof value === 'object' && value.hasSignal !== undefined) {
+                // Unknown tuner-like data
+                this.log(`❓ Unknown tuner parameter at ${paramAddress} = [structured data]`, 'warning');
+            } else {
+                this.log(`❓ Unknown parameter address: ${paramAddress} = ${value}`, 'warning');
             }
         }
-        
-        // Parameter not found
-        this.log(`⚠️ Unknown parameter address: ${addressStr} = ${value}`, 'warning');
     }
 
     /**
@@ -772,6 +756,138 @@ class BossCubeController {
         }
         
         return result;
+    }
+
+    /**
+     * Find parameter definition by address bytes
+     */
+    findParameterByAddress(addressBytes) {
+        for (const [key, param] of Object.entries(this.parameters)) {
+            if (param.address && param.address.length === addressBytes.length &&
+                param.address.every((byte, index) => byte === addressBytes[index])) {
+                return { id: key, ...param };
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Update tuner display with structured tuner data
+     */
+    updateTunerDisplay(tunerData) {
+        const tunerFrequencyDisplay = document.getElementById('tunerFrequencyDisplay');
+        const tunerNoteDisplay = document.getElementById('tunerNoteDisplay');
+        const tunerVisual = document.getElementById('tunerVisual');
+        const tunerMeter = document.querySelector('.tuner-meter');
+        
+        if (!tunerFrequencyDisplay || !tunerNoteDisplay || !tunerVisual) {
+            this.log(`🎵 TUNER UI: Missing elements`, 'warning');
+            return;
+        }
+        
+        if (!tunerData.hasSignal) {
+            // No signal
+            tunerFrequencyDisplay.textContent = '--Hz';
+            tunerNoteDisplay.textContent = '--';
+            tunerVisual.style.background = '#333';
+            
+            // Remove needle if present
+            const tunerNeedle = document.querySelector('.tuner-needle');
+            if (tunerNeedle) {
+                tunerNeedle.remove();
+            }
+            return;
+        }
+        
+        // Display structured tuner information
+        const noteDisplay = `${tunerData.note}${tunerData.octave}`;
+        tunerNoteDisplay.textContent = noteDisplay;
+        
+        // Show frequency and status info
+        const centsDisplay = tunerData.centsDeviation > 0 ? `+${tunerData.centsDeviation}¢` : `${tunerData.centsDeviation}¢`;
+        tunerFrequencyDisplay.textContent = `${tunerData.frequency}Hz (${centsDisplay})`;
+        
+        // Color coding based on tuning status
+        let backgroundColor = '#333';
+        if (tunerData.status === 'In Tune') {
+            backgroundColor = '#2d5a2d';
+        } else if (tunerData.status === 'Sharp') {
+            backgroundColor = '#5a3d2d';
+        } else if (tunerData.status === 'Flat') {
+            backgroundColor = '#5a2d2d';
+        }
+        
+        tunerVisual.style.background = backgroundColor;
+        
+        // Update tuner meter needle position based on cents deviation
+        if (tunerMeter) {
+            let tunerNeedle = document.querySelector('.tuner-needle');
+            if (!tunerNeedle) {
+                tunerNeedle = document.createElement('div');
+                tunerNeedle.className = 'tuner-needle';
+                tunerNeedle.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    width: 3px;
+                    height: 60%;
+                    background: #e74c3c;
+                    transform: translate(-50%, -50%);
+                    transition: left 0.1s ease;
+                    z-index: 3;
+                    border-radius: 1px;
+                    box-shadow: 0 0 4px rgba(231, 76, 60, 0.8);
+                `;
+                tunerMeter.appendChild(tunerNeedle);
+            }
+            
+            // Convert cents to needle position (-50¢ to +50¢ mapped to 0% to 100%)
+            const maxCents = 50;
+            const normalizedCents = Math.max(-maxCents, Math.min(maxCents, tunerData.centsDeviation));
+            const needlePosition = ((normalizedCents + maxCents) / (2 * maxCents)) * 100;
+            tunerNeedle.style.left = `${needlePosition}%`;
+            
+            // Change needle color based on tuning status
+            if (tunerData.status === 'In Tune') {
+                tunerNeedle.style.background = '#27ae60';
+                tunerNeedle.style.boxShadow = '0 0 4px rgba(39, 174, 96, 0.8)';
+            } else {
+                tunerNeedle.style.background = '#e74c3c';
+                tunerNeedle.style.boxShadow = '0 0 4px rgba(231, 76, 60, 0.8)';
+            }
+        }
+    }
+
+    /**
+     * Update UI from parameter value (for normal numeric parameters)
+     */
+    updateUIFromParameter(parameterId, value) {
+        if (!this.parameters || !this.parameters[parameterId]) {
+            // Parameter not found - still notify callback for test compatibility
+            if (this.onParameterUpdate) {
+                this.onParameterUpdate(parameterId, value, false);
+            }
+            return;
+        }
+        
+        const param = this.parameters[parameterId];
+        
+        // Handle value conversion from Boss Cube (some parameters send 1-based values)
+        let uiValue = value;
+        
+        // Parameters that need -1 for EQ (1-100 Boss Cube to 0-100 UI)
+        const eqParams = ['micInstEQBass', 'micInstEQMiddle', 'micInstEQTreble', 
+                         'guitarEQBass', 'guitarEQMiddle', 'guitarEQTreble', 'guitarGain'];
+        if (eqParams.includes(parameterId)) {
+            uiValue = Math.max(0, value - 1);
+        }
+        
+        // Update parameter current value
+        param.current = uiValue;
+        
+        // Notify parameter update callback
+        if (this.onParameterUpdate) {
+            this.onParameterUpdate(parameterId, uiValue, false);
+        }
     }
 
     // ===== STATUS AND UTILITY METHODS =====
@@ -852,6 +968,38 @@ class BossCubeController {
      */
     getCurrentMicInstEffectParameters() {
         return this.getParametersByCategory('micInstEffects', this.currentMicInstEffect);
+    }
+
+    /**
+     * Set tuner control (enable/disable tuner)
+     * @param {boolean} enabled - True to enable tuner, false to disable
+     */
+    async setTunerControl(enabled) {
+        if (!this.isCubeConnected) {
+            throw new Error('Boss Cube not connected');
+        }
+
+        const value = enabled ? 0x01 : 0x00;
+        
+        try {
+            await this.bossCubeComm.sendSpecialCommand(
+                [0x7F, 0x00, 0x00, 0x02], // TUNER_CONTROL address
+                [value]
+            );
+            
+            this.log(`🎵 Tuner ${enabled ? 'enabled' : 'disabled'} via SysEx command`, 'info');
+            
+        } catch (error) {
+            this.log(`❌ Failed to control tuner: ${error.message}`, 'error');
+            throw error;
+        }
+    }
+
+    /**
+     * Enable continuous notifications from Boss Cube
+     */
+    async enableContinuousNotifications() {
+        return await this.bossCubeComm.enableContinuousNotifications();
     }
 }
 

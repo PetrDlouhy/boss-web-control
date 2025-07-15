@@ -1,13 +1,14 @@
 {
   "name": "boss-cube-web-control",
-  "version": "2.22.14-alpha.13",
+  "version": "2.23.1-alpha.10",
   "description": "Web-based control interface for Boss Cube Street II amplifier",
   "type": "module",
   "scripts": {
     "test": "node test-runner-headless.js",
     "test:browser": "open test-runner.html",
     "start": "npx http-server -p 8080 -c-1",
-    "lint": "echo 'Linting not configured yet'"
+    "lint": "echo 'Linting not configured yet'",
+    "bump": "node increment-version.js"
   },
   "keywords": [
     "boss-cube",

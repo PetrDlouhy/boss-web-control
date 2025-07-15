@@ -34,6 +34,13 @@
 - **Overcomplicating solutions** - User prefers clean, simple implementations
 - **Incomplete implementations** - Finish what you start before moving to next task
 - **Ignoring existing patterns** - Follow established code organization and naming conventions
+- **Wrong debugging approach** - Use app's logging system (`this.log()`) not browser console (`console.log()`) so users can see debug messages
+
+#### **Debugging Best Practices**
+- **Use app's visible logging**: Always use `this.log(message, 'info')` for debug output, never `console.log()`
+- **User-visible debugging**: Debug messages must appear in the app's log console interface, not hidden in browser devtools
+- **Mobile-friendly debugging**: Users often test on mobile where browser devtools are not easily accessible
+- **Systematic debugging**: Add debug logging first, then ask user to test and provide output
 
 ---
 
@@ -43,6 +50,13 @@
 - **Address the full request** - If user asks for version update, update ALL related files
 - **Multiple parallel tasks** - Handle related changes together (e.g., version + documentation + cleanup)
 - **Verification steps** - Check work was applied correctly, especially with large file operations
+- **Use automation tools** - Prefer `./bump` script over manual version editing for speed and accuracy
+
+### **Development Workflow Automation**
+- **Version increment process**: Use `./bump` script for rapid development cycles
+- **Cache busting on mobile**: Version changes force browser to fetch updated files
+- **Automated file updates**: Script handles constants.js, app.js, sw.js simultaneously
+- **Development efficiency**: Prefer automation over repetitive manual tasks
 
 ### **Documentation Approach**
 - **User-focused content** - Organize by what users need to know, not internal development details
