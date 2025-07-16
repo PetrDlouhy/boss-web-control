@@ -257,34 +257,24 @@ export class BossCubeCommunication {
     }
 
     /**
-     * Decode Boss Cube tuner data from 6-byte structured format
-     * @param {Array} valueBytes - Array of 6 bytes containing tuner data
-     * @returns {Object} Decoded tuner information
-     */
-    /**
      * Decode 6-byte Boss Cube tuner data into musical pitch information
      * @param {Array} valueBytes - 6 bytes of tuner data
      * @returns {Object|null} Decoded tuner information or null if invalid
      */
     decodeTunerData(valueBytes) {
-        // Debug entry point
-        this.log(`🔧 Tuner decode called with: ${JSON.stringify(valueBytes)}`, 'debug');
-        
-        // Add debugging for input validation
-        if (!valueBytes || !Array.isArray(valueBytes)) {
-            this.log(`🔧 Tuner decode error: Invalid input type: ${typeof valueBytes}`, 'error');
-            return null;
+        if (valueBytes.length < 2) {
+            return null; // Need at least 2 bytes for basic tuner data
         }
         
-        if (valueBytes.length !== 6) {
-            this.log(`🔧 Tuner decode error: Invalid length ${valueBytes.length}, expected 6`, 'error');
-            return null;
+        // Pad with zeros if we have less than 6 bytes
+        const paddedBytes = [...valueBytes];
+        while (paddedBytes.length < 6) {
+            paddedBytes.push(0);
         }
         
         // Check for "no signal" condition
-        if (valueBytes.every(b => b === 0)) {
-            // Log no signal with raw bytes
-            const hexBytes = valueBytes.map(b => (typeof b === 'number' ? b : 0).toString(16).padStart(2, '0')).join(' ');
+        if (paddedBytes.every(b => b === 0)) {
+            const hexBytes = paddedBytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
             this.log(`🎵 Tuner: No Signal [${hexBytes}]`, 'info');
             return {
                 hasSignal: false,
@@ -294,15 +284,15 @@ export class BossCubeCommunication {
                 centsDeviation: 0,
                 signalStrength: 0,
                 status: 'No Signal',
-                rawBytes: valueBytes
+                rawBytes: paddedBytes
             };
         }
         
         // Extract data from bytes
-        const midiNote = valueBytes[0];           // MIDI note number (e.g., 64 = E4)
-        const tunerHigh = valueBytes[1];          // Tuning data high bits (0-2)
-        const tunerLow = valueBytes[2];           // Tuning data low bits (0-15)
-        const signalByte = valueBytes[4];         // Signal strength
+        const midiNote = paddedBytes[0];           // MIDI note number (e.g., 64 = E4)
+        const tunerHigh = paddedBytes[1];          // Tuning data high bits (0-2)
+        const tunerLow = paddedBytes[2];           // Tuning data low bits (0-15)
+        const signalByte = paddedBytes[4];         // Signal strength
         
         // Calculate note name and octave
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -322,16 +312,9 @@ export class BossCubeCommunication {
         const status = Math.abs(centsDeviation) < 3 ? 'In Tune' 
                      : centsDeviation > 0 ? 'Sharp' : 'Flat';
         
-        // Log tuner data with raw bytes (with error handling)
-        this.log("FOO");
-        try {
-            const hexBytes = valueBytes.map(b => (typeof b === 'number' ? b : 0).toString(16).padStart(2, '0')).join(' ');
-            this.log(`🎵 Tuner: ${note}${octave} ${frequency.toFixed(1)}Hz ${centsDeviation > 0 ? '+' : ''}${centsDeviation}¢ (${status}) [${hexBytes}]`, 'info');
-        } catch (error) {
-            // Fallback logging without raw bytes if there's an error
-            this.log("Bar");
-            this.log(`🎵 Tuner: ${note}${octave} ${frequency.toFixed(1)}Hz ${centsDeviation > 0 ? '+' : ''}${centsDeviation}¢ (${status}) [Error: ${error.message}]`, 'info');
-        }
+        // Log tuner data with raw bytes
+        const hexBytes = paddedBytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
+        this.log(`🎵 Tuner: ${note}${octave} ${frequency.toFixed(1)}Hz ${centsDeviation > 0 ? '+' : ''}${centsDeviation}¢ (${status}) [${hexBytes}]`, 'info');
         
         return {
             hasSignal: true,
@@ -341,7 +324,7 @@ export class BossCubeCommunication {
             centsDeviation: centsDeviation,
             signalStrength: Math.round(signalStrength),
             status: status,
-            rawBytes: valueBytes
+            rawBytes: paddedBytes
         };
     }
 
@@ -383,7 +366,6 @@ export class BossCubeCommunication {
             }
             
             let value;
-            this.log(`moo ${isTunerData} ${valueBytes}`);
             if (isTunerData && valueBytes === 6) {
                 // Decode 6-byte tuner data
                 const tunerBytes = sysexData.slice(valueStart, valueEnd);

@@ -317,8 +317,7 @@ const BossCubeCommunicationTests = {
         const update = comm.parameterUpdates[0];
         
         // Log what we actually got for debugging
-        console.log(`DEBUG: Tuner test got value: ${update.value} (0x${update.value.toString(16)})`);
-        console.log(`DEBUG: Address: [${update.addressBytes.map(b => '0x' + b.toString(16)).join(', ')}]`);
+        
         
         // Check address bytes first
         const expectedAddress = [0x7f, 0x00, 0x03, 0x00];
@@ -486,20 +485,31 @@ const BossCubeCommunicationTests = {
     async testTunerEdgeCases() {
         const comm = this.createMockCommunication();
         
-        // Test invalid input lengths
-        const invalidLengths = [
+        // Test inputs that should return null (less than 2 bytes)
+        const invalidInputs = [
             [],
-            [0x40],
-            [0x40, 0x01],
-            [0x40, 0x01, 0x01, 0x03],
-            [0x40, 0x01, 0x01, 0x03, 0x00], // 5 bytes
-            [0x40, 0x01, 0x01, 0x03, 0x00, 0x00, 0x00] // 7 bytes
+            [0x40]
         ];
         
-        for (const invalid of invalidLengths) {
+        for (const invalid of invalidInputs) {
             const result = comm.decodeTunerData(invalid);
             if (result !== null) {
                 throw new Error(`Expected null for ${invalid.length}-byte input, got result`);
+            }
+        }
+        
+        // Test that valid inputs (2+ bytes) are padded to 6 bytes
+        const paddableInputs = [
+            [0x40, 0x01],
+            [0x40, 0x01, 0x01],
+            [0x40, 0x01, 0x01, 0x03],
+            [0x40, 0x01, 0x01, 0x03, 0x00] // 5 bytes
+        ];
+        
+        for (const input of paddableInputs) {
+            const result = comm.decodeTunerData(input);
+            if (!result || result.rawBytes.length !== 6) {
+                throw new Error(`Expected ${input.length}-byte input to be padded to 6 bytes`);
             }
         }
         

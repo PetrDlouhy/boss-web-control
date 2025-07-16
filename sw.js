@@ -1,45 +1,58 @@
 // Boss Cube Web Control - Service Worker
 // Enables PWA functionality with aggressive update strategy
 
-const VERSION = '2.23.1-alpha.16';
+const VERSION = '2.24.0';
 const CACHE_NAME = `boss-cube-control-v${VERSION}`;
 const urlsToCache = [
     '/',
     '/index.html',
-    '/styles.css',
+    '/styles/styles.css',
+    '/styles/looper-controls.css',
+    '/styles/looper-settings.css',
     '/app.js',
     '/boss-cube-controller.js',
     '/boss-cube-communication.js',
     '/pedal-communication.js',
     '/parameters.js',
-    '/effect-definitions.js',
     '/constants.js',
+    '/template-loader.js',
+    '/live-performance.js',
+    '/preset-manager.js',
     '/manifest.json',
-    '/pedal-communication.test.js',
-    '/boss-cube-controller.test.js',
-    '/boss-cube-communication.test.js',
-    '/reload-values.test.js',
-    '/test-runner.html',
-    '/manual-test-read-values.html',
-    '/package.json'
+    '/templates/effects-interface.html',
+    '/templates/live-performance.html',
+    '/templates/looper-controls.html',
+    '/templates/looper-settings.html'
 ];
 
-// Install event - cache resources aggressively
+// Install event - cache resources with error handling
 self.addEventListener('install', event => {
-    console.log(`Service Worker ${VERSION} installing...`);
+    
     
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('Service worker caching files with version:', VERSION);
-                return cache.addAll(urlsToCache);
+
+                // Cache files individually to handle missing files gracefully
+                return Promise.allSettled(
+                    urlsToCache.map(url => 
+                        cache.add(url).catch(error => {
+                            console.warn(`Failed to cache ${url}:`, error.message);
+                            return null; // Continue with other files
+                        })
+                    )
+                );
             })
             .then(() => {
-                console.log(`Service Worker ${VERSION} cache populated`);
+
                 // Skip waiting immediately for development versions to ensure quick updates
                 if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
                     return self.skipWaiting();
                 }
+            })
+            .catch(error => {
+                console.error('Service worker install failed:', error);
+                // Still proceed with installation even if caching fails
             })
     );
 });

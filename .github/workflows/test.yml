@@ -1,0 +1,255 @@
+name: 🧪 Run Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - '**'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - '**'
+
+jobs:
+  test:
+    name: 🔬 Unit Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: package.json
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🧪 Run headless tests
+      run: npm test
+      
+    - name: 📊 Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-node-${{ matrix.node-version }}
+        path: test-results.*
+        retention-days: 7
+
+  lint:
+    name: 🔍 Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: package.json
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🔍 Check JavaScript files
+      run: |
+        echo "🔍 Checking JavaScript syntax..."
+        find . -name "*.js" -not -path "./node_modules/*" -exec node -c {} \;
+        echo "✅ All JavaScript files have valid syntax"
+      
+    - name: 🎯 Validate test files
+      run: |
+        echo "🎯 Validating test file structure..."
+        test -f test-runner.html || (echo "❌ test-runner.html missing" && exit 1)
+        test -f test-runner-headless.js || (echo "❌ test-runner-headless.js missing" && exit 1)
+        test -f pedal-communication.test.js || (echo "❌ pedal-communication.test.js missing" && exit 1)
+        test -f boss-cube-controller.test.js || (echo "❌ boss-cube-controller.test.js missing" && exit 1)
+        test -f boss-cube-communication.test.js || (echo "❌ boss-cube-communication.test.js missing" && exit 1)
+        test -f reload-values.test.js || (echo "❌ reload-values.test.js missing" && exit 1)
+        test -f tuner-visual.test.js || (echo "❌ tuner-visual.test.js missing" && exit 1)
+        echo "✅ All test files present"
+
+  security:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: package.json
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🔒 Run security audit
+      run: npm audit --audit-level=high
+      continue-on-error: true
+
+  validate-structure:
+    name: 📁 Project Structure
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 📁 Validate project structure
+      run: |
+        echo "📁 Checking Boss Cube Web Control project structure..."
+        
+        # Core application files
+        test -f index.html || (echo "❌ index.html missing" && exit 1)
+        test -f app.js || (echo "❌ app.js missing" && exit 1)
+        test -f sw.js || (echo "❌ sw.js missing" && exit 1)
+        test -f manifest.json || (echo "❌ manifest.json missing" && exit 1)
+        
+        # Core modules
+        test -f boss-cube-controller.js || (echo "❌ boss-cube-controller.js missing" && exit 1)
+        test -f boss-cube-communication.js || (echo "❌ boss-cube-communication.js missing" && exit 1)
+        test -f pedal-communication.js || (echo "❌ pedal-communication.js missing" && exit 1)
+        test -f parameters.js || (echo "❌ parameters.js missing" && exit 1)
+        test -f live-performance.js || (echo "❌ live-performance.js missing" && exit 1)
+        
+        # Templates directory
+        test -d templates || (echo "❌ templates directory missing" && exit 1)
+        test -f templates/effects-interface.html || (echo "❌ effects-interface.html missing" && exit 1)
+        test -f templates/live-performance.html || (echo "❌ live-performance.html missing" && exit 1)
+        
+        # Styles directory  
+        test -d styles || (echo "❌ styles directory missing" && exit 1)
+        test -f styles/styles.css || (echo "❌ styles.css missing" && exit 1)
+        
+        # Documentation
+        test -f README.md || (echo "❌ README.md missing" && exit 1)
+        test -f HISTORY.md || (echo "❌ HISTORY.md missing" && exit 1)
+        
+        echo "✅ All required files and directories present"
+
+  test-coverage:
+    name: 📈 Test Coverage Analysis
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: package.json
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 📈 Analyze test coverage
+      run: |
+        echo "📈 Test Coverage Analysis"
+        echo "========================="
+        
+        # Count test files and functions
+        TEST_FILES=$(find . -name "*.test.js" | wc -l)
+        echo "📄 Test files: $TEST_FILES"
+        
+        # Count test functions (basic grep count)
+        TEST_FUNCTIONS=$(grep -r "async.*test.*(" *.test.js | wc -l)
+        echo "🧪 Test functions: $TEST_FUNCTIONS"
+        
+        # Check core module coverage
+        echo ""
+        echo "🎯 Core Module Coverage:"
+        echo "- PedalCommunication: $(grep -c "test.*" pedal-communication.test.js || echo 0) tests"
+        echo "- BossCubeController: $(grep -c "test.*" boss-cube-controller.test.js || echo 0) tests"  
+        echo "- BossCubeCommunication: $(grep -c "test.*" boss-cube-communication.test.js || echo 0) tests"
+        echo "- ReloadValues: $(grep -c "test.*" reload-values.test.js || echo 0) tests"
+        echo "- TunerVisual: $(grep -c "test.*" tuner-visual.test.js || echo 0) tests"
+        
+        echo ""
+        echo "✅ Test coverage analysis complete"
+      
+  deploy-preview:
+    name: 🚀 Build Check
+    runs-on: ubuntu-latest
+    needs: [test, lint, validate-structure]
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: package.json
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Verify build readiness
+      run: |
+        echo "🏗️ Checking build readiness..."
+        
+        # Check if all imports are resolvable
+        echo "🔗 Checking import paths..."
+        node -e "
+          import('./app.js')
+            .then(() => console.log('✅ app.js imports successfully'))
+            .catch(err => { console.error('❌ Import error:', err.message); process.exit(1); });
+        "
+        
+        # Validate service worker
+        echo "🔧 Validating service worker..."
+        node -c sw.js && echo "✅ Service worker syntax valid"
+        
+        # Check manifest
+        echo "📱 Validating manifest..."
+        node -e "
+          const manifest = JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'));
+          console.log('✅ Manifest valid:', manifest.name, manifest.version);
+        "
+        
+        echo "✅ Build readiness check complete"
+
+  notification:
+    name: 📢 Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [test, lint, security, validate-structure, test-coverage]
+    if: always()
+    
+    steps:
+    - name: 📊 Report Status
+      run: |
+        echo "📊 Boss Cube Web Control - Test Results Summary"
+        echo "=============================================="
+        echo "Tests: ${{ needs.test.result }}"
+        echo "Code Quality: ${{ needs.lint.result }}"
+        echo "Security: ${{ needs.security.result }}"
+        echo "Structure: ${{ needs.validate-structure.result }}"
+        echo "Coverage: ${{ needs.test-coverage.result }}"
+        echo ""
+        
+        if [ "${{ needs.test.result }}" = "success" ] && [ "${{ needs.lint.result }}" = "success" ]; then
+          echo "✅ All checks passed! Boss Cube Web Control is ready."
+        else
+          echo "❌ Some checks failed. Please review the logs."
+        fi 

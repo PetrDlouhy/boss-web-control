@@ -19,7 +19,11 @@
       "type": "image/svg+xml"
     }
   ],
-  "categories": ["music", "utilities"],
+  "categories": [
+    "music",
+    "utilities"
+  ],
   "lang": "en",
-  "dir": "ltr"
-} 
+  "dir": "ltr",
+  "version": "2.23.3"
+}

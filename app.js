@@ -5,7 +5,7 @@ import BossCubeController from './boss-cube-controller.js';
 import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
 
-const VERSION = '2.23.1-alpha.16';
+const VERSION = '2.24.0';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -27,7 +27,7 @@ let pickupMode = {
 
 // UI Elements
 let statusEl, pedalStatusEl, logEl;
-let connectBtn, connectPedalBtn, debugBtn, readValuesBtn, livePerformanceBtn;
+let connectBtn, connectPedalBtn, readValuesBtn, livePerformanceBtn;
 let mixerControlsEl, effectsControlsEl;
 let versionTextEl, refreshBtn;
 
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     logEl = document.getElementById('log');
     connectBtn = document.getElementById('connectBtn');
     connectPedalBtn = document.getElementById('connectPedalBtn');
-    debugBtn = document.getElementById('debugBtn');
+
     readValuesBtn = document.getElementById('readValuesBtn');
     livePerformanceBtn = document.getElementById('livePerformanceBtn');
     mixerControlsEl = document.getElementById('mixerControls');
@@ -184,7 +184,7 @@ function initializeVersioning() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
             .then(registration => {
-                console.log('Service Worker registered:', registration);
+        
                 
                 // Check for updates immediately
                 registration.update();
@@ -246,8 +246,9 @@ function initializeVersioning() {
                 
             })
             .catch(error => {
-                console.error('Service Worker registration failed:', error);
-                // Still show refresh button as fallback
+                console.warn('Service Worker registration failed:', error.message);
+                // Gracefully handle SW registration failure - app still works without it
+                log('⚠️ Service Worker unavailable - app will work but without offline features', 'warning');
                 if (refreshBtn) {
                     refreshBtn.style.display = 'inline-block';
                     refreshBtn.textContent = '🔄 Refresh App';
@@ -266,7 +267,7 @@ function setupEventListeners() {
     // Connection buttons
     connectBtn.addEventListener('click', handleBossCubeButton);
     connectPedalBtn.addEventListener('click', handlePedalUIButton);
-    debugBtn.addEventListener('click', runDebugSequence);
+
     readValuesBtn.addEventListener('click', readValuesFromCube);
     
     // Live performance button
@@ -1054,11 +1055,7 @@ async function updateTunerControls() {
         newTunerToggleBtn.addEventListener('click', toggleTuner);
     }
     
-    // Set up frequency preset buttons
-    setupTunerPresetButtons();
-    
-    // Set up key preset buttons
-    setupTunerKeyButtons();
+
     
     // Update visual display with current values
     updateTunerVisualDisplay();
@@ -1149,71 +1146,7 @@ function updateTunerVisualState() {
     }
 }
 
-function setupTunerPresetButtons() {
-    const presetButtons = document.querySelectorAll('.tuner-preset-btn');
-    
-    presetButtons.forEach(button => {
-        button.addEventListener('click', async (e) => {
-            const frequency = parseInt(e.target.getAttribute('data-freq'));
-            const pitchValue = frequency - 435; // Convert to parameter value (0-10)
-            
-            if (!bossCubeController.isCubeConnected) {
-                log('Boss Cube not connected - cannot set tuner frequency', 'error');
-                return;
-            }
-            
-            try {
-                // Update parameter
-                await bossCubeController.setParameter('tunerPitch', pitchValue);
-                
-                // Update visual display
-                updateTunerVisualDisplay();
-                
-                // Update button states
-                presetButtons.forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
-                
-                log(`🎵 Tuner frequency set to ${frequency}Hz`, 'success');
-                
-            } catch (error) {
-                log(`Failed to set tuner frequency: ${error.message}`, 'error');
-            }
-        });
-    });
-}
 
-function setupTunerKeyButtons() {
-    const keyButtons = document.querySelectorAll('.tuner-key-btn');
-    
-    keyButtons.forEach(button => {
-        button.addEventListener('click', async (e) => {
-            const keyValue = parseInt(e.target.getAttribute('data-key'));
-            
-            if (!bossCubeController.isCubeConnected) {
-                log('Boss Cube not connected - cannot set tuner key', 'error');
-                return;
-            }
-            
-            try {
-                // Update parameter
-                await bossCubeController.setParameter('tunerManualKey', keyValue);
-                
-                // Update visual display
-                updateTunerVisualDisplay();
-                
-                // Update button states
-                keyButtons.forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
-                
-                const keyName = e.target.textContent;
-                log(`🎵 Tuner reference key set to ${keyName}`, 'success');
-                
-            } catch (error) {
-                log(`Failed to set tuner key: ${error.message}`, 'error');
-            }
-        });
-    });
-}
 
 function updateTunerVisualDisplay() {
     const frequencyDisplay = document.getElementById('tunerFrequencyDisplay');
@@ -1231,41 +1164,12 @@ function updateTunerVisualDisplay() {
         noteDisplay.textContent = keyLabels[keyParam.current] || 'A';
     }
     
-    // Note: Real-time tuner display is now handled by the controller's updateTunerDisplay method
-    // This old logic is no longer needed since we use structured tuner data
+        // Real-time tuner display is handled by the controller's updateTunerDisplay method
     
-    // Update preset button states to match current values
-    updateTunerPresetStates();
-    updateTunerKeyStates();
+
 }
 
-function updateTunerPresetStates() {
-    const presetButtons = document.querySelectorAll('.tuner-preset-btn');
-    const currentFreq = bossCubeController.parameters.tunerPitch?.current + 435;
-    
-    presetButtons.forEach(button => {
-        const buttonFreq = parseInt(button.getAttribute('data-freq'));
-        if (buttonFreq === currentFreq) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
-        }
-    });
-}
 
-function updateTunerKeyStates() {
-    const keyButtons = document.querySelectorAll('.tuner-key-btn');
-    const currentKey = bossCubeController.parameters.tunerManualKey?.current;
-    
-    keyButtons.forEach(button => {
-        const buttonKey = parseInt(button.getAttribute('data-key'));
-        if (buttonKey === currentKey) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
-        }
-    });
-}
 
 function toggleMasterBind() {
     masterBindEnabled = !masterBindEnabled;
@@ -1914,7 +1818,7 @@ async function disconnectPedal() {
 
 async function readCurrentValuesOnConnect() {
     const connectCallId = Math.random().toString(36).substr(2, 9);
-    log(`🔍 DEBUG: [${connectCallId}] readCurrentValuesOnConnect() called during connection`, 'info');
+
     
     try {
         log('📖 Reading ALL current values from Boss Cube...', 'info');
@@ -1962,57 +1866,7 @@ async function testConnection() {
     }
 }
 
-async function runDebugSequence() {
-    if (!bossCubeController.isCubeConnected) {
-        log('Boss Cube not connected - debug requires Boss Cube', 'error');
-        return;
-    }
-    
-    try {
-        debugBtn.disabled = true;
-        debugBtn.textContent = 'Running Debug...';
-        
-        log('=== Debug Sequence Started ===', 'info');
-        
-        // Test all mixer parameters
-        log('Testing mixer parameters...', 'info');
-        const mixerParams = bossCubeController.getParametersByCategory('mixer');
-        
-        for (const [key, param] of Object.entries(mixerParams)) {
-            const testValue = Math.round(param.max * 0.6); // 60%
-            await bossCubeController.setParameter(key, testValue);
-            updateParameterDisplay(key, testValue);
-            log(`Set ${param.name} to ${testValue}/${param.max}`, 'success');
-            await new Promise(resolve => setTimeout(resolve, 200));
-        }
-        
-        // Test effects parameters
-        log('Testing effects parameters...', 'info');
-        const effectsParams = bossCubeController.getParametersByCategory('effects');
-        
-        for (const [key, param] of Object.entries(effectsParams)) {
-            // Send effect switch commands first
-            if (param.effectSwitchCommands) {
-                await bossCubeController.sendEffectSwitchCommands(param.effectSwitchCommands);
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
-            const testValue = Math.round(param.max * 0.7); // 70%
-            await bossCubeController.setParameter(key, testValue);
-            updateParameterDisplay(key, testValue);
-            log(`Set ${param.name} to ${testValue}/${param.max}`, 'success');
-            await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        
-        log('=== Debug Sequence Complete ===', 'success');
-        
-    } catch (error) {
-        log(`Debug sequence error: ${error.message}`, 'error');
-    } finally {
-        debugBtn.disabled = false;
-        debugBtn.textContent = 'Run Debug';
-    }
-}
+
 
 function log(message, type = 'info') {
     const timestamp = new Date().toLocaleTimeString();
@@ -2065,7 +1919,7 @@ function throttledPedalLog(paramName, value) {
 
 async function readValuesFromCube() {
     const buttonCallId = Math.random().toString(36).substr(2, 9);
-    log(`🔍 DEBUG: [${buttonCallId}] readValuesFromCube() called from UI button`, 'info');
+
     
     if (!bossCubeController.isCubeConnected) {
         log('Boss Cube not connected - cannot read values', 'error');

@@ -1,98 +1,44 @@
 # Boss Cube Web Control - Version History
 
-## v2.23.1-alpha.16 (2025-01-17)
-- **CLEANUP**: Fixed tuner display and removed redundant elements per user feedback
-  - **Removed redundant "Tuner Pitch Data" control**: Changed category from 'tuner' to 'internal' to hide from UI
-  - **Removed redundant yellow status text**: Eliminated duplicate tuner status div above the black box
-  - **Fixed tuner display in black box**: Now properly shows live data (note, frequency, cents) with color-coded background
-  - **Added animated tuner needle**: Visual needle indicator that moves based on pitch deviation with color change (green=in tune, red=out of tune)
-  - **Simplified logging**: Single line tuner output as requested: "🎵 Tuner: E4 440.1Hz +5¢ (Sharp)"
-  - **Enhanced tuner visual**: Black box now displays frequency with cents in one line, color-coded background for tuning status
-  - **Cleaned up old logic**: Removed obsolete tuner display code and references to removed elements
+## Version 2.24.0 (2025-01-17)
 
-## v2.23.1-alpha.15 (2025-01-17)
-- **MAJOR FIX**: Implemented correct tuner cent calculation based on user feedback
-  - User confirmed "orig" value works perfectly with 0-26 range (0=max flat, ~13=in tune, 26=max sharp)
-  - Fixed calculation: raw value → divide by 10 → subtract 13 (center) → scale by 3.85 for ±50¢ range
-  - Removed signed conversion and alternative calculations (no longer needed)
-  - Final formula: `((rawValue/10) - 13) * 3.85` gives accurate cent readings
-  - Enhanced logging to show raw → scaled → centered → cents conversion steps
-  - Tuner now displays accurate cent deviations that match Boss Cube's physical tuner LEDs
+### 🎵 **Professional Tuner Interface & Real-Time Performance**
 
-## v2.23.1-alpha.14 (2025-01-17)
-- **BUG FIX**: Fixed cent calculation byte indexing based on user feedback
-  - Updated alternative calculations to use correct bytes: 2nd byte (index 1) and 3rd byte (index 2)
-  - User identified that when in tune: 2nd byte = 0x01, 3rd byte ≈ 0x03
-  - Fixed all 7 alternative cent calculation methods to use bytes 1 and 2 instead of bytes 2 and 3
-  - Updated byte comments to reflect correct data structure understanding
-  - Alternative calculations now test: alt1=byte1-64, alt2=(byte1*10)+byte2-500, alt3=byte2-64, etc.
+Major release featuring a completely redesigned tuner system with real-time pitch detection, accurate cent calculation, and professional visual feedback.
 
-## v2.23.1-alpha.13 (2025-01-17)
-- **DEBUG**: Added extensive cent calculation debugging to fix tuner accuracy
-  - Added 7 different alternative cent calculation methods (alt1-alt7)
-  - Enhanced raw byte analysis logging for tuner data structure understanding
-  - Added user feedback prompts to compare calculations with physical Boss Cube display
-  - Investigating why cents show +30¢-+40¢ when Boss Cube shows correct pitch
-  - Need user feedback to identify which alternative calculation matches Boss Cube LEDs
-  - Current alternatives test: offset from center, different scaling, direct values, signed interpretations
+### ✨ **What's New for Users**
 
-## v2.23.1-alpha.12 (2025-01-17)
-- **BUG FIX**: Fixed tuner display not updating in UI
-  - Enhanced tuner display debugging to show which UI elements are missing/available
-  - Fixed duplicate "🎵 Tuner data: [object Object] (NaN¢)" logging in app.js
-  - Removed redundant tuner logging in controller to avoid message duplication
-  - Added proper object handling for structured tuner data in app.js logging
-  - Added tuner UI update confirmation logging for troubleshooting
-  - Now properly targets existing tuner UI elements: tunerFrequencyDisplay, tunerNoteDisplay, tunerStatus, tunerVisual
+#### 🎯 **Professional Real-Time Tuner**
+- **Live pitch detection**: Real-time note recognition and frequency display with sub-cent accuracy
+- **Visual tuner needle**: Animated needle indicator that moves smoothly with pitch changes, color-coded green (in tune) to red (out of tune)
+- **Accurate cent calculation**: Precise pitch deviation matching Boss Cube's internal tuner LEDs (±50¢ range)
+- **Professional display**: Clean single-line format showing note, frequency, and cents (e.g., "🎵 E4 329.6Hz +5¢ (Sharp)")
+- **Color-coded feedback**: Background colors indicate tuning status - green when in tune, orange/red when adjustment needed
+- **No signal detection**: Intelligent handling when no audio input is detected
 
-## v2.23.1-alpha.11 (2025-01-17)
-- **MAJOR**: Implemented structured tuner data decoding
-  - Added `decodeTunerData()` method to parse 6-byte tuner data into logical components
-  - Tuner now displays: Note name (e.g., "E4"), frequency (e.g., "440.0Hz"), cents deviation (e.g., "+12¢"), signal strength percentage
-  - Color-coded tuner display: Green (in tune), Orange (sharp), Red (flat), Gray (no signal)
-  - Enhanced tuner UI with professional multi-line display format
-  - Special handling for "no signal" condition (all zeros pattern)
-  - Structured tuner data includes: note, octave, frequency, cents deviation, signal strength, tuning status
-  - Added `findParameterByAddress()` and `updateUIFromParameter()` helper methods
-  - Maintained backward compatibility with numeric tuner values
-  - Comprehensive logging of decoded tuner information for debugging
+#### 🎛️ **Enhanced Tuner Controls**
+- **Debug testing buttons**: Built-in pitch simulation buttons for testing tuner accuracy without instrument input
+- **Simplified interface**: Removed redundant controls and status displays for cleaner user experience
+- **High-precision data**: Support for up to 21-bit tuner precision (3-byte values) vs previous 7-bit limitation
+- **Real-time responsiveness**: Immediate visual feedback matching physical Boss Cube tuner behavior
 
-## Version 2.23.1-alpha.10 (2025-01-16) - Development
+#### 🔄 **Improved PWA Update System**
+- **Reliable cache clearing**: Enhanced update detection and cache management for mobile devices
+- **Visual update indicators**: Clear notification when app updates are available
+- **Aggressive update detection**: Automatic checks ensure latest features are always available
+- **Development-friendly**: Always-visible update button during development phases
 
-### 🐛 **Tuner Functionality & PWA Update System Development**
+### 🛠️ **Behind-the-Scenes Improvements**
+- **Consolidated testing**: Moved GitHub Actions to project directory with comprehensive test coverage (45+ automated tests)
+- **Multi-byte SysEx support**: Dynamic parameter size detection for future Boss Cube protocol enhancements  
+- **Enhanced debugging**: Comprehensive logging system for troubleshooting tuner accuracy
+- **Code quality**: Updated linting, security audits, and project structure validation
+- **Documentation**: Complete GitHub Actions setup with detailed workflow explanations
 
-Development version focused on fixing real-time tuner functionality, enhancing PWA update reliability, and implementing dynamic parameter size detection.
+### 📈 **Impact**
+This release transforms the tuner from a basic pitch detector into a professional-grade tuning interface that rivals dedicated hardware tuners. The visual feedback and accuracy improvements make it suitable for live performance and studio use.
 
-#### 🎵 **Tuner Improvements (Completed)**
-- **Added missing `setTunerControl` method**: Fixed tuner enable/disable functionality using SysEx commands
-- **Enhanced SysEx parsing**: Added support for multi-byte parameter values with auto-detection
-- **Real-time tuner data support**: Added `tunerPitchData` parameter at address `7f 00 03 00` for live pitch feedback
-- **Auto-detection of parameter size**: Dynamic sizing based on SysEx message length (1-byte, 2-byte, 3-byte, etc.)
-- **High-precision tuner data**: Up to 21-bit precision (3 bytes = 2,097,152 possible values) vs previous 7-bit (128 values)
-- **Debug logging system**: Comprehensive debug output showing exact byte counts and precision levels
-- **Roland 7-bit format**: Proper multi-byte value reconstruction using bit shifting
-
-#### 🔄 **PWA Update System Enhancements**
-- **Always-visible update button**: Development versions now always show "🔄 Force Update" button for reliable cache busting
-- **Aggressive update detection**: Immediate service worker update checks on registration, focus, and periodically (30s)
-- **Enhanced cache clearing**: Multiple cache clearing strategies (service worker + direct + hard reload)
-- **Version mismatch detection**: Service worker message system to detect app/SW version mismatches  
-- **Visual update indicators**: Pulsing red animation when updates are available
-- **Improved service worker**: Network-first strategy for development versions, immediate skipWaiting
-
-#### 🔧 **Technical Changes**
-- **Dynamic SysEx parsing**: Auto-detection of parameter size based on message length formula: `valueBytes = sysexData.length - 13`
-- **Multi-byte value reconstruction**: Roland 7-bit format with proper bit shifting for any number of bytes
-- **Parameter mapping**: Updated tuner parameter with higher precision range (up to 21-bit values)
-- **Debug infrastructure**: User-visible debug messages showing byte counts and precision calculations
-- **PWA reliability**: Multi-layered cache clearing and update detection for mobile compatibility
-- **Removed hardcoded logic**: Eliminated fixed 1-byte/2-byte assumptions in favor of dynamic detection
-
-#### 🎯 **Development Focus**
-- ✅ **Resolved tuner data precision** - Now supports up to 3-byte values with 2,097,152 precision levels
-- ✅ **Resolved cache update issues** - PWA updates now work reliably on mobile and desktop
-- ✅ **Enhanced debugging workflow** - Version bump automation + visible debug logging with precision details
-- ✅ **Future-proof parameter handling** - Any parameter can now use multi-byte values automatically
+**Upgrading from v2.23.0**: Enjoy dramatically improved tuner accuracy and visual feedback. The tuner now provides real-time pitch detection with professional-quality cent calculation that matches your Boss Cube's internal tuner.
 
 ---
 

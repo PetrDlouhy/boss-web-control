@@ -168,6 +168,7 @@
         import './boss-cube-controller.test.js';
         import './boss-cube-communication.test.js';
         import './reload-values.test.js';
+        import './tuner-visual.test.js';
 
         window.runTests = async function() {
             const runButton = document.getElementById('runTests');
@@ -219,7 +220,14 @@
                 // Run Reload Values tests
                 const reloadValuesTestsSuccess = await window.runReloadValuesTests();
                 
-                const allTestsSuccess = pedalTestsSuccess && controllerTestsSuccess && communicationSuccess && reloadValuesTestsSuccess;
+                output += '\n' + '='.repeat(50) + '\n\n';
+                resultsDiv.textContent = output;
+                
+                // Run Tuner Visual tests
+                const tunerVisualTestsSuccess = await window.runTunerVisualTests();
+                const tunerVisualSuccess = tunerVisualTestsSuccess.failed === 0;
+                
+                const allTestsSuccess = pedalTestsSuccess && controllerTestsSuccess && communicationSuccess && reloadValuesTestsSuccess && tunerVisualSuccess;
                 
                 if (allTestsSuccess) {
                     statusDiv.textContent = '✅ All tests passed!';

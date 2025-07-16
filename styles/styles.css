@@ -1132,10 +1132,6 @@ h5 {
 }
 
 .tuner-meter {
-    position: relative;
-}
-
-.tuner-meter {
     background: #34495e;
     height: 40px;
     border-radius: 20px;
@@ -1144,17 +1140,7 @@ h5 {
     overflow: hidden;
 }
 
-.tuner-meter::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 3px;
-    height: 60%;
-    background: #e74c3c;
-    transform: translate(-50%, -50%);
-    z-index: 2;
-}
+/* Removed static center reference line - only show moving needle */
 
 .tuner-needle {
     position: absolute;
@@ -1169,12 +1155,75 @@ h5 {
     box-shadow: 0 0 4px rgba(231, 76, 60, 0.8);
 }
 
+
+
 .tuner-scale {
-    display: flex;
-    justify-content: space-between;
+    position: relative;
+    height: 20px;
     color: #bdc3c7;
     font-size: 12px;
     margin-top: 5px;
+    padding: 0 8px;
+}
+
+/* Position all marks absolutely for perfect alignment */
+.tuner-scale span {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Flat symbol - leftmost */
+.tuner-scale span:nth-child(1) {
+    left: 8px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* -20 mark */
+.tuner-scale span:nth-child(2) {
+    left: 16.67%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* -10 mark */
+.tuner-scale span:nth-child(3) {
+    left: 33.33%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* 0 mark - center */
+.tuner-scale span:nth-child(4) {
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+/* +10 mark */
+.tuner-scale span:nth-child(5) {
+    left: 66.67%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* +20 mark */
+.tuner-scale span:nth-child(6) {
+    left: 83.33%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* Sharp symbol - rightmost */
+.tuner-scale span:nth-child(7) {
+    right: 8px;
+    font-size: 14px;
+    font-weight: bold;
 }
 
 .tuner-frequency-display {
@@ -1192,34 +1241,7 @@ h5 {
     margin-bottom: 15px;
 }
 
-.tuner-presets {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-    gap: 8px;
-    margin: 15px 0;
-}
 
-.tuner-preset-btn {
-    padding: 8px 12px;
-    border: 2px solid #3498db;
-    border-radius: 6px;
-    background: transparent;
-    color: #3498db;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.tuner-preset-btn:hover {
-    background: #3498db;
-    color: white;
-}
-
-.tuner-preset-btn.active {
-    background: #3498db;
-    color: white;
-}
 
 .tuner-controls-grid {
     display: grid;
@@ -1266,45 +1288,9 @@ h5 {
     color: #f1c40f;
 }
 
-/* Quick Key Selection */
-.tuner-key-presets {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 6px;
-    margin: 10px 0;
-}
 
-.tuner-key-btn {
-    padding: 8px 4px;
-    border: 2px solid #9b59b6;
-    border-radius: 4px;
-    background: transparent;
-    color: #9b59b6;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.tuner-key-btn:hover {
-    background: #9b59b6;
-    color: white;
-}
-
-.tuner-key-btn.active {
-    background: #9b59b6;
-    color: white;
-}
 
 @media (max-width: 768px) {
-    .tuner-presets {
-        grid-template-columns: repeat(3, 1fr);
-    }
-    
-    .tuner-key-presets {
-        grid-template-columns: repeat(4, 1fr);
-    }
-    
     .tuner-controls-grid {
         grid-template-columns: 1fr;
         gap: 10px;

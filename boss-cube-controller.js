@@ -711,7 +711,7 @@ class BossCubeController {
                 // Update UI for this parameter
                 this.updateUIFromParameter(paramDef.id, value);
                 
-                this.log(`📊 ${paramDef.name}: ${value}`, 'debug');
+        
             }
         } else {
             // Log unknown parameter with improved formatting
@@ -819,9 +819,11 @@ class BossCubeController {
         
         tunerVisual.style.background = backgroundColor;
         
-        // Update tuner meter needle position based on cents deviation
+        // Update tuner meter needle - always show with color feedback
         if (tunerMeter) {
             let tunerNeedle = document.querySelector('.tuner-needle');
+            
+            // Create needle if it doesn't exist
             if (!tunerNeedle) {
                 tunerNeedle = document.createElement('div');
                 tunerNeedle.className = 'tuner-needle';
@@ -840,18 +842,23 @@ class BossCubeController {
                 tunerMeter.appendChild(tunerNeedle);
             }
             
-            // Convert cents to needle position (-50¢ to +50¢ mapped to 0% to 100%)
-            const maxCents = 50;
-            const normalizedCents = Math.max(-maxCents, Math.min(maxCents, tunerData.centsDeviation));
-            const needlePosition = ((normalizedCents + maxCents) / (2 * maxCents)) * 100;
+                        // Correct mathematical positioning based on scale layout
+            // Scale has 7 marks with justify-content: space-between: ♭, -20, -10, 0, +10, +20, ♯
+            // Positions: 0%, 16.67%, 33.33%, 50%, 66.67%, 83.33%, 100%
+            const maxDisplayCents = 20;
+            const normalizedCents = Math.max(-maxDisplayCents, Math.min(maxDisplayCents, tunerData.centsDeviation));
+            
+            // Map cents to scale positions:
+            // -20¢ at 16.67%, -10¢ at 33.33%, 0¢ at 50%, +10¢ at 66.67%, +20¢ at 83.33%
+            const needlePosition = 50 + (normalizedCents / 20) * 33.33;
             tunerNeedle.style.left = `${needlePosition}%`;
             
-            // Change needle color based on tuning status
+            // Change needle color based on tuning status - green when in tune for positive feedback
             if (tunerData.status === 'In Tune') {
-                tunerNeedle.style.background = '#27ae60';
+                tunerNeedle.style.background = '#27ae60'; // Green when perfectly tuned
                 tunerNeedle.style.boxShadow = '0 0 4px rgba(39, 174, 96, 0.8)';
             } else {
-                tunerNeedle.style.background = '#e74c3c';
+                tunerNeedle.style.background = '#e74c3c'; // Red when needs adjustment
                 tunerNeedle.style.boxShadow = '0 0 4px rgba(231, 76, 60, 0.8)';
             }
         }
