@@ -4,8 +4,9 @@
 import BossCubeController from './boss-cube-controller.js';
 import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
+import { LOOPER_VOLUME_CONFIG } from './constants.js';
 
-const VERSION = '2.24.0';
+const VERSION = '2.25.0';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -39,6 +40,14 @@ let masterBindEnabled = false;
 let masterBindControl, masterBindInfoIcon;
 let bindInfoOverlay, bindInfoPopup;
 
+// Looper Volume state
+let currentLooperVolume = LOOPER_VOLUME_CONFIG.DEFAULT;
+let isUpdatingLooperVolume = false; // Flag to prevent recursive updates
+let looperVolumeThrottle = {
+    lastUpdateTime: 0,
+    updateInterval: 10 // Reduced to 50ms for smoother movement
+};
+
 // Live performance mode
 let livePerformance = null;
 
@@ -71,6 +80,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Master bind elements - will be created dynamically
     masterBindControl = null;
     masterBindInfoIcon = null;
+    
+    // Restore looper volume state from localStorage
+    const savedCurrentLooperVolume = localStorage.getItem('currentLooperVolume');
+    if (savedCurrentLooperVolume) {
+        currentLooperVolume = parseInt(savedCurrentLooperVolume);
+        // Update the virtual parameter current value
+        if (bossCubeController && bossCubeController.parameters.looperVolume) {
+            bossCubeController.parameters.looperVolume.current = currentLooperVolume;
+        }
+    }
     
     // Bind info popup elements
     bindInfoOverlay = document.getElementById('bindInfoOverlay');
@@ -354,7 +373,13 @@ function handlePedalVolumeChange(event) {
         updatePedalPositionIndicator(parameterKey, value);
     } else {
         // Normal mode - update parameter value
-    updateParameterDisplayFast(parameterKey, value);
+        if (parameterKey === 'looperVolume') {
+            // For looper volume, use the full update logic to trigger volume adjustments
+            updateParameterValue(parameterKey, value);
+        } else {
+            // For other parameters, use fast display update
+            updateParameterDisplayFast(parameterKey, value);
+        }
     }
     
     // Throttled logging to prevent console spam during fast movement
@@ -456,6 +481,8 @@ async function createParameterControls() {
             const bindControl = await createMasterBindControl();
             mixerControlsEl.appendChild(bindControl);
         }
+        
+
     }
     
     // Create effects interface with selectors and controls
@@ -1247,6 +1274,87 @@ async function createMasterBindControl() {
     return bindControl;
 }
 
+// ===== LOOPER VOLUME CONTROL =====
+
+function calculateLooperVolumeAdjustment(targetLooperVolume) {
+    // Get current actual volumes
+    const currentMaster = bossCubeController.parameters.masterVolume.current;
+    const currentGuitar = bossCubeController.parameters.guitarMicVolume.current;
+    const currentMicInst = bossCubeController.parameters.micInstVolume.current;
+    
+    // Calculate the adjustment needed
+    const looperVolumeChange = targetLooperVolume - currentLooperVolume;
+    
+    // Master volume changes directly with looper volume, but with minimum level
+    const newMaster = Math.max(
+        LOOPER_VOLUME_CONFIG.MIN_MASTER_LEVEL, 
+        Math.min(100, Math.round(currentMaster + looperVolumeChange))
+    );
+    
+    // Input volumes change inversely but more gently and with minimum levels
+    const inputAdjustment = -looperVolumeChange * LOOPER_VOLUME_CONFIG.INPUT_ADJUSTMENT_FACTOR;
+    const newGuitar = Math.max(
+        LOOPER_VOLUME_CONFIG.MIN_INPUT_LEVEL, 
+        Math.min(100, Math.round(currentGuitar + inputAdjustment))
+    );
+    const newMicInst = Math.max(
+        LOOPER_VOLUME_CONFIG.MIN_INPUT_LEVEL, 
+        Math.min(100, Math.round(currentMicInst + inputAdjustment))
+    );
+    
+    return {
+        masterVolume: newMaster,
+        guitarMicVolume: newGuitar,
+        micInstVolume: newMicInst
+    };
+}
+
+async function updateLooperVolume(targetVolume) {
+    // Prevent recursive updates
+    isUpdatingLooperVolume = true;
+    
+    try {
+        const adjustments = calculateLooperVolumeAdjustment(targetVolume);
+        
+        // Update displays first for immediate UI feedback
+        for (const [paramKey, newValue] of Object.entries(adjustments)) {
+            updateParameterDisplay(paramKey, newValue);
+        }
+        
+        // Throttle hardware updates to prevent GATT conflicts
+        const now = Date.now();
+        const shouldUpdateHardware = now - looperVolumeThrottle.lastUpdateTime >= looperVolumeThrottle.updateInterval;
+        
+        if (bossCubeController.isCubeConnected && shouldUpdateHardware) {
+            looperVolumeThrottle.lastUpdateTime = now;
+            
+            // Send hardware updates sequentially to avoid GATT conflicts
+            for (const [paramKey, newValue] of Object.entries(adjustments)) {
+                try {
+                    await bossCubeController.setParameter(paramKey, newValue);
+                } catch (error) {
+                    console.warn(`Failed to update ${paramKey}:`, error.message);
+                }
+            }
+        }
+        
+        currentLooperVolume = targetVolume;
+        
+        // Also update the looper volume parameter display itself
+        updateParameterDisplay('looperVolume', targetVolume);
+        
+        // Save current looper volume to localStorage
+        localStorage.setItem('currentLooperVolume', currentLooperVolume.toString());
+        
+        log(`🔁 Looper Volume: ${targetVolume} (Master: ${adjustments.masterVolume}, Guitar: ${adjustments.guitarMicVolume}, Mic/Inst: ${adjustments.micInstVolume})`, 'success');
+    } finally {
+        // Always reset the flag
+        isUpdatingLooperVolume = false;
+    }
+}
+
+
+
 async function createParameterControl(param, key) {
     const control = document.createElement('div');
     control.className = 'parameter-control';
@@ -1505,6 +1613,19 @@ function updateParameterSelection() {
  */
 function updateParameterValue(key, value) {
     if (!bossCubeController.parameters[key]) return;
+    
+    // Handle virtual looper volume parameter
+    if (key === 'looperVolume') {
+        if (!isUpdatingLooperVolume) {
+            updateLooperVolume(value);
+        }
+        return;
+    }
+    
+    // Prevent feedback loops when looper volume is updating other parameters
+    if (isUpdatingLooperVolume && (key === 'masterVolume' || key === 'guitarMicVolume' || key === 'micInstVolume')) {
+        return;
+    }
     
     const param = bossCubeController.parameters[key];
     

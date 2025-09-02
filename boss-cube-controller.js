@@ -560,6 +560,11 @@ class BossCubeController {
             throw new Error(`Unknown parameter: ${paramKey}`);
         }
         
+        // Skip reading virtual parameters from hardware
+        if (param.isVirtual) {
+            return param.current;
+        }
+        
         return await this.sendParameterReadRequest(param.address);
     }
 
@@ -577,6 +582,11 @@ class BossCubeController {
         
         // Update internal parameter value
         param.current = clampedValue;
+        
+        // Skip sending virtual parameters to hardware
+        if (param.isVirtual) {
+            return Promise.resolve();
+        }
         
         // Send to Boss Cube
         return await this.sendParameterCommand(param.address, clampedValue);

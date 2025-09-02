@@ -79,10 +79,25 @@ export const EFFECT_TYPES = {
 
 // Application version configuration
 export const VERSION_CONFIG = {
-    CURRENT_VERSION: 'v2.24.0'
+    CURRENT_VERSION: 'v2.25.0'
 };
 
 // Master Out binding configuration
 export const MASTER_BIND_CONFIG = {
     REDIRECT_BEHAVIOR: true // Always use redirect behavior
+};
+
+// Looper Volume binding configuration
+export const LOOPER_VOLUME_CONFIG = {
+    ENABLED: true,
+    // Range for the virtual looper volume control
+    MIN: 0,
+    MAX: 100,
+    DEFAULT: 50,
+    // How much input volumes adjust relative to looper volume change (reduced for gentler adjustment)
+    INPUT_ADJUSTMENT_FACTOR: 0.4,
+    // Minimum level for input volumes (prevents guitar from going completely silent)
+    MIN_INPUT_LEVEL: 5,
+    // Minimum level for master volume (prevents entire output from going silent)
+    MIN_MASTER_LEVEL: 5
 }; 

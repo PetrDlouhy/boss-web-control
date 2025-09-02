@@ -36,6 +36,13 @@ export const BOSS_CUBE_PARAMETERS = {
         min: 0, max: 100, current: 50,
         category: 'mixer'
     },
+    looperVolume: { 
+        name: 'Looper Volume', 
+        address: null, // Virtual parameter - no SysEx address
+        min: 0, max: 100, current: 50,
+        category: 'mixer',
+        isVirtual: true // Flag to identify virtual parameters
+    },
 
     // Looper Control (updated to match README.md specification)
     looperControl: { 

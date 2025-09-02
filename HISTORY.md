@@ -1,5 +1,24 @@
 # Boss Cube Web Control - Version History
 
+## Version 2.25.0 (2025-01-09)
+
+### 🔁 **Looper Volume Control**
+
+Added virtual looper volume parameter to control looper output level relative to live inputs.
+
+### ✨ **What's New**
+
+- **Looper Volume slider**: New virtual parameter in mixer section simulates missing Boss Cube looper volume control
+- **Smart volume balancing**: Adjusts Master Volume up/down while maintaining Guitar/Mic input audibility (5% minimum levels)
+- **Full pedal support**: Works with EV-1-WL expression pedal for real-time looper volume control
+- **Sequential GATT updates**: Eliminates Bluetooth conflicts during multi-parameter adjustments
+
+**Use Case**: Control looper playback volume during live performance without losing guitar audibility.
+
+**How to use**: Find "Looper Volume" slider in mixer section, or assign it to your pedal for expression control.
+
+---
+
 ## Version 2.24.0 (2025-01-17)
 
 ### 🎵 **Professional Tuner Interface & Real-Time Performance**
