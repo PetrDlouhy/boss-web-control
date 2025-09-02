@@ -131,6 +131,11 @@ class BossCubeController {
      * Check if Web Bluetooth is supported
      */
     static isSupported() {
+        // Guard against non-browser environments (e.g., Node.js testing)
+        if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+            return false;
+        }
+        
         const userAgent = navigator.userAgent || '';
         const isHTTPS = window.location.protocol === 'https:';
         const isLocalhost = window.location.hostname === 'localhost' || 
@@ -633,6 +638,12 @@ class BossCubeController {
         const mixerParams = this.getParametersByCategory('mixer');
         
         for (const [key, param] of Object.entries(mixerParams)) {
+            // Skip virtual parameters - they don't exist on hardware
+            if (param.isVirtual) {
+                this.log(`⏭️ Skipping virtual parameter: ${param.name}`, 'info');
+                continue;
+            }
+            
             try {
                 await this.readParameter(key);
             } catch (error) {

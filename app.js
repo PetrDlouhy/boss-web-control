@@ -62,7 +62,8 @@ let settings = {
 };
 
 // Initialize when page loads
-document.addEventListener('DOMContentLoaded', async function() {
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', async function() {
     // Get DOM elements
     statusEl = document.getElementById('status');
     pedalStatusEl = document.getElementById('pedalStatus');
@@ -81,15 +82,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     masterBindControl = null;
     masterBindInfoIcon = null;
     
-    // Restore looper volume state from localStorage
-    const savedCurrentLooperVolume = localStorage.getItem('currentLooperVolume');
-    if (savedCurrentLooperVolume) {
-        currentLooperVolume = parseInt(savedCurrentLooperVolume);
-        // Update the virtual parameter current value
-        if (bossCubeController && bossCubeController.parameters.looperVolume) {
-            bossCubeController.parameters.looperVolume.current = currentLooperVolume;
-        }
-    }
+
     
     // Bind info popup elements
     bindInfoOverlay = document.getElementById('bindInfoOverlay');
@@ -144,6 +137,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     bossCubeController = new BossCubeController();
     templateLoader = new TemplateLoader();
     
+    // Restore looper volume state from localStorage (after controller initialization)
+    try {
+        const savedCurrentLooperVolume = localStorage.getItem('currentLooperVolume');
+        if (savedCurrentLooperVolume) {
+            currentLooperVolume = parseInt(savedCurrentLooperVolume);
+            // Update the virtual parameter current value
+            if (bossCubeController.parameters.looperVolume) {
+                bossCubeController.parameters.looperVolume.current = currentLooperVolume;
+            }
+        }
+    } catch (error) {
+        // Handle localStorage not available (e.g., in Node.js environment)
+        console.warn('localStorage not available:', error);
+    }
+    
     // Initialize live performance mode after controller and template loader are ready
     const livePerformanceOverlay = document.getElementById('livePerformanceOverlay');
     livePerformance = new LivePerformance(bossCubeController, templateLoader, log);
@@ -183,6 +191,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     log(`Boss Cube Web Control v${VERSION} initialized`, 'success');
 });
+}
 
 function initializeVersioning() {
     // Display current version

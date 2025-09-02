@@ -234,12 +234,13 @@ test.test('readAllMixerValues integration', async () => {
     
     await controller.readAllMixerValues();
     
-    // Should have read all mixer parameters
+    // Should have read all non-virtual mixer parameters
     const mixerParams = controller.getParametersByCategory('mixer');
-    const expectedRequests = Object.keys(mixerParams).length;
+    const nonVirtualParams = Object.values(mixerParams).filter(param => !param.isVirtual);
+    const expectedRequests = nonVirtualParams.length;
     
     test.assertEqual(mockComm.readRequests.length, expectedRequests, 
-        `Should read all ${expectedRequests} mixer parameters`);
+        `Should read all ${expectedRequests} non-virtual mixer parameters`);
     
     // Note: The cleaned up code doesn't add explicit delays,
     // only the internal communication delays exist
@@ -358,6 +359,48 @@ test.test('Parameter update callback integration', async () => {
     
     test.assertGreaterThan(updateEvents.length, 0, 'Should receive parameter update callback');
     test.assertEqual(updateEvents[0].isPhysicalChange, false, 'Read request should not be physical change');
+});
+
+test.test('Virtual parameter handling', async () => {
+    const controller = new BossCubeController();
+    
+    // Test virtual parameter identification
+    const looperVolumeParam = controller.parameters.looperVolume;
+    test.assert(looperVolumeParam.isVirtual === true, 'Looper volume should be marked as virtual');
+    test.assert(looperVolumeParam.address === null, 'Virtual parameter should have null address');
+    
+    // Test virtual parameter reading
+    const value = await controller.readParameter('looperVolume');
+    test.assertEqual(value, looperVolumeParam.current, 'Should return current value for virtual parameters');
+    
+    // Test virtual parameter setting (should not send to hardware)
+    const mockComm = new MockBossCubeCommunication();
+    mockComm.sentCommands = []; // Initialize the array
+    controller.bossCubeComm = mockComm;
+    controller.isCubeConnected = true;
+    
+    await controller.setParameter('looperVolume', 75);
+    test.assertEqual(mockComm.sentCommands.length, 0, 'Virtual parameters should not send commands to hardware');
+    test.assertEqual(looperVolumeParam.current, 75, 'Virtual parameter current value should be updated');
+});
+
+test.test('readAllMixerValues skips virtual parameters', async () => {
+    const controller = new BossCubeController();
+    const mockComm = new MockBossCubeCommunication();
+    mockComm.isConnected = true;
+    mockComm.readDelay = 5;
+    
+    controller.bossCubeComm = mockComm;
+    controller.isCubeConnected = true;
+    
+    await controller.readAllMixerValues();
+    
+    // Should read all mixer parameters except virtual ones
+    const mixerParams = controller.getParametersByCategory('mixer');
+    const nonVirtualParams = Object.values(mixerParams).filter(param => !param.isVirtual);
+    
+    test.assertEqual(mockComm.readRequests.length, nonVirtualParams.length, 
+        `Should read only non-virtual mixer parameters (${nonVirtualParams.length})`);
 });
 
 // Export test runner for use in browser
