@@ -157,6 +157,9 @@ if (typeof document !== 'undefined') {
     livePerformance = new LivePerformance(bossCubeController, templateLoader, log);
     livePerformance.initialize(livePerformanceOverlay);
     
+    // Set up looper control monitoring for Live Performance sync
+    setupLooperControlMonitoring();
+    
     // Expose global functions for live performance mode
     window.pendingAnimationUpdates = pendingAnimationUpdates;
     window.processPendingAnimationUpdates = processPendingAnimationUpdates;
@@ -190,6 +193,10 @@ if (typeof document !== 'undefined') {
     initializeWakeLock();
     
     log(`Boss Cube Web Control v${VERSION} initialized`, 'success');
+    
+    // Make key functions available globally for Live Performance mode
+    window.updateParameterValue = updateParameterValue;
+    window.updateParameterDisplay = updateParameterDisplay;
 });
 }
 
@@ -736,10 +743,13 @@ async function updateLooperControls() {
             const value = parseInt(button.getAttribute('data-looper-value'));
             
             try {
-                await bossCubeController.setParameter('looperControl', value);
+                // Use main app parameter update function for full synchronization
+                updateParameterValue('looperControl', value);
                 
-                // Update parameter value locally for immediate UI response
-                looperControl.current = value;
+                // Also explicitly update Live Performance if active
+                if (livePerformance && livePerformance.isActive) {
+                    livePerformance.updateLivePerformanceDisplay('looperControl', value);
+                }
                 
                 // Update button visual state immediately
                 const allLooperBtns = container.querySelectorAll('.looper-btn-improved');
@@ -775,6 +785,11 @@ async function updateLooperControls() {
 Settings control which audio sources are included in loops.`;
             alert(helpText);
         });
+    }
+    
+    // Also update Live Performance mode if active
+    if (livePerformance && livePerformance.isActive) {
+        livePerformance.updateLivePerformanceDisplay('looperControl', looperControl.current);
     }
 }
 
@@ -1328,6 +1343,11 @@ async function updateLooperVolume(targetVolume) {
         // Update displays first for immediate UI feedback
         for (const [paramKey, newValue] of Object.entries(adjustments)) {
             updateParameterDisplay(paramKey, newValue);
+            
+            // Update Live Performance mode controls if active
+            if (livePerformance && livePerformance.isActive) {
+                livePerformance.updateLivePerformanceDisplay(paramKey, newValue);
+            }
         }
         
         // Throttle hardware updates to prevent GATT conflicts
@@ -1352,6 +1372,11 @@ async function updateLooperVolume(targetVolume) {
         // Also update the looper volume parameter display itself
         updateParameterDisplay('looperVolume', targetVolume);
         
+        // Update Live Performance mode looper volume display if active
+        if (livePerformance && livePerformance.isActive) {
+            livePerformance.updateLivePerformanceDisplay('looperVolume', targetVolume);
+        }
+        
         // Save current looper volume to localStorage
         localStorage.setItem('currentLooperVolume', currentLooperVolume.toString());
         
@@ -1368,6 +1393,11 @@ async function createParameterControl(param, key) {
     const control = document.createElement('div');
     control.className = 'parameter-control';
     control.setAttribute('data-param-key', key);
+    
+    // Special handling for amp type - render as buttons
+    if (key === 'guitarAmpType') {
+        return await createAmpTypeControl(param, key);
+    }
     
     // Get initial display value
     let initialDisplayValue;
@@ -1407,6 +1437,55 @@ async function createParameterControl(param, key) {
         const value = parseInt(e.target.value);
         updateParameterValue(key, value);
         updateParameterDisplay(key, value);
+    });
+    
+    return control;
+}
+
+/**
+ * Create amp type control with buttons (similar to looper control)
+ */
+async function createAmpTypeControl(param, key) {
+    const control = document.createElement('div');
+    control.className = 'amp-type-control';
+    control.setAttribute('data-param-key', key);
+    
+    // Amp type button definitions
+    const ampTypeButtons = param.valueLabels.map((label, index) => ({
+        value: index,
+        label: label,
+        shortLabel: label.length > 8 ? label.substring(0, 8) + '...' : label
+    }));
+    
+    // Create buttons HTML
+    const buttonsHTML = ampTypeButtons.map((btn) => `
+        <button class="amp-type-btn ${param.current === btn.value ? 'active' : ''}" 
+                data-value="${btn.value}" 
+                title="${btn.label}">
+            ${btn.shortLabel}
+        </button>
+    `).join('');
+    
+    // Create control HTML (no labels, just buttons)
+    control.innerHTML = `
+        <div class="amp-type-buttons">
+            ${buttonsHTML}
+        </div>
+    `;
+    
+    // Add click handlers for buttons
+    const buttons = control.querySelectorAll('.amp-type-btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const value = parseInt(button.getAttribute('data-value'));
+            
+            // Update button states
+            buttons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Update parameter via main app logic
+            updateParameterValue(key, value);
+        });
     });
     
     return control;
@@ -1676,6 +1755,26 @@ function updateParameterValue(key, value) {
 function updateParameterDisplay(key, value) {
     const control = document.querySelector(`[data-param-key="${key}"]`);
     if (control) {
+        // Special handling for amp type buttons
+        if (key === 'guitarAmpType') {
+            // Update button states
+            const buttons = control.querySelectorAll('.amp-type-btn');
+            buttons.forEach(btn => {
+                const btnValue = parseInt(btn.getAttribute('data-value'));
+                if (btnValue === value) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update internal parameter
+            const param = bossCubeController.parameters[key];
+            if (param) {
+                param.current = value;
+            }
+            return; // Skip slider update for amp type
+        }
         const slider = control.querySelector('.parameter-slider');
         const valueDisplay = control.querySelector('.parameter-value');
         const param = bossCubeController.parameters[key];
@@ -2085,17 +2184,17 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     // Update the parameter display when Boss Cube sends us a value
     updateParameterDisplay(paramKey, value);
     
-    // Update Live Performance mode controls if active
-    if (livePerformance && livePerformance.isActive) {
-        livePerformance.updateLivePerformanceDisplay(paramKey, value);
-    }
-    
     // Handle special controls that need custom updates
     if (paramKey === 'looperControl') {
         // Fire and forget - just update the UI asynchronously
         updateLooperControls().catch(error => {
             console.error('Failed to update looper controls UI:', error);
         });
+    }
+    
+    // Update Live Performance mode controls if active (after special handling)
+    if (livePerformance && livePerformance.isActive) {
+        livePerformance.updateLivePerformanceDisplay(paramKey, value);
     }
     
     // Handle looper settings toggle buttons - regenerate the UI to show updated values
@@ -2361,5 +2460,26 @@ async function handleVisibilityChange() {
         await acquireWakeLock();
     }
 } 
+
+/**
+ * Set up monitoring for looper control changes to ensure Live Performance sync
+ */
+function setupLooperControlMonitoring() {
+    let lastLooperControlValue = bossCubeController.parameters.looperControl.current;
+    
+    // Poll for looper control changes every 100ms during Live Performance mode
+    setInterval(() => {
+        if (livePerformance && livePerformance.isActive) {
+            const currentValue = bossCubeController.parameters.looperControl.current;
+            if (currentValue !== lastLooperControlValue) {
+                livePerformance.updateLivePerformanceDisplay('looperControl', currentValue);
+                lastLooperControlValue = currentValue;
+            }
+        } else {
+            // Update the last known value when not in Live Performance mode
+            lastLooperControlValue = bossCubeController.parameters.looperControl.current;
+        }
+    }, 100);
+}
 
 // Live Performance Mode functionality moved to live-performance.js 

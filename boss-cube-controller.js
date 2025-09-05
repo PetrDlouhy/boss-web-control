@@ -730,7 +730,7 @@ class BossCubeController {
                 this.cubeState[paramDef.id] = value;
                 
                 // Update UI for this parameter
-                this.updateUIFromParameter(paramDef.id, value);
+                this.updateUIFromParameter(paramDef.id, value, isPhysicalKnobChange);
                 
         
             }
@@ -888,11 +888,12 @@ class BossCubeController {
     /**
      * Update UI from parameter value (for normal numeric parameters)
      */
-    updateUIFromParameter(parameterId, value) {
+    updateUIFromParameter(parameterId, value, isPhysicalKnobChange = false) {
         if (!this.parameters || !this.parameters[parameterId]) {
             // Parameter not found - still notify callback for test compatibility
+            this.log(`🔍 Controller: parameter ${parameterId} not found, but notifying callback anyway`, 'warning');
             if (this.onParameterUpdate) {
-                this.onParameterUpdate(parameterId, value, false);
+                this.onParameterUpdate(parameterId, value, isPhysicalKnobChange);
             }
             return;
         }
@@ -914,7 +915,7 @@ class BossCubeController {
         
         // Notify parameter update callback
         if (this.onParameterUpdate) {
-            this.onParameterUpdate(parameterId, uiValue, false);
+            this.onParameterUpdate(parameterId, uiValue, isPhysicalKnobChange);
         }
     }
 

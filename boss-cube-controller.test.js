@@ -403,6 +403,181 @@ test.test('readAllMixerValues skips virtual parameters', async () => {
         `Should read only non-virtual mixer parameters (${nonVirtualParams.length})`);
 });
 
+test.test('Looper volume control calculations', () => {
+    const controller = new BossCubeController();
+    
+    // Test virtual looper volume parameter exists
+    const looperVolumeParam = controller.parameters.looperVolume;
+    test.assert(looperVolumeParam, 'Looper volume parameter should exist');
+    test.assert(looperVolumeParam.isVirtual === true, 'Looper volume should be virtual');
+    test.assertEqual(looperVolumeParam.category, 'mixer', 'Looper volume should be in mixer category');
+    
+    // Test parameter ranges
+    test.assertEqual(looperVolumeParam.min, 0, 'Looper volume min should be 0');
+    test.assertEqual(looperVolumeParam.max, 100, 'Looper volume max should be 100');
+    test.assert(looperVolumeParam.current >= 0 && looperVolumeParam.current <= 100, 'Looper volume current should be valid (0-100)');
+});
+
+test.test('Virtual parameter integration with mixer reading', async () => {
+    const controller = new BossCubeController();
+    const mockComm = new MockBossCubeCommunication();
+    mockComm.isConnected = true;
+    mockComm.readDelay = 5;
+    
+    controller.bossCubeComm = mockComm;
+    controller.isCubeConnected = true;
+    
+    await controller.readAllMixerValues();
+    
+    // Should read all mixer parameters except virtual ones
+    const mixerParams = controller.getParametersByCategory('mixer');
+    const realParams = Object.values(mixerParams).filter(param => !param.isVirtual);
+    const virtualParams = Object.values(mixerParams).filter(param => param.isVirtual);
+    
+    test.assertEqual(mockComm.readRequests.length, realParams.length, 
+        `Should read only ${realParams.length} real mixer parameters`);
+    test.assertGreaterThan(virtualParams.length, 0, 'Should have at least one virtual parameter');
+    test.assert(virtualParams.some(p => p.name === 'Looper Volume'), 'Should have looper volume as virtual parameter');
+});
+
+test.test('Physical looper button parameter detection', async () => {
+    const controller = new BossCubeController();
+    
+    // Track all parameter updates that come through the system
+    let parameterUpdates = [];
+    controller.onParameterUpdate = (paramKey, value, isPhysicalKnobChange) => {
+        parameterUpdates.push({ paramKey, value, isPhysicalKnobChange });
+    };
+    
+    // Test 1: Simulate physical looper button press (address [32, 0, 16, 1])
+    const looperAddress = [0x20, 0x00, 0x10, 0x01]; // looperControl address from parameters.js
+    controller.updateParameterFromCube(looperAddress, 3, true); // Set to "Playing" state
+    
+    // Verify the looper control parameter was detected and processed
+    test.assertGreaterThan(parameterUpdates.length, 0, 'Should receive parameter updates');
+    const looperUpdate = parameterUpdates.find(update => update.paramKey === 'looperControl');
+    test.assert(looperUpdate !== undefined, 'Should detect looperControl parameter from Boss Cube address [32, 0, 16, 1]');
+    test.assertEqual(looperUpdate.value, 3, 'Should process looper control value correctly (Playing = 3)');
+    test.assertEqual(looperUpdate.isPhysicalKnobChange, true, 'Should mark as physical change');
+});
+
+test.test('Physical amp type parameter detection', async () => {
+    const controller = new BossCubeController();
+    
+    // Track all parameter updates
+    let parameterUpdates = [];
+    controller.onParameterUpdate = (paramKey, value, isPhysicalKnobChange) => {
+        parameterUpdates.push({ paramKey, value, isPhysicalKnobChange });
+    };
+    
+    // Test: Simulate physical amp type change (address [32, 0, 32, 10])
+    const ampTypeAddress = [0x20, 0x00, 0x20, 0x0A]; // guitarAmpType address from parameters.js
+    controller.updateParameterFromCube(ampTypeAddress, 5, true); // Set to "Crunch" state
+    
+    // Verify the amp type parameter was detected and processed
+    test.assertGreaterThan(parameterUpdates.length, 0, 'Should receive parameter updates');
+    const ampTypeUpdate = parameterUpdates.find(update => update.paramKey === 'guitarAmpType');
+    test.assert(ampTypeUpdate !== undefined, 'Should detect guitarAmpType parameter from Boss Cube address [32, 0, 32, 10]');
+    test.assertEqual(ampTypeUpdate.value, 5, 'Should process amp type value correctly (Crunch = 5)');
+    test.assertEqual(ampTypeUpdate.isPhysicalKnobChange, true, 'Should mark as physical change');
+});
+
+test.test('Live Performance button control synchronization', async () => {
+    const controller = new BossCubeController();
+    
+    // Mock DOM environment for button controls
+    const mockDocument = {
+        querySelector: function(selector) {
+            if (selector.includes('looperControl')) {
+                return {
+                    querySelectorAll: function(buttonSelector) {
+                        // Mock looper buttons
+                        return [
+                            { classList: { add: function() {}, remove: function() {} }, getAttribute: () => '0' },
+                            { classList: { add: function() {}, remove: function() {} }, getAttribute: () => '1' },
+                            { classList: { add: function() {}, remove: function() {} }, getAttribute: () => '2' },
+                            { classList: { add: function() {}, remove: function() {} }, getAttribute: () => '3' }
+                        ];
+                    }
+                };
+            }
+            if (selector.includes('guitarAmpType')) {
+                return {
+                    querySelectorAll: function(buttonSelector) {
+                        // Mock amp type buttons
+                        return [
+                            { classList: { add: function() {}, remove: function() {} }, getAttribute: () => '0' },
+                            { classList: { add: function() {}, remove: function() {} }, getAttribute: () => '1' },
+                            { classList: { add: function() {}, remove: function() {} }, getAttribute: () => '2' }
+                        ];
+                    }
+                };
+            }
+            return null;
+        }
+    };
+    
+    // Mock Live Performance mode
+    let livePerformanceDisplayUpdates = [];
+    const mockLivePerformance = {
+        isActive: true,
+        updateLivePerformanceDisplay: function(paramKey, value) {
+            livePerformanceDisplayUpdates.push({ paramKey, value, timestamp: Date.now() });
+        }
+    };
+    
+    // Set up mocks (browser environment)
+    const originalLivePerformance = window.livePerformance;
+    window.livePerformance = mockLivePerformance;
+    
+    // Mock the app's updateParameterDisplayFromCube function
+    const mockUpdateParameterDisplayFromCube = (paramKey, value, isPhysicalKnobChange) => {
+        // Simulate the exact logic from the real function
+        
+        // Handle special controls that need custom updates
+        if (paramKey === 'looperControl') {
+            // This should trigger updateLooperControls which should sync to Live Performance
+            if (window.livePerformance) {
+                window.livePerformance.updateLivePerformanceDisplay('looperControl', value);
+            }
+        }
+        
+        // Update Live Performance mode controls if active (general sync path)
+        if (window.livePerformance && window.livePerformance.isActive) {
+            window.livePerformance.updateLivePerformanceDisplay(paramKey, value);
+        }
+    };
+    
+    try {
+        // Set up the controller callback
+        controller.onParameterUpdate = mockUpdateParameterDisplayFromCube;
+        
+        // Test 1: Simulate physical looper button press
+        const looperAddress = [0x20, 0x00, 0x10, 0x01]; // looperControl address
+        controller.updateParameterFromCube(looperAddress, 3, true); // Set to "Playing"
+        
+        // Test 2: Simulate physical amp type change  
+        const ampTypeAddress = [0x20, 0x00, 0x20, 0x0A]; // guitarAmpType address
+        controller.updateParameterFromCube(ampTypeAddress, 5, true); // Set to "Crunch"
+        
+        // Verify both controls received Live Performance updates
+        test.assertGreaterThan(livePerformanceDisplayUpdates.length, 0, 'Should receive Live Performance updates');
+        
+        const looperUpdates = livePerformanceDisplayUpdates.filter(u => u.paramKey === 'looperControl');
+        test.assertGreaterThan(looperUpdates.length, 0, 'Should update Live Performance looper control');
+        test.assert(looperUpdates.some(u => u.value === 3), 'Should set looper to Playing state (3)');
+        
+        const ampTypeUpdates = livePerformanceDisplayUpdates.filter(u => u.paramKey === 'guitarAmpType');
+        test.assertGreaterThan(ampTypeUpdates.length, 0, 'Should update Live Performance amp type');
+        test.assert(ampTypeUpdates.some(u => u.value === 5), 'Should set amp type to Crunch (5)');
+        
+    } finally {
+        // Restore original state
+        window.livePerformance = originalLivePerformance;
+    }
+});
+
+
 // Export test runner for use in browser
 window.runBossCubeControllerTests = async function() {
     return await test.run();

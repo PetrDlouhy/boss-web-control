@@ -616,6 +616,14 @@ export class LivePerformance {
         control.className = 'live-performance-control';
         control.setAttribute('data-param-key', key);
         
+        // Special handling for button-based controls
+        if (key === 'looperControl') {
+            return await this.createLooperControl(param, key, label, controlConfig);
+        }
+        if (key === 'guitarAmpType') {
+            return await this.createAmpTypeControl(param, key, label, controlConfig);
+        }
+        
         // Get current display value
         let displayValue = this.getDisplayValue(param, param.current);
         
@@ -642,6 +650,132 @@ export class LivePerformance {
         
         // Add interaction handling
         this.addControlInteraction(control, key, param, isPedalControl);
+        
+        return control;
+    }
+    
+    /**
+     * Create looper control with buttons (similar to main app)
+     */
+    async createLooperControl(param, key, label, controlConfig) {
+        const control = document.createElement('div');
+        control.className = 'live-performance-control looper-control';
+        control.setAttribute('data-param-key', key);
+        
+        // Check if this control is pedal controllable
+        const isPedalControl = controlConfig && controlConfig.pedalControl;
+        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
+        
+        // Looper button definitions (same as main app)
+        const looperButtons = [
+            { icon: '🗑️', title: 'Erase Loop', label: 'Erase' },      // 0
+            { icon: '⏸️', title: 'Paused', label: 'Paused' },          // 1
+            { icon: '🔴', title: 'Recording', label: 'Record' },       // 2
+            { icon: '▶️', title: 'Playing', label: 'Play' },           // 3
+            { icon: '🔄', title: 'Overdub', label: 'Overdub' },        // 4
+            { icon: '⏯️', title: 'Standby', label: 'Standby' }         // 5
+        ];
+        
+        // Create buttons HTML
+        const buttonsHTML = looperButtons.map((btn, index) => `
+            <button class="looper-btn-live ${param.current === index ? 'active' : ''}" 
+                    data-value="${index}" 
+                    title="${btn.title}">
+                <div class="looper-icon">${btn.icon}</div>
+                <div class="looper-label">${btn.label}</div>
+            </button>
+        `).join('');
+        
+        // Create control HTML (no label to fit buttons on one line)
+        control.innerHTML = `
+            ${pedalIndicator}
+            <div class="looper-buttons-live">
+                ${buttonsHTML}
+            </div>
+        `;
+        
+        // Add click handlers for buttons
+        const buttons = control.querySelectorAll('.looper-btn-live');
+        buttons.forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const value = parseInt(button.getAttribute('data-value'));
+                
+                // Update button states
+                buttons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update parameter via main app logic
+                if (window.updateParameterValue) {
+                    window.updateParameterValue(key, value);
+                }
+            });
+        });
+        
+        // Add pedal selection if enabled
+        if (isPedalControl) {
+            this.setupPedalSelection(control, key, param);
+        }
+        
+        return control;
+    }
+    
+    /**
+     * Create amp type control with buttons (similar to looper control)
+     */
+    async createAmpTypeControl(param, key, label, controlConfig) {
+        const control = document.createElement('div');
+        control.className = 'live-performance-control amp-type-control';
+        control.setAttribute('data-param-key', key);
+        
+        // Check if this control is pedal controllable
+        const isPedalControl = controlConfig && controlConfig.pedalControl;
+        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
+        
+        // Amp type button definitions
+        const ampTypeButtons = param.valueLabels.map((ampLabel, index) => ({
+            value: index,
+            label: ampLabel,
+            shortLabel: ampLabel.length > 8 ? ampLabel.substring(0, 8) + '...' : ampLabel
+        }));
+        
+        // Create buttons HTML
+        const buttonsHTML = ampTypeButtons.map((btn) => `
+            <button class="amp-type-btn-live ${param.current === btn.value ? 'active' : ''}" 
+                    data-value="${btn.value}" 
+                    title="${btn.label}">
+                ${btn.shortLabel}
+            </button>
+        `).join('');
+        
+        // Create control HTML (no labels, just buttons like effect controls)
+        control.innerHTML = `
+            ${pedalIndicator}
+            <div class="amp-type-buttons-live">
+                ${buttonsHTML}
+            </div>
+        `;
+        
+        // Add click handlers for buttons
+        const buttons = control.querySelectorAll('.amp-type-btn-live');
+        buttons.forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const value = parseInt(button.getAttribute('data-value'));
+                
+                // Update button states
+                buttons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update parameter via main app logic
+                if (window.updateParameterValue) {
+                    window.updateParameterValue(key, value);
+                }
+            });
+        });
+        
+        // Add pedal selection if enabled
+        if (isPedalControl) {
+            this.setupPedalSelection(control, key, param);
+        }
         
         return control;
     }
@@ -935,14 +1069,19 @@ export class LivePerformance {
                 
                 for (const [paramKey, paramValue] of updates) {
                     try {
-                        // Send to Boss Cube only if connected
-                        if (this.bossCubeController.isCubeConnected) {
-                            await this.bossCubeController.setParameter(paramKey, paramValue);
-                        }
-                        
-                        // Always update main interface
-                        if (window.updateParameterDisplay) {
-                            window.updateParameterDisplay(paramKey, paramValue);
+                        // Use main app's parameter update function to ensure all logic (including looper volume) is triggered
+                        if (window.updateParameterValue) {
+                            window.updateParameterValue(paramKey, paramValue);
+                        } else {
+                            // Fallback to direct method if main app function not available
+                            if (this.bossCubeController.isCubeConnected) {
+                                await this.bossCubeController.setParameter(paramKey, paramValue);
+                            }
+                            
+                            // Always update main interface
+                            if (window.updateParameterDisplay) {
+                                window.updateParameterDisplay(paramKey, paramValue);
+                            }
                         }
                     } catch (error) {
                         this.log(`Failed to update ${paramKey}: ${error.message}`, 'error');
@@ -1818,8 +1957,8 @@ export class LivePerformance {
         const previousPedalValue = this.lastPedalValue || value;
         this.lastPedalValue = value;
         
-        // Check for pickup mode activation
-        if (!this.pickupModeState.active) {
+        // Check for pickup mode activation (skip for looper volume to prevent conflicts)
+        if (!this.pickupModeState.active && parameterKey !== 'looperVolume') {
             const valueDifference = Math.abs(value - originalControlValue);
             if (valueDifference > this.pickupModeState.threshold) {
                 this.activatePickupMode(parameterKey, originalControlValue, `(pedal: ${value}, target: ${originalControlValue})`);
@@ -1843,7 +1982,13 @@ export class LivePerformance {
             // In pickup mode - show pedal position indicator only
             PedalUtils.updatePedalPositionIndicator(parameterKey, value, parameter, '.live-performance-control');
         } else {
-            // Normal mode - update the control display
+            // Normal mode - trigger main app logic first, then update Live Performance display
+            // Also trigger main app parameter update logic (including looper volume)
+            if (window.updateParameterValue) {
+                window.updateParameterValue(parameterKey, value);
+            }
+            
+            // Update the Live Performance display (this will be updated again by looper volume logic if needed)
             this.updateLivePerformanceDisplay(parameterKey, value);
         }
     }
@@ -1936,21 +2081,52 @@ export class LivePerformance {
         // Update the parameter value in the controller
         param.current = value;
 
-        // Update visual elements
+        // Special handling for button-based controls
+        if (parameterKey === 'looperControl') {
+            // Update looper button states
+            const buttons = control.querySelectorAll('.looper-btn-live');
+            buttons.forEach(btn => {
+                const btnValue = parseInt(btn.getAttribute('data-value'));
+                if (btnValue === value) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            return; // Skip slider update for looper control
+        }
+        
+        if (parameterKey === 'guitarAmpType') {
+            // Update amp type button states
+            const buttons = control.querySelectorAll('.amp-type-btn-live');
+            buttons.forEach(btn => {
+                const btnValue = parseInt(btn.getAttribute('data-value'));
+                if (btnValue === value) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            return; // Skip slider update for amp type
+        }
+
+        // Update visual elements for regular slider controls
         const fill = control.querySelector('.parameter-fill');
         const valueDisplay = control.querySelector('.parameter-value');
         const slider = control.querySelector('.parameter-slider');
 
-        // Update fill percentage
-        const percentage = ((value - param.min) / (param.max - param.min)) * 100;
-        fill.style.width = `${percentage}%`;
+        if (fill && valueDisplay && slider) {
+            // Update fill percentage
+            const percentage = ((value - param.min) / (param.max - param.min)) * 100;
+            fill.style.width = `${percentage}%`;
 
-        // Update value display
-        const displayValue = this.getDisplayValue(param, value);
-        valueDisplay.textContent = displayValue;
+            // Update value display
+            const displayValue = this.getDisplayValue(param, value);
+            valueDisplay.textContent = displayValue;
 
-        // Update slider
-        slider.value = value;
+            // Update slider
+            slider.value = value;
+        }
     }
 
     /**

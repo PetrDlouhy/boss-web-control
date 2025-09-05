@@ -59,5 +59,9 @@ Main checkpoints:
 **Key Points**:
 - **Always increment version** after code changes to force cache refresh on mobile
 - **Use app logging** (`this.log()`) not browser console (`console.log()`) for debugging
+- **Console differences**: 
+  - `console.log()` → Browser F12 devtools only (invisible on mobile)
+  - `log(message, 'info')` → In-app console (visible on mobile and desktop)
+  - `this.log(message, 'info')` → In-app console (from within class methods)
 - **Mobile testing** requires cache busting via version increments
 - **Debug first** before implementing complex solutions

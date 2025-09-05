@@ -1051,6 +1051,135 @@ h5 {
     color: white;
 }
 
+/* Amp Type Control (no frame, just buttons like effect controls) */
+.amp-type-control {
+    margin-bottom: 12px;
+}
+
+.amp-type-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.amp-type-btn {
+    background: #fff;
+    border: 2px solid #2196F3;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.85em;
+    color: #2196F3;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 70px;
+    text-align: center;
+}
+
+.amp-type-btn:hover {
+    background: #e3f2fd;
+    transform: translateY(-1px);
+}
+
+.amp-type-btn:focus {
+    outline: none;
+    border-color: #1976D2;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.amp-type-btn.active {
+    background: #4CAF50;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Live Performance Amp Type Buttons (styled like effect buttons) */
+.amp-type-buttons-live {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.amp-type-btn-live {
+    background: #fff;
+    border: 2px solid #2196F3;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 0.8em;
+    color: #2196F3;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 60px;
+    text-align: center;
+}
+
+.amp-type-btn-live:hover {
+    background: #e3f2fd;
+    transform: translateY(-1px);
+}
+
+.amp-type-btn-live:focus {
+    outline: none;
+    border-color: #1976D2;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.amp-type-btn-live.active {
+    background: #4CAF50;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Live Performance Looper Buttons */
+.looper-buttons-live {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    margin-top: 10px;
+}
+
+.looper-btn-live {
+    padding: 12px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f8f9fa;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+}
+
+.looper-btn-live:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.looper-btn-live.active {
+    background: #28a745;
+    color: white;
+    border-color: #1e7e34;
+}
+
+.looper-btn-live .looper-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.looper-btn-live .looper-label {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
 /* Mobile responsive for compact layout */
 @media (max-width: 768px) {
     .looper-buttons-compact {
@@ -1063,6 +1192,45 @@ h5 {
         min-width: 42px;
         height: 32px;
         padding: 4px 2px;
+    }
+    
+    .looper-buttons-live {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 3px;
+    }
+    
+    .looper-btn-live {
+        min-height: 45px;
+        padding: 6px 2px;
+    }
+    
+    .looper-btn-live .looper-icon {
+        font-size: 16px;
+        margin-bottom: 2px;
+    }
+    
+    .looper-btn-live .looper-label {
+        font-size: 9px;
+    }
+    
+    .amp-type-buttons {
+        gap: 4px;
+    }
+    
+    .amp-type-btn {
+        min-width: 60px;
+        padding: 6px 8px;
+        font-size: 0.75em;
+    }
+    
+    .amp-type-buttons-live {
+        gap: 4px;
+    }
+    
+    .amp-type-btn-live {
+        min-width: 50px;
+        padding: 4px 6px;
+        font-size: 0.7em;
     }
     
     .looper-settings-compact {
