@@ -1,21 +1,23 @@
 # Boss Cube Web Control - Version History
 
-## Version 2.25.0 (2025-01-09)
+## Version 2.26.0 (2025-01-09)
 
-### 🔁 **Looper Volume Control**
+### 🔁 **Looper Volume Control & Amp Type Buttons**
 
-Added virtual looper volume parameter to control looper output level relative to live inputs.
+Added virtual looper volume parameter and converted amp type to intuitive button controls.
 
 ### ✨ **What's New**
 
 - **Looper Volume slider**: New virtual parameter in mixer section simulates missing Boss Cube looper volume control
 - **Smart volume balancing**: Adjusts Master Volume up/down while maintaining Guitar/Mic input audibility (5% minimum levels)
-- **Full pedal support**: Works with EV-1-WL expression pedal for real-time looper volume control
+- **Amp Type buttons**: Converted from slider to effect-style buttons (Normal, Bright, Wide, Instrument, Clean, Crunch, Lead, Acoustic Sim, Mic)
+- **Full pedal support**: Both controls work with EV-1-WL expression pedal
+- **Live Performance integration**: Both controls available in Live Performance mode with button interfaces
 - **Sequential GATT updates**: Eliminates Bluetooth conflicts during multi-parameter adjustments
 
-**Use Case**: Control looper playback volume during live performance without losing guitar audibility.
+**Use Case**: Control looper playbook volume and quickly switch amp types during live performance.
 
-**How to use**: Find "Looper Volume" slider in mixer section, or assign it to your pedal for expression control.
+**How to use**: Find "Looper Volume" slider and "Amp Type" buttons in mixer/guitar sections, or assign to pedal for expression control.
 
 ---
 

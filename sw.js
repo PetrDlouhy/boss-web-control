@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Service Worker
 // Enables PWA functionality with aggressive update strategy
 
-const VERSION = '2.25.0';
+const VERSION = '2.26.0';
 const CACHE_NAME = `boss-cube-control-v${VERSION}`;
 const urlsToCache = [
     '/',

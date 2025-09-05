@@ -14,7 +14,7 @@ Main checkpoints:
 
 ## Project Status & Cooperation Summary
 
-**Current Version**: 2.25.0 (Stable Release - January 9, 2025)
+**Current Version**: 2.26.0 (Stable Release - January 9, 2025)
 
 **Key Documentation**:
 - **AI_SELFTALK.md**: Complete cooperation summary, project status, and future guidance

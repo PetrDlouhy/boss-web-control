@@ -4,7 +4,7 @@
 
 A comprehensive Progressive Web App implementing reverse-engineered SysEx protocols to provide complete wireless control over the Boss Cube II amplifier, with technical improvements and additional functionality not available in the official application.
 
-**Current Version:** 2.25.0 ([Release Process](RELEASE_PROCESS.md))
+**Current Version:** 2.26.0 ([Release Process](RELEASE_PROCESS.md))
 
 ---
 

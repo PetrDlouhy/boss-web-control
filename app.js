@@ -6,7 +6,7 @@ import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
 import { LOOPER_VOLUME_CONFIG } from './constants.js';
 
-const VERSION = '2.25.0';
+const VERSION = '2.26.0';
 
 let bossCubeController = null;
 let templateLoader = null;
