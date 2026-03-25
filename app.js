@@ -5,8 +5,9 @@ import BossCubeController from './boss-cube-controller.js';
 import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
 import { LOOPER_VOLUME_CONFIG } from './constants.js';
+import { initVersionSwitcher } from './version-switcher.js';
 
-const VERSION = '2.26.0';
+const VERSION = '2.26.1';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -201,10 +202,10 @@ if (typeof document !== 'undefined') {
 }
 
 function initializeVersioning() {
-    // Display current version
     if (versionTextEl) {
         versionTextEl.textContent = `v${VERSION}`;
     }
+    initVersionSwitcher(VERSION);
     
     // Always show refresh button for development versions (alpha, beta, rc)
     if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
