@@ -6,7 +6,7 @@ import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
 import { LOOPER_VOLUME_CONFIG } from './constants.js';
 
-const VERSION = '2.26.1-alpha.3';
+const VERSION = '2.26.1-alpha.5';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -88,8 +88,9 @@ if (typeof document !== 'undefined') {
     bindInfoOverlay = document.getElementById('bindInfoOverlay');
     bindInfoPopup = document.getElementById('bindInfoPopup');
     
-    // Initialize settings modal
+    // Initialize settings modal and theme
     initializeSettingsModal();
+    initializeThemeToggle();
     
     // Set up event listeners (removed duplicate connectBtn listener)
     
@@ -166,7 +167,10 @@ if (typeof document !== 'undefined') {
     window.updateParameterDisplay = updateParameterDisplay;
     window.selectParameter = selectParameter;
     
-    // Apply current settings to controller
+    // Load settings from localStorage before applying them to controller
+    loadSettings();
+    
+    // Apply loaded settings to controller
     applySettingsToController();
     
     // Set up event listeners
@@ -185,9 +189,6 @@ if (typeof document !== 'undefined') {
     
     // Initialize version checking and updates
     initializeVersioning();
-    
-    // Load settings from localStorage
-    loadSettings();
     
     // Initialize wake lock
     initializeWakeLock();
@@ -2289,6 +2290,27 @@ function saveSettings() {
     } catch (error) {
         log('Failed to save settings', 'error');
     }
+}
+
+function initializeThemeToggle() {
+    const btn = document.getElementById('themeToggleBtn');
+    const saved = localStorage.getItem('bossCubeTheme');
+    if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        btn.textContent = '☀️';
+    }
+    btn.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            btn.textContent = '🌙';
+            localStorage.setItem('bossCubeTheme', 'light');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            btn.textContent = '☀️';
+            localStorage.setItem('bossCubeTheme', 'dark');
+        }
+    });
 }
 
 function initializeSettingsModal() {

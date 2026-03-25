@@ -37,8 +37,8 @@
 .looper-btn-improved {
     flex: 1;
     height: 48px;
-    border: 1px solid #ddd;
-    background: #f8f9fa;
+    border: 1px solid var(--border-strong, #ddd);
+    background: var(--surface-alt, #f8f9fa);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -64,8 +64,8 @@
 }
 
 .looper-btn-improved:hover {
-    background: #e9ecef;
-    border-color: #adb5bd;
+    background: var(--surface-dim, #e9ecef);
+    border-color: var(--border-strong, #adb5bd);
 }
 
 .looper-btn-improved.active {

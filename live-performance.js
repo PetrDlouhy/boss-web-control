@@ -244,6 +244,12 @@ export class LivePerformance {
         this.overlay.classList.remove('active');
         this.isActive = false;
         
+        // Clean up visibility listener
+        if (this._cleanupVisibilityHandler) {
+            this._cleanupVisibilityHandler();
+            this._cleanupVisibilityHandler = null;
+        }
+        
         // Restore original pedal control
         this.restorePedalControl();
         
@@ -292,15 +298,16 @@ export class LivePerformance {
         };
         document.addEventListener('keydown', handleEscape);
         
-        // Handle fullscreen changes (when user manually exits fullscreen)
-        const handleFullscreenChange = () => {
-            if (!document.fullscreenElement && this.isActive) {
-                // User manually exited fullscreen, close Live Performance
-                this.close();
-                document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        // Re-enter fullscreen when tab regains visibility (browsers exit fullscreen on tab switch)
+        const handleVisibilityChange = () => {
+            if (!document.hidden && this.isActive && !document.fullscreenElement) {
+                this.enterFullscreen();
             }
         };
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        this._cleanupVisibilityHandler = () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }
     
     /**
@@ -1255,6 +1262,11 @@ export class LivePerformance {
         if (paramIndex !== -1) {
             this.pedalControlState.currentParameterIndex = paramIndex;
             
+            // Persist selection so it survives close/reopen
+            try {
+                localStorage.setItem('live-performance-pedal-selected-key', key);
+            } catch (_) { /* localStorage unavailable */ }
+            
             // Update visual selection in Live Performance mode
             this.updateLivePerformanceParameterSelection(key);
             
@@ -2073,14 +2085,19 @@ export class LivePerformance {
             this.bossCubeController.pedalCallbacks = [(event) => this.handleLivePerformancePedalEvent(event)];
         }
         
-        // Reset parameter selection when the list of pedal-controllable parameters changes
+        // Restore previously selected parameter, or fall back to first
         this.pedalControlState.currentParameterIndex = -1;
         
-        // Initialize with first pedal-controllable parameter
         if (this.pedalControlState.pedalControllableKeys.length > 0) {
-            const firstKey = this.pedalControlState.pedalControllableKeys[0];
-            const firstParam = this.bossCubeController.parameters[firstKey];
-            this.selectParameter(firstKey, firstParam);
+            let restoreKey = null;
+            try {
+                restoreKey = localStorage.getItem('live-performance-pedal-selected-key');
+            } catch (_) { /* localStorage unavailable */ }
+            
+            const keys = this.pedalControlState.pedalControllableKeys;
+            const targetKey = (restoreKey && keys.includes(restoreKey)) ? restoreKey : keys[0];
+            const targetParam = this.bossCubeController.parameters[targetKey];
+            this.selectParameter(targetKey, targetParam);
         }
         
         this.log(`🦶 Live Performance pedal control active (${this.pedalControlState.pedalControllableKeys.length} parameters)`, 'success');
@@ -2381,6 +2398,73 @@ export class LivePerformance {
                 this.closeSettings();
                 this.openPresetConfiguration();
             });
+        }
+        
+        // Export presets button
+        const exportBtn = document.getElementById('livePerformanceExportPresetsBtn');
+        if (exportBtn) {
+            exportBtn.replaceWith(exportBtn.cloneNode(true));
+            const newExportBtn = document.getElementById('livePerformanceExportPresetsBtn');
+            newExportBtn.addEventListener('click', () => this.exportPresets());
+        }
+        
+        // Import presets button + file input
+        const importBtn = document.getElementById('livePerformanceImportPresetsBtn');
+        const fileInput = document.getElementById('livePerformanceImportFileInput');
+        if (importBtn && fileInput) {
+            importBtn.replaceWith(importBtn.cloneNode(true));
+            const newImportBtn = document.getElementById('livePerformanceImportPresetsBtn');
+            newImportBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.importPresets(e.target.files[0]);
+                    e.target.value = '';
+                }
+            });
+        }
+    }
+    
+    exportPresets() {
+        const data = JSON.stringify(this.presets, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `live-performance-presets-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.log('📥 Presets exported to file', 'success');
+    }
+    
+    async importPresets(file) {
+        try {
+            const text = await file.text();
+            const imported = JSON.parse(text);
+            
+            if (typeof imported !== 'object' || imported === null || Array.isArray(imported)) {
+                this.log('❌ Invalid preset file format', 'error');
+                return;
+            }
+            
+            let count = 0;
+            for (const [id, preset] of Object.entries(imported)) {
+                if (!preset.name || !Array.isArray(preset.controls)) {
+                    continue;
+                }
+                // Add pedalControl default for backward compat
+                preset.controls.forEach(c => {
+                    if (c.pedalControl === undefined) c.pedalControl = false;
+                });
+                this.presets[id] = preset;
+                count++;
+            }
+            
+            this.savePresetsToStorage();
+            this.updatePresetDropdown();
+            this.updatePresetListFull();
+            this.log(`📤 Imported ${count} preset(s) from file`, 'success');
+        } catch (error) {
+            this.log(`❌ Failed to import presets: ${error.message}`, 'error');
         }
     }
 } 

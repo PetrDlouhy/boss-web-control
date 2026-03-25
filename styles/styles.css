@@ -4,18 +4,69 @@
     box-sizing: border-box;
 }
 
+/* ========================================
+   THEME VARIABLES
+   ======================================== */
+:root {
+    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --surface: #ffffff;
+    --surface-alt: #f9f9f9;
+    --surface-dim: #f5f5f5;
+    --surface-control: linear-gradient(to right, #e0e0e0 0%, #f5f5f5 100%);
+    --text: #333;
+    --text-secondary: #555;
+    --text-muted: #666;
+    --text-faint: #999;
+    --border: #eee;
+    --border-strong: #ddd;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --shadow-strong: rgba(0, 0, 0, 0.15);
+    --input-bg: #fff;
+    --input-border: #ddd;
+    --debug-bg: #fff3e0;
+    --log-bg: #f5f5f5;
+}
+
+[data-theme="dark"] {
+    --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    --surface: #1e1e2e;
+    --surface-alt: #252538;
+    --surface-dim: #2a2a3d;
+    --surface-control: linear-gradient(to right, #2a2a3d 0%, #333348 100%);
+    --text: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-muted: #909090;
+    --text-faint: #707070;
+    --border: #3a3a4e;
+    --border-strong: #4a4a5e;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --shadow-strong: rgba(0, 0, 0, 0.4);
+    --input-bg: #252538;
+    --input-border: #4a4a5e;
+    --debug-bg: #2e2818;
+    --log-bg: #1a1a28;
+}
+
+[data-theme="dark"] .parameter-label {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .parameter-control.current .parameter-label {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-gradient);
     min-height: 100vh;
     padding: 8px;
-    color: #333;
+    color: var(--text);
 }
 
 .container {
-    background: white;
+    background: var(--surface);
     border-radius: 16px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    box-shadow: 0 20px 40px var(--shadow);
     padding: 16px;
     max-width: 1200px;
     width: 100%;
@@ -23,23 +74,23 @@ body {
 }
 
 h1 {
-    color: #333;
+    color: var(--text);
     margin-bottom: 8px;
     font-size: 2.2em;
     text-align: center;
 }
 
 h5 {
-    color: #555;
+    color: var(--text-secondary);
     margin: 12px 0 8px 0;
     font-size: 1.0em;
     font-weight: 600;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border);
     padding-bottom: 4px;
 }
 
 .subtitle {
-    color: #666;
+    color: var(--text-muted);
     margin-bottom: 8px;
     font-size: 1em;
     text-align: center;
@@ -56,7 +107,7 @@ h5 {
 #versionText {
     font-family: 'Courier New', monospace;
     font-size: 12px;
-    color: #666;
+    color: var(--text-muted);
 }
 
 #refreshBtn {
@@ -342,13 +393,13 @@ h5 {
 }
 
 .mixer-section {
-    background: #f9f9f9;
+    background: var(--surface-alt);
     border-radius: 12px;
     padding: 16px;
 }
 
 .mixer-section h3 {
-    color: #333;
+    color: var(--text);
     margin-bottom: 12px;
     font-size: 1.2em;
     border-bottom: 2px solid #2196F3;
@@ -360,11 +411,11 @@ h5 {
 }
 
 .effects-section h4 {
-    color: #333;
+    color: var(--text);
     margin-bottom: 8px;
     font-size: 1em;
     font-weight: bold;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-strong);
     padding-bottom: 4px;
 }
 
@@ -376,13 +427,13 @@ h5 {
 }
 
 .effect-btn {
-    background: #fff;
+    background: var(--surface);
     border: 2px solid #2196F3;
     border-radius: 6px;
     padding: 8px 12px;
     font-size: 0.9em;
     font-weight: bold;
-    color: #333;
+    color: var(--text);
     cursor: pointer;
     transition: all 0.2s ease;
     flex: 1;
@@ -414,9 +465,9 @@ h5 {
 
 .parameter-control {
     position: relative;
-    background: linear-gradient(to right, #e0e0e0 0%, #f5f5f5 100%);
+    background: var(--surface-control);
     border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 6px var(--shadow);
     transition: all 0.2s;
     min-height: 40px;
     cursor: pointer;
@@ -430,7 +481,7 @@ h5 {
 
 .parameter-control:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow-strong);
 }
 
 .parameter-control.current {
@@ -472,7 +523,7 @@ h5 {
 
 .parameter-label {
     font-weight: bold;
-    color: #333;
+    color: var(--text);
     font-size: 0.9em;
     z-index: 3;
     text-shadow: 0 1px 2px rgba(255,255,255,0.8);
@@ -512,7 +563,7 @@ h5 {
 .debug-section {
     margin-top: 16px;
     padding: 12px;
-    background: #fff3e0;
+    background: var(--debug-bg);
     border-radius: 8px;
     border-left: 4px solid #FF9800;
 }
@@ -525,7 +576,7 @@ h5 {
 .log {
     margin-top: 16px;
     padding: 12px;
-    background: #f5f5f5;
+    background: var(--log-bg);
     border-radius: 8px;
     max-height: 500px;
     height: 500px;
@@ -631,7 +682,7 @@ h5 {
 }
 
 .modal-content {
-    background: white;
+    background: var(--surface);
     border-radius: 8px;
     width: 90%;
     max-width: 500px;
@@ -645,12 +696,12 @@ h5 {
     justify-content: space-between;
     align-items: center;
     padding: 20px 20px 10px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border);
 }
 
 .modal-header h3 {
     margin: 0;
-    color: #333;
+    color: var(--text);
 }
 
 .close-btn {
@@ -658,7 +709,7 @@ h5 {
     border: none;
     font-size: 24px;
     cursor: pointer;
-    color: #999;
+    color: var(--text-faint);
     padding: 0;
     width: 30px;
     height: 30px;
@@ -668,7 +719,7 @@ h5 {
 }
 
 .close-btn:hover {
-    color: #333;
+    color: var(--text);
 }
 
 .modal-body {
@@ -688,13 +739,13 @@ h5 {
 
 .settings-section h4 {
     margin: 0 0 5px 0;
-    color: #333;
+    color: var(--text);
     font-size: 16px;
 }
 
 .settings-description {
     margin: 0 0 15px 0;
-    color: #666;
+    color: var(--text-muted);
     font-size: 14px;
 }
 
@@ -707,16 +758,18 @@ h5 {
 
 .setting-row label {
     min-width: 150px;
-    color: #333;
+    color: var(--text);
     font-size: 14px;
 }
 
 .setting-row input[type="number"] {
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--input-border);
     border-radius: 4px;
     width: 80px;
     font-size: 14px;
+    background: var(--input-bg);
+    color: var(--text);
 }
 
 .setting-row input[type="radio"] {
@@ -726,7 +779,22 @@ h5 {
 .header-right {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 8px;
+}
+
+.theme-toggle {
+    background: none;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 1.1em;
+    line-height: 1;
+    transition: background 0.2s;
+}
+
+.theme-toggle:hover {
+    background: var(--surface-dim);
 }
 
 .mixer-bind-control {
@@ -1121,7 +1189,7 @@ h5 {
 
 /* Standard Effect Button (Blue theme) */
 .btn-effect {
-    background: #fff;
+    background: var(--surface);
     border: 2px solid #2196F3;
     color: #2196F3;
     padding: 6px 8px;
@@ -1148,9 +1216,9 @@ h5 {
 
 /* Looper Button (Gray/Green theme) */
 .btn-looper {
-    background: #f8f9fa;
-    border: 1px solid #ddd;
-    color: #495057;
+    background: var(--surface-alt);
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
     padding: 12px 8px;
     display: flex;
     flex-direction: column;
@@ -1562,7 +1630,7 @@ h5 {
     display: block;
     font-weight: bold;
     margin-bottom: 10px;
-    color: #333;
+    color: var(--text);
 }
 
 .rec-time-options {
@@ -1777,7 +1845,7 @@ h5 {
 }
 
 .live-performance-container {
-    background: white;
+    background: var(--surface);
     width: 100%;
     height: 100%;
     display: flex;
@@ -1789,7 +1857,7 @@ h5 {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     flex-shrink: 0;
@@ -1831,9 +1899,9 @@ h5 {
 
 .live-performance-control {
     position: relative;
-    background: linear-gradient(to right, #e0e0e0 0%, #f5f5f5 100%);
+    background: var(--surface-control);
     border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 6px var(--shadow);
     transition: all 0.2s;
     min-height: 40px;
     cursor: pointer;
@@ -1885,7 +1953,7 @@ h5 {
 
 .live-performance-control .parameter-label {
     font-weight: bold;
-    color: #333;
+    color: var(--text);
     font-size: 0.9em;
     z-index: 3;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
@@ -2369,7 +2437,7 @@ h5 {
 }
 
 .preset-config-content {
-    background: white;
+    background: var(--surface);
     border-radius: 12px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     width: 95%;
@@ -2385,7 +2453,7 @@ h5 {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-radius: 12px 12px 0 0;
@@ -2403,8 +2471,8 @@ h5 {
 
 .preset-tabs {
     display: flex;
-    border-bottom: 1px solid #eee;
-    background: #f8f9fa;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
 }
 
 .preset-tab {
@@ -2415,16 +2483,16 @@ h5 {
     cursor: pointer;
     font-size: 0.9em;
     font-weight: 500;
-    color: #666;
+    color: var(--text-muted);
     transition: all 0.2s;
 }
 
 .preset-tab:hover {
-    background: #e9ecef;
+    background: var(--surface-dim);
 }
 
 .preset-tab.active {
-    background: white;
+    background: var(--surface);
     color: #2196F3;
     border-bottom: 2px solid #2196F3;
 }
@@ -2441,16 +2509,18 @@ h5 {
     display: block;
     font-weight: bold;
     margin-bottom: 8px;
-    color: #333;
+    color: var(--text);
 }
 
 .preset-name-input {
     width: 100%;
     padding: 10px 12px;
-    border: 2px solid #dee2e6;
+    border: 2px solid var(--border-strong);
     border-radius: 6px;
     font-size: 1em;
     transition: border-color 0.2s;
+    background: var(--input-bg);
+    color: var(--text);
 }
 
 .preset-name-input:focus {
@@ -2467,16 +2537,17 @@ h5 {
     display: block;
     font-weight: bold;
     margin-bottom: 8px;
-    color: #333;
+    color: var(--text);
 }
 
 .preset-icon-select {
     width: 100%;
     padding: 10px 12px;
-    border: 2px solid #dee2e6;
+    border: 2px solid var(--border-strong);
     border-radius: 6px;
     font-size: 1em;
-    background: white;
+    background: var(--input-bg);
+    color: var(--text);
     cursor: pointer;
     transition: border-color 0.2s;
 }
@@ -2493,7 +2564,7 @@ h5 {
 
 .controls-selection h4 {
     margin: 0 0 16px 0;
-    color: #333;
+    color: var(--text);
 }
 
 .controls-categories {
@@ -2504,17 +2575,17 @@ h5 {
 }
 
 .control-category {
-    background: #f8f9fa;
+    background: var(--surface-alt);
     border-radius: 8px;
     padding: 16px;
 }
 
 .control-category h5 {
     margin: 0 0 12px 0;
-    color: #333;
+    color: var(--text);
     font-size: 0.9em;
     font-weight: bold;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-strong);
     padding-bottom: 8px;
 }
 
@@ -2540,7 +2611,7 @@ h5 {
 .control-option label {
     cursor: pointer;
     font-size: 0.9em;
-    color: #555;
+    color: var(--text-secondary);
     flex: 1;
 }
 
@@ -2550,13 +2621,13 @@ h5 {
 
 .selected-controls h4 {
     margin: 0 0 16px 0;
-    color: #333;
+    color: var(--text);
 }
 
 .selected-controls-list {
     min-height: 100px;
-    background: #f8f9fa;
-    border: 2px dashed #dee2e6;
+    background: var(--surface-alt);
+    border: 2px dashed var(--border-strong);
     border-radius: 8px;
     padding: 12px;
     display: flex;
@@ -2568,13 +2639,13 @@ h5 {
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #999;
+    color: var(--text-faint);
     font-style: italic;
 }
 
 .selected-control-item {
-    background: white;
-    border: 1px solid #dee2e6;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     padding: 12px;
     display: flex;
@@ -2612,13 +2683,13 @@ h5 {
 .selected-control-label {
     flex: 1;
     font-weight: 500;
-    color: #333;
+    color: var(--text);
 }
 
 .selected-control-key {
     font-size: 0.8em;
-    color: #666;
-    background: #f0f0f0;
+    color: var(--text-muted);
+    background: var(--surface-dim);
     padding: 2px 8px;
     border-radius: 4px;
 }
