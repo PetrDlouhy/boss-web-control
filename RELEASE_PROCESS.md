@@ -37,8 +37,8 @@ Users can switch versions via the in-app dropdown or the root version picker pag
 
 ### **During Development**
 1. Make code changes
-2. Increment version with `./bump` (updates `app.js`, `constants.js`, `sw.js`)
-3. Test locally, repeat
+2. Reload browser — SW uses network-first, changes appear immediately
+3. No version bumping needed during development
 
 ### **Releasing a Stable Version**
 1. Set the stable version number in `app.js`, `constants.js`, `sw.js`

@@ -1,8 +1,9 @@
 // Boss Cube Web Control - Service Worker
-// Enables PWA functionality with aggressive update strategy
+// Network-first strategy: always fresh when online, cached fallback when offline
 
 const VERSION = '2.27.0';
-const CACHE_NAME = `boss-cube-control-v${VERSION}`;
+const CACHE_NAME = 'boss-cube-control';
+
 const urlsToCache = [
     '/',
     '/index.html',
@@ -31,135 +32,67 @@ const urlsToCache = [
     '/templates/looper-settings.html'
 ];
 
-// Install event - cache resources with error handling
 self.addEventListener('install', event => {
-    
-    
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-
-                // Cache files individually to handle missing files gracefully
                 return Promise.allSettled(
-                    urlsToCache.map(url => 
+                    urlsToCache.map(url =>
                         cache.add(url).catch(error => {
                             console.warn(`Failed to cache ${url}:`, error.message);
-                            return null; // Continue with other files
                         })
                     )
                 );
             })
-            .then(() => {
-
-                // Skip waiting immediately for development versions to ensure quick updates
-                if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
-                    return self.skipWaiting();
-                }
-            })
+            .then(() => self.skipWaiting())
             .catch(error => {
                 console.error('Service worker install failed:', error);
-                // Still proceed with installation even if caching fails
             })
     );
 });
 
-// Fetch event - network first for critical files during development
+// Network-first: try network, update cache, fall back to cache when offline
 self.addEventListener('fetch', event => {
-    const url = new URL(event.request.url);
-    
-    // For development versions, always try network first for JS/CSS/HTML
-    const isDevelopment = VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc');
-    
-    if (isDevelopment && (
-        url.pathname.endsWith('.html') || 
-        url.pathname.endsWith('.js') || 
-        url.pathname.endsWith('.css') || 
-        url.pathname === '/'
-    )) {
-        event.respondWith(
-            fetch(event.request)
-                .then(response => {
-                    // If successful, update cache and return response
-                    if (response.status === 200) {
-                        const responseClone = response.clone();
-                        caches.open(CACHE_NAME)
-                            .then(cache => cache.put(event.request, responseClone));
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    // If network fails, fall back to cache
-                    return caches.match(event.request);
-                })
-        );
-    } else {
-        // For stable versions or other files, use cache first
-        event.respondWith(
-            caches.match(event.request)
-                .then(response => {
-                    if (response) {
-                        return response;
-                    }
-                    return fetch(event.request);
-                })
-        );
-    }
+    event.respondWith(
+        fetch(event.request)
+            .then(response => {
+                if (response.ok) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME)
+                        .then(cache => cache.put(event.request, clone));
+                }
+                return response;
+            })
+            .catch(() => caches.match(event.request))
+    );
 });
 
-// Activate event - aggressive cleanup and immediate control
 self.addEventListener('activate', event => {
-    console.log(`Service Worker ${VERSION} activating...`);
-    
     event.waitUntil(
         Promise.all([
-            // Clear ALL old caches aggressively
-            caches.keys().then(cacheNames => {
-                return Promise.all(
-                    cacheNames.map(cacheName => {
-                        if (cacheName !== CACHE_NAME) {
-                            console.log('Service worker clearing old cache:', cacheName);
-                            return caches.delete(cacheName);
-                        }
-                    })
-                );
-            }),
-            // Take control of all clients immediately
+            // Remove any legacy versioned caches
+            caches.keys().then(names =>
+                Promise.all(
+                    names
+                        .filter(name => name !== CACHE_NAME)
+                        .map(name => caches.delete(name))
+                )
+            ),
             self.clients.claim()
         ])
     );
 });
 
-// Enhanced message handling for version requests and cache management
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'GET_VERSION') {
         event.ports[0].postMessage({ version: VERSION });
     }
-    
+
     if (event.data && event.data.action === 'skipWaiting') {
-        console.log('Forced update requested, clearing all caches...');
-        // Clear ALL caches before skipWaiting for immediate update
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    console.log('Force clearing cache for update:', cacheName);
-                    return caches.delete(cacheName);
-                })
-            );
-        }).then(() => {
-            console.log('All caches cleared, skipping waiting...');
-            self.skipWaiting();
-        });
+        self.skipWaiting();
     }
-    
+
     if (event.data && event.data.action === 'clearCache') {
-        // Manual cache clear request
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    console.log('Manual cache clear:', cacheName);
-                    return caches.delete(cacheName);
-                })
-            );
-        });
+        caches.delete(CACHE_NAME);
     }
-}); 
+});

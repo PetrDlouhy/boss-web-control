@@ -206,97 +206,40 @@ function initializeVersioning() {
         versionTextEl.textContent = `v${VERSION}`;
     }
     initVersionSwitcher(VERSION);
-    
-    // Always show refresh button for development versions (alpha, beta, rc)
-    if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
-        if (refreshBtn) {
-            refreshBtn.style.display = 'inline-block';
-            refreshBtn.textContent = '🔄 Force Update';
-            refreshBtn.title = 'Force cache refresh (development mode)';
-        }
+
+    if (!('serviceWorker' in navigator)) {
+        return;
     }
-    
-    // Register service worker and check for updates
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(registration => {
-        
-                
-                // Check for updates immediately
-                registration.update();
-                
-                // Check for updates on page focus
-                window.addEventListener('focus', () => {
-                    registration.update();
-                });
-                
-                // Check for updates periodically (every 30 seconds during development)
-                if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
-                    setInterval(() => {
-                        registration.update();
-                    }, 30000);
-                }
-                
-                // Check for updates
-                registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    if (newWorker) {
-                        log('🔄 New version detected, preparing update...', 'info');
-                        
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // New version available
-                                if (refreshBtn) {
-                                    refreshBtn.style.display = 'inline-block';
-                                    refreshBtn.textContent = '🔄 Update Available';
-                                    refreshBtn.classList.add('btn-update-pulse');
-                                }
-                                log('🔄 New version available - click "Update Available" to refresh', 'success');
-                            }
-                        });
+
+    navigator.serviceWorker.register('sw.js')
+        .then(registration => {
+            registration.update();
+            window.addEventListener('focus', () => registration.update());
+
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (!newWorker) return;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        if (refreshBtn) {
+                            refreshBtn.style.display = 'inline-block';
+                            refreshBtn.textContent = '🔄 Update Available';
+                            refreshBtn.classList.add('btn-update-pulse');
+                        }
+                        log('🔄 New version available — click "Update Available" to refresh', 'success');
                     }
                 });
-                
-                // Listen for controlling service worker changes
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    log('🔄 App updated, reloading...', 'info');
-                    window.location.reload();
-                });
-                
-                // Manual version checking via service worker message
-                if (navigator.serviceWorker.controller) {
-                    const messageChannel = new MessageChannel();
-                    messageChannel.port1.onmessage = (event) => {
-                        const swVersion = event.data.version;
-                        if (swVersion && swVersion !== VERSION) {
-                            log(`🔄 Version mismatch detected: App=${VERSION}, SW=${swVersion}`, 'warning');
-                            if (refreshBtn) {
-                                refreshBtn.style.display = 'inline-block';
-                                refreshBtn.textContent = '🔄 Version Mismatch';
-                                refreshBtn.classList.add('btn-update-pulse');
-                            }
-                        }
-                    };
-                    navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
-                }
-                
-            })
-            .catch(error => {
-                console.warn('Service Worker registration failed:', error.message);
-                // Gracefully handle SW registration failure - app still works without it
-                log('⚠️ Service Worker unavailable - app will work but without offline features', 'warning');
-                if (refreshBtn) {
-                    refreshBtn.style.display = 'inline-block';
-                    refreshBtn.textContent = '🔄 Refresh App';
-                }
             });
-    } else {
-        // No service worker support - always show refresh button
-        if (refreshBtn) {
-            refreshBtn.style.display = 'inline-block';
-            refreshBtn.textContent = '🔄 Refresh App';
-        }
-    }
+
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                log('🔄 App updated, reloading...', 'info');
+                window.location.reload();
+            });
+        })
+        .catch(error => {
+            console.warn('Service Worker registration failed:', error.message);
+            log('⚠️ Service Worker unavailable — app works without offline support', 'warning');
+        });
 }
 
 function setupEventListeners() {
