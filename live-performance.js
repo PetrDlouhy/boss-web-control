@@ -623,6 +623,12 @@ export class LivePerformance {
         if (key === 'guitarAmpType') {
             return await this.createAmpTypeControl(param, key, label, controlConfig);
         }
+        if (key === 'guitarEffectType') {
+            return await this.createGuitarEffectControl(param, key, label, controlConfig);
+        }
+        if (key === 'micInstEffectType') {
+            return await this.createMicInstEffectControl(param, key, label, controlConfig);
+        }
         
         // Get current display value
         let displayValue = this.getDisplayValue(param, param.current);
@@ -678,18 +684,18 @@ export class LivePerformance {
         
         // Create buttons HTML
         const buttonsHTML = looperButtons.map((btn, index) => `
-            <button class="looper-btn-live ${param.current === index ? 'active' : ''}" 
+            <button class="btn-base btn-looper looper-btn-live ${param.current === index ? 'active' : ''}" 
                     data-value="${index}" 
                     title="${btn.title}">
-                <div class="looper-icon">${btn.icon}</div>
-                <div class="looper-label">${btn.label}</div>
+                <div class="btn-icon looper-icon">${btn.icon}</div>
+                <div class="btn-label looper-label">${btn.label}</div>
             </button>
         `).join('');
         
         // Create control HTML (no label to fit buttons on one line)
         control.innerHTML = `
             ${pedalIndicator}
-            <div class="looper-buttons-live">
+            <div class="btn-group--grid btn-group--grid-6 looper-buttons-live">
                 ${buttonsHTML}
             </div>
         `;
@@ -740,7 +746,7 @@ export class LivePerformance {
         
         // Create buttons HTML
         const buttonsHTML = ampTypeButtons.map((btn) => `
-            <button class="amp-type-btn-live ${param.current === btn.value ? 'active' : ''}" 
+            <button class="btn-base btn-effect amp-type-btn-live ${param.current === btn.value ? 'active' : ''}" 
                     data-value="${btn.value}" 
                     title="${btn.label}">
                 ${btn.shortLabel}
@@ -750,7 +756,7 @@ export class LivePerformance {
         // Create control HTML (no labels, just buttons like effect controls)
         control.innerHTML = `
             ${pedalIndicator}
-            <div class="amp-type-buttons-live">
+            <div class="btn-group amp-type-buttons-live">
                 ${buttonsHTML}
             </div>
         `;
@@ -766,6 +772,150 @@ export class LivePerformance {
                 button.classList.add('active');
                 
                 // Update parameter via main app logic
+                if (window.updateParameterValue) {
+                    window.updateParameterValue(key, value);
+                }
+            });
+        });
+        
+        // Add pedal selection if enabled
+        if (isPedalControl) {
+            this.setupPedalSelection(control, key, param);
+        }
+        
+        return control;
+    }
+    
+    /**
+     * Create guitar effect type control with buttons
+     */
+    async createGuitarEffectControl(param, key, label, controlConfig) {
+        const control = document.createElement('div');
+        control.className = 'live-performance-control guitar-effect-control';
+        control.setAttribute('data-param-key', key);
+        
+        // Check if this control is pedal controllable
+        const isPedalControl = controlConfig && controlConfig.pedalControl;
+        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
+        
+        // Guitar effect button definitions
+        const guitarEffectButtons = param.valueLabels.map((effectLabel, index) => ({
+            value: index,
+            label: effectLabel,
+            dataEffect: effectLabel.toLowerCase()
+        }));
+        
+        // Create buttons HTML
+        const buttonsHTML = guitarEffectButtons.map((btn) => `
+            <button class="btn-base btn-effect guitar-effect-btn-live ${param.current === btn.value ? 'active' : ''}" 
+                    data-value="${btn.value}" 
+                    data-effect="${btn.dataEffect}"
+                    title="${btn.label}">
+                ${btn.label}
+            </button>
+        `).join('');
+        
+        // Create control HTML with tiny label
+        control.innerHTML = `
+            <div class="control-label">Guitar effect type</div>
+            ${pedalIndicator}
+            <div class="btn-group guitar-effect-buttons-live">
+                ${buttonsHTML}
+            </div>
+        `;
+        
+        // Add click handlers for buttons
+        const buttons = control.querySelectorAll('.guitar-effect-btn-live');
+        buttons.forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const value = parseInt(button.getAttribute('data-value'));
+                const effectType = button.getAttribute('data-effect');
+                
+                // Update button states
+                buttons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Switch guitar effect via controller
+                try {
+                    await this.bossCubeController.switchGuitarEffect(effectType);
+                    this.log(`🎸 Switched to guitar effect: ${effectType}`, 'info');
+                } catch (error) {
+                    this.log(`❌ Failed to switch guitar effect: ${error.message}`, 'error');
+                }
+                
+                // Update virtual parameter
+                if (window.updateParameterValue) {
+                    window.updateParameterValue(key, value);
+                }
+            });
+        });
+        
+        // Add pedal selection if enabled
+        if (isPedalControl) {
+            this.setupPedalSelection(control, key, param);
+        }
+        
+        return control;
+    }
+    
+    /**
+     * Create mic/inst effect type control with buttons
+     */
+    async createMicInstEffectControl(param, key, label, controlConfig) {
+        const control = document.createElement('div');
+        control.className = 'live-performance-control mic-inst-effect-control';
+        control.setAttribute('data-param-key', key);
+        
+        // Check if this control is pedal controllable
+        const isPedalControl = controlConfig && controlConfig.pedalControl;
+        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
+        
+        // Mic/Inst effect button definitions
+        const micInstEffectButtons = param.valueLabels.map((effectLabel, index) => ({
+            value: index,
+            label: effectLabel,
+            dataEffect: effectLabel.toLowerCase()
+        }));
+        
+        // Create buttons HTML
+        const buttonsHTML = micInstEffectButtons.map((btn) => `
+            <button class="btn-base btn-effect mic-inst-effect-btn-live ${param.current === btn.value ? 'active' : ''}" 
+                    data-value="${btn.value}" 
+                    data-effect="${btn.dataEffect}"
+                    title="${btn.label}">
+                ${btn.label}
+            </button>
+        `).join('');
+        
+        // Create control HTML with tiny label
+        control.innerHTML = `
+            <div class="control-label">Mic/Inst effect type</div>
+            ${pedalIndicator}
+            <div class="btn-group mic-inst-effect-buttons-live">
+                ${buttonsHTML}
+            </div>
+        `;
+        
+        // Add click handlers for buttons
+        const buttons = control.querySelectorAll('.mic-inst-effect-btn-live');
+        buttons.forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const value = parseInt(button.getAttribute('data-value'));
+                const effectType = button.getAttribute('data-effect');
+                
+                // Update button states
+                buttons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Switch mic/inst effect via controller
+                try {
+                    await this.bossCubeController.switchMicInstEffect(effectType);
+                    this.log(`🎤 Switched to mic/inst effect: ${effectType}`, 'info');
+                } catch (error) {
+                    this.log(`❌ Failed to switch mic/inst effect: ${error.message}`, 'error');
+                }
+                
+                // Update parameter
                 if (window.updateParameterValue) {
                     window.updateParameterValue(key, value);
                 }
@@ -1326,8 +1476,17 @@ export class LivePerformance {
                 container.innerHTML = '';
                 
                 if (paramKeys.length > 0) {
-                    // Sort parameters by name for better UX
-                    paramKeys.sort((a, b) => parameters[a].name.localeCompare(parameters[b].name));
+                    // Sort parameters with effect type controls first, then alphabetically
+                    paramKeys.sort((a, b) => {
+                        const aIsEffectType = a === 'guitarEffectType' || a === 'micInstEffectType';
+                        const bIsEffectType = b === 'guitarEffectType' || b === 'micInstEffectType';
+                        
+                        if (aIsEffectType && !bIsEffectType) return -1; // a comes first
+                        if (!aIsEffectType && bIsEffectType) return 1;  // b comes first
+                        
+                        // Both are effect types or both are regular - sort alphabetically
+                        return parameters[a].name.localeCompare(parameters[b].name);
+                    });
                     
                     paramKeys.forEach((key) => {
                         const param = parameters[key];
@@ -2108,6 +2267,34 @@ export class LivePerformance {
                 }
             });
             return; // Skip slider update for amp type
+        }
+        
+        if (parameterKey === 'guitarEffectType') {
+            // Update guitar effect button states
+            const buttons = control.querySelectorAll('.guitar-effect-btn-live');
+            buttons.forEach(btn => {
+                const btnValue = parseInt(btn.getAttribute('data-value'));
+                if (btnValue === value) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            return; // Skip slider update for guitar effect type
+        }
+        
+        if (parameterKey === 'micInstEffectType') {
+            // Update mic/inst effect button states
+            const buttons = control.querySelectorAll('.mic-inst-effect-btn-live');
+            buttons.forEach(btn => {
+                const btnValue = parseInt(btn.getAttribute('data-value'));
+                if (btnValue === value) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            return; // Skip slider update for mic/inst effect type
         }
 
         // Update visual elements for regular slider controls

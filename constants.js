@@ -79,7 +79,7 @@ export const EFFECT_TYPES = {
 
 // Application version configuration
 export const VERSION_CONFIG = {
-    CURRENT_VERSION: 'v2.26.0'
+    CURRENT_VERSION: 'v2.26.1-alpha.3'
 };
 
 // Master Out binding configuration

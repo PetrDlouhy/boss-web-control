@@ -1,5 +1,20 @@
 # Boss Cube Web Control - Version History
 
+## Version 2.26.1-alpha.3 (dev)
+
+### 🎸 **Guitar & Mic/Inst Effect Type Selectors in Live Performance**
+
+Added effect type selectors for Guitar Effects and Mic/Inst sections in Live Performance mode, and refactored CSS button styles into a shared design system.
+
+### ✨ **What's New**
+
+- **Guitar Effect Type buttons**: Switch between Phaser, Chorus, Tremolo, T.WAH, Flanger directly in Live Performance mode — displayed first in the Guitar Effects preset category
+- **Mic/Inst Effect Type buttons**: Switch mic/inst effect type in Live Performance mode via buttons (was slider before)
+- **Tiny control labels**: Both effect type controls display a compact label ("Guitar effect type" / "Mic/Inst effect type") for identification
+- **CSS design system**: Refactored duplicate button styles into shared base classes (`.btn-base`, `.btn-effect`, `.btn-looper`, `.btn-group`, `.btn-group--grid`) — eliminates duplication across amp-type, looper, and effect buttons
+
+---
+
 ## Version 2.26.0 (2025-01-09)
 
 ### 🔁 **Looper Volume Control & Amp Type Buttons**

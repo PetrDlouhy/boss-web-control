@@ -6,7 +6,7 @@ import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
 import { LOOPER_VOLUME_CONFIG } from './constants.js';
 
-const VERSION = '2.26.0';
+const VERSION = '2.26.1-alpha.3';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -708,12 +708,12 @@ async function updateLooperControls() {
     
     try {
         const buttonsHTML = looperButtons.map((btn, index) => `
-                <button class="looper-btn-improved ${looperControl.current === index ? 'active' : ''}" 
+                <button class="btn-base btn-looper looper-btn-improved ${looperControl.current === index ? 'active' : ''}" 
                         data-value="${index}" 
                         data-looper-value="${index}"
                         title="${btn.title}">
-                    <div class="looper-icon">${btn.icon}</div>
-                    <div class="looper-label">${btn.label}</div>
+                    <div class="btn-icon looper-icon">${btn.icon}</div>
+                    <div class="btn-label looper-label">${btn.label}</div>
                 </button>
         `).join('');
         
@@ -1459,7 +1459,7 @@ async function createAmpTypeControl(param, key) {
     
     // Create buttons HTML
     const buttonsHTML = ampTypeButtons.map((btn) => `
-        <button class="amp-type-btn ${param.current === btn.value ? 'active' : ''}" 
+        <button class="btn-base btn-effect amp-type-btn ${param.current === btn.value ? 'active' : ''}" 
                 data-value="${btn.value}" 
                 title="${btn.label}">
             ${btn.shortLabel}
@@ -1468,7 +1468,7 @@ async function createAmpTypeControl(param, key) {
     
     // Create control HTML (no labels, just buttons)
     control.innerHTML = `
-        <div class="amp-type-buttons">
+        <div class="btn-group amp-type-buttons">
             ${buttonsHTML}
         </div>
     `;

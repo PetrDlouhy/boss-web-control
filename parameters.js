@@ -171,6 +171,16 @@ export const BOSS_CUBE_PARAMETERS = {
         category: 'guitarEQ'
     },
 
+    // Guitar Effect Type Selector (virtual parameter for Live Performance mode)
+    guitarEffectType: { 
+        name: 'Guitar Effect Type', 
+        address: null, // Virtual parameter - no SysEx address
+        min: 0, max: 4, current: 0,
+        valueLabels: ['Phaser', 'Chorus', 'Tremolo', 'T.WAH', 'Flanger'],
+        category: 'guitarEffects',
+        isVirtual: true
+    },
+
     // Guitar Effects - Phaser
     guitarPhaserRate: { 
         name: 'Phaser Rate', 

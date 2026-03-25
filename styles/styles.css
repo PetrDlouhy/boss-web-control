@@ -1062,94 +1062,96 @@ h5 {
     flex-wrap: wrap;
 }
 
+/* Main app amp type buttons - Uses shared .btn-base .btn-effect styles with custom sizing */
 .amp-type-btn {
-    background: #fff;
-    border: 2px solid #2196F3;
-    border-radius: 6px;
     padding: 8px 12px;
     font-size: 0.85em;
-    color: #2196F3;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    flex: 1;
     min-width: 70px;
-    text-align: center;
 }
 
-.amp-type-btn:hover {
-    background: #e3f2fd;
-    transform: translateY(-1px);
+/* ========================================
+   SHARED CONTROL TYPES - Reusable Components
+   ======================================== */
+
+/* Control Labels - Tiny labels for controls */
+.control-label {
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.amp-type-btn:focus {
-    outline: none;
-    border-color: #1976D2;
-    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-}
-
-.amp-type-btn.active {
-    background: #4CAF50;
-    color: white;
-    transform: translateY(-1px);
-}
-
-/* Live Performance Amp Type Buttons (styled like effect buttons) */
-.amp-type-buttons-live {
+/* Base Button Group Container */
+.btn-group {
     display: flex;
     gap: 6px;
-    margin-top: 10px;
+    margin-top: 5px;
     flex-wrap: wrap;
 }
 
-.amp-type-btn-live {
-    background: #fff;
-    border: 2px solid #2196F3;
-    border-radius: 6px;
-    padding: 6px 8px;
-    font-size: 0.8em;
-    color: #2196F3;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    flex: 1;
-    min-width: 60px;
-    text-align: center;
+.btn-group--large {
+    margin-top: 10px;
 }
 
-.amp-type-btn-live:hover {
-    background: #e3f2fd;
-    transform: translateY(-1px);
-}
-
-.amp-type-btn-live:focus {
-    outline: none;
-    border-color: #1976D2;
-    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-}
-
-.amp-type-btn-live.active {
-    background: #4CAF50;
-    color: white;
-    transform: translateY(-1px);
-}
-
-/* Live Performance Looper Buttons */
-.looper-buttons-live {
+.btn-group--grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
     gap: 4px;
     margin-top: 10px;
 }
 
-.looper-btn-live {
-    padding: 12px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    background: #f8f9fa;
-    color: #495057;
+.btn-group--grid-6 {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+/* Base Button Styles */
+.btn-base {
     cursor: pointer;
-    transition: all 0.2s;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-align: center;
+    outline: none;
+}
+
+.btn-base:focus {
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+/* Standard Effect Button (Blue theme) */
+.btn-effect {
+    background: #fff;
+    border: 2px solid #2196F3;
+    color: #2196F3;
+    padding: 6px 8px;
+    font-size: 0.8em;
+    flex: 1;
+    min-width: 60px;
+}
+
+.btn-effect:hover {
+    background: #e3f2fd;
+    transform: translateY(-1px);
+}
+
+.btn-effect:focus {
+    border-color: #1976D2;
+}
+
+.btn-effect.active {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+    transform: translateY(-1px);
+}
+
+/* Looper Button (Gray/Green theme) */
+.btn-looper {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    color: #495057;
+    padding: 12px 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1157,23 +1159,64 @@ h5 {
     min-height: 60px;
 }
 
-.looper-btn-live:hover {
+.btn-looper:hover {
     background: #e9ecef;
     border-color: #adb5bd;
 }
 
-.looper-btn-live.active {
+.btn-looper.active {
     background: #28a745;
     color: white;
     border-color: #1e7e34;
 }
 
-.looper-btn-live .looper-icon {
+.btn-looper .btn-icon {
     font-size: 20px;
     margin-bottom: 4px;
 }
 
-.looper-btn-live .looper-label {
+.btn-looper .btn-label {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
+/* Live Performance Amp Type Buttons - Uses shared styles */
+
+/* Effect Type Labels (tiny labels for effect controls) */
+.effect-type-label {
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ========================================
+   CONTROL TYPE IMPLEMENTATIONS - Using shared base classes
+   ======================================== */
+
+/* Effect Type Labels (alias for backward compatibility) */
+
+/* Backward compatibility aliases - old class names still work */
+.effect-type-label {
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Legacy class support for looper icons and labels */
+.looper-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.looper-label {
     font-size: 11px;
     font-weight: bold;
     text-transform: uppercase;
@@ -1199,38 +1242,36 @@ h5 {
         gap: 3px;
     }
     
-    .looper-btn-live {
+    
+    /* Shared button group mobile styles */
+    .btn-group {
+        gap: 4px;
+    }
+    
+    .btn-effect {
+        min-width: 50px;
+        padding: 4px 6px;
+        font-size: 0.7em;
+    }
+    
+    .btn-group--grid-6 {
+        gap: 3px;
+    }
+    
+    .btn-looper {
         min-height: 45px;
         padding: 6px 2px;
     }
     
-    .looper-btn-live .looper-icon {
+    .btn-looper .btn-icon,
+    .looper-icon {
         font-size: 16px;
         margin-bottom: 2px;
     }
     
-    .looper-btn-live .looper-label {
+    .btn-looper .btn-label,
+    .looper-label {
         font-size: 9px;
-    }
-    
-    .amp-type-buttons {
-        gap: 4px;
-    }
-    
-    .amp-type-btn {
-        min-width: 60px;
-        padding: 6px 8px;
-        font-size: 0.75em;
-    }
-    
-    .amp-type-buttons-live {
-        gap: 4px;
-    }
-    
-    .amp-type-btn-live {
-        min-width: 50px;
-        padding: 4px 6px;
-        font-size: 0.7em;
     }
     
     .looper-settings-compact {
@@ -1239,6 +1280,11 @@ h5 {
 }
 
 @media (max-width: 480px) {
+    .btn-group--grid-6 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+    }
+    
     .looper-buttons-compact {
         grid-template-columns: repeat(3, 1fr);
         gap: 2px;
