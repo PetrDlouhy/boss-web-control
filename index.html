@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boss Cube Web Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+               min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: white; border-radius: 16px; padding: 40px; max-width: 480px;
+                width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; }
+        h1 { font-size: 1.8em; margin-bottom: 8px; color: #333; }
+        .subtitle { color: #666; margin-bottom: 24px; }
+        .versions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .version-link { display: flex; justify-content: space-between; align-items: center;
+                        padding: 14px 20px; background: #f8f9fa; border: 2px solid #e9ecef;
+                        border-radius: 10px; text-decoration: none; color: #333;
+                        transition: all 0.2s; font-weight: 500; }
+        .version-link:hover { border-color: #667eea; transform: translateY(-2px);
+                              box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .version-link:first-child { border-color: #667eea; background: #f0f0ff; }
+        .version-link .tag { font-size: 1.1em; }
+        .version-link .date { color: #999; font-size: 0.85em; }
+        .version-link .latest { background: #667eea; color: white; padding: 2px 8px;
+                                 border-radius: 4px; font-size: 0.75em; }
+        .loading { color: #999; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Boss Cube Web Control</h1>
+        <p class="subtitle">Select a version</p>
+        <div class="versions" id="versionList">
+            <div class="loading">Loading versions...</div>
+        </div>
+    </div>
+    <script>
+        fetch('versions.json')
+            .then(r => r.json())
+            .then(versions => {
+                var list = document.getElementById('versionList');
+                if (!versions.length) {
+                    list.innerHTML = '<div class="loading">No versions deployed yet.</div>';
+                    return;
+                }
+                list.innerHTML = versions.map(function(v, i) {
+                    return '<a href="' + v.path + '" class="version-link">' +
+                    '<span class="tag">' + v.tag + '</span>' +
+                    (i === 0 ? '<span class="latest">latest</span>' : '') +
+                    '<span class="date">' + v.date + '</span>' +
+                    '</a>';
+                }).join('');
+                var saved = localStorage.getItem('boss-cube-preferred-version');
+                var match = versions.find(function(v) { return v.tag === saved; });
+                if (match) {
+                    window.location.href = match.path;
+                }
+            })
+            .catch(function() {
+                document.getElementById('versionList').innerHTML =
+                    '<div class="loading">Failed to load versions.</div>';
+            });
+    </script>
+</body>
+</html>
+HTMLEOF

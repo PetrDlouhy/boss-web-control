@@ -1,0 +1,106 @@
+.looper-settings-improved {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.toggle-btn-improved {
+    height: 56px;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.toggle-btn-improved:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.toggle-btn-improved.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.toggle-icon {
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+
+.toggle-label {
+    font-weight: bold;
+    font-size: 10px;
+    margin-bottom: 2px;
+}
+
+.toggle-status {
+    font-size: 9px;
+    opacity: 0.9;
+}
+
+.toggle-btn-improved.active .toggle-status {
+    opacity: 1;
+    font-weight: bold;
+}
+
+/* Responsive breakpoints - keep 4 buttons even on mobile */
+@media (max-width: 768px) {
+    .looper-settings-improved {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .looper-settings-improved {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2px;
+    }
+    .toggle-btn-improved {
+        height: 40px;
+        font-size: 8px;
+        padding: 2px;
+    }
+    .toggle-icon {
+        font-size: 12px;
+    }
+    .toggle-label {
+        font-size: 8px;
+    }
+    .toggle-status {
+        font-size: 7px;
+    }
+}
+
+/* Very small screens - still try to keep 4 buttons */
+@media (max-width: 360px) {
+    .looper-settings-improved {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+    }
+    .toggle-btn-improved {
+        height: 36px;
+        font-size: 7px;
+        padding: 1px;
+    }
+    .toggle-icon {
+        font-size: 10px;
+    }
+    .toggle-label {
+        font-size: 7px;
+    }
+    .toggle-status {
+        font-size: 6px;
+    }
+} 

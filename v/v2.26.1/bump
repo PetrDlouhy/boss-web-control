@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Quick version increment script
+# Usage: ./bump
+ 
+echo "🚀 Incrementing version..."
+node increment-version.js 

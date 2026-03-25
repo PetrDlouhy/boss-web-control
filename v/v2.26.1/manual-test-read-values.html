@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Test: Read Values Functionality</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover:not(:disabled) {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .status.connected {
+            color: #28a745;
+        }
+        .status.disconnected {
+            color: #dc3545;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 300px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+        .instructions {
+            background: #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .progress {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Manual Test: Read Values Functionality</h1>
+        
+        <div class="instructions">
+            <h3>Test Instructions</h3>
+            <ol>
+                <li><strong>Prepare Boss Cube:</strong> Turn on your Boss Cube II and put it in Bluetooth pairing mode (flashing LED)</li>
+                <li><strong>Connect:</strong> Click "Connect Boss Cube" and select your device</li>
+                <li><strong>Test Read Values:</strong> Click "Test Read Values" to verify the sequential reading works</li>
+                <li><strong>Monitor Logs:</strong> Watch for any "GATT operation already in progress" errors (should be none)</li>
+                <li><strong>Verify Success:</strong> All parameters should be read successfully without conflicts</li>
+            </ol>
+        </div>
+
+        <div class="test-controls">
+            <button id="connectBtn" onclick="connectToBossCube()">🔌 Connect Boss Cube</button>
+            <button id="disconnectBtn" onclick="disconnectFromBossCube()" disabled>🔌 Disconnect</button>
+            <button id="testReadBtn" onclick="testReadValues()" disabled>📖 Test Read Values</button>
+            <button id="clearLogBtn" onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+
+        <div id="status" class="status disconnected">📡 Not connected</div>
+        
+        <div class="progress" id="progress" style="display: none;">
+            <div id="progressText">Ready to start test...</div>
+        </div>
+
+        <div id="log" class="log">Click "Connect Boss Cube" to start testing...</div>
+    </div>
+
+    <script type="module">
+        import BossCubeController from './boss-cube-controller.js';
+
+        let controller = null;
+        let logElement = null;
+        let statusElement = null;
+        let progressElement = null;
+        let progressText = null;
+
+        // Initialize elements
+        document.addEventListener('DOMContentLoaded', () => {
+            logElement = document.getElementById('log');
+            statusElement = document.getElementById('status');
+            progressElement = document.getElementById('progress');
+            progressText = document.getElementById('progressText');
+            
+            controller = new BossCubeController();
+            
+            // Set up logging callback
+            controller.log = (message, type) => {
+                const timestamp = new Date().toLocaleTimeString();
+                const logLine = `${timestamp} ${message}\n`;
+                logElement.textContent += logLine;
+                logElement.scrollTop = logElement.scrollHeight;
+                
+                console.log(message);
+            };
+            
+            // Set up parameter update callback
+            controller.onParameterUpdate = (paramKey, value, isPhysicalChange) => {
+                const timestamp = new Date().toLocaleTimeString();
+                const changeType = isPhysicalChange ? '🎛️' : '📖';
+                const logLine = `${timestamp} ${changeType} Parameter: ${paramKey} = ${value}\n`;
+                logElement.textContent += logLine;
+                logElement.scrollTop = logElement.scrollHeight;
+            };
+        });
+
+        window.connectToBossCube = async function() {
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const testReadBtn = document.getElementById('testReadBtn');
+            
+            connectBtn.disabled = true;
+            connectBtn.textContent = '🔄 Connecting...';
+            
+            try {
+                await controller.connectToBossCube();
+                
+                statusElement.textContent = '✅ Connected to Boss Cube';
+                statusElement.className = 'status connected';
+                
+                connectBtn.style.display = 'none';
+                disconnectBtn.disabled = false;
+                testReadBtn.disabled = false;
+                
+                controller.log('✅ Boss Cube connected successfully!', 'success');
+                
+            } catch (error) {
+                controller.log(`❌ Failed to connect: ${error.message}`, 'error');
+                
+                statusElement.textContent = '❌ Connection failed';
+                statusElement.className = 'status disconnected';
+                
+                connectBtn.disabled = false;
+                connectBtn.textContent = '🔌 Connect Boss Cube';
+            }
+        };
+
+        window.disconnectFromBossCube = async function() {
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const testReadBtn = document.getElementById('testReadBtn');
+            
+            try {
+                await controller.disconnectBossCube();
+                
+                statusElement.textContent = '📡 Not connected';
+                statusElement.className = 'status disconnected';
+                
+                connectBtn.style.display = 'inline-block';
+                connectBtn.disabled = false;
+                connectBtn.textContent = '🔌 Connect Boss Cube';
+                disconnectBtn.disabled = true;
+                testReadBtn.disabled = true;
+                
+                controller.log('🔌 Boss Cube disconnected', 'info');
+                
+            } catch (error) {
+                controller.log(`❌ Disconnect error: ${error.message}`, 'error');
+            }
+        };
+
+        window.testReadValues = async function() {
+            const testReadBtn = document.getElementById('testReadBtn');
+            
+            testReadBtn.disabled = true;
+            testReadBtn.textContent = '🔄 Testing...';
+            
+            progressElement.style.display = 'block';
+            progressText.textContent = 'Starting Read Values test...';
+            
+            try {
+                // Clear previous logs for this test
+                logElement.textContent += '\n' + '='.repeat(50) + '\n';
+                logElement.textContent += '🧪 STARTING READ VALUES TEST\n';
+                logElement.textContent += '='.repeat(50) + '\n\n';
+                
+                progressText.textContent = 'Reading all parameters sequentially...';
+                progressElement.className = 'progress';
+                
+                const startTime = Date.now();
+                
+                // Test the fixed Read Values functionality
+                await controller.readAllValues();
+                
+                const endTime = Date.now();
+                const duration = (endTime - startTime) / 1000;
+                
+                progressText.textContent = `✅ Test completed successfully in ${duration.toFixed(1)} seconds`;
+                progressElement.className = 'progress success';
+                
+                controller.log(`\n✅ READ VALUES TEST PASSED - Duration: ${duration.toFixed(1)}s`, 'success');
+                controller.log('🎯 No GATT operation conflicts detected!', 'success');
+                
+            } catch (error) {
+                progressText.textContent = `❌ Test failed: ${error.message}`;
+                progressElement.className = 'progress error';
+                
+                controller.log(`❌ READ VALUES TEST FAILED: ${error.message}`, 'error');
+            } finally {
+                testReadBtn.disabled = false;
+                testReadBtn.textContent = '📖 Test Read Values';
+            }
+        };
+
+        window.clearLog = function() {
+            logElement.textContent = 'Log cleared. Ready for testing...\n';
+            progressElement.style.display = 'none';
+        };
+    </script>
+</body>
+</html> 
