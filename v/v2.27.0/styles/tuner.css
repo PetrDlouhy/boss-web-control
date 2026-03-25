@@ -1,0 +1,198 @@
+/* Tuner Section Styles */
+.tuner-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tuner-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.tuner-toggle .btn {
+    min-width: 160px;
+    font-weight: bold;
+}
+
+/* Enhanced Tuner Styles */
+.tuner-visual {
+    background: #2c3e50;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    display: none; /* Hidden by default, shown when tuner is active */
+    position: relative;
+}
+
+.tuner-visual.active {
+    display: block;
+}
+
+.tuner-meter {
+    background: #34495e;
+    height: 40px;
+    border-radius: 20px;
+    position: relative;
+    margin: 20px 0;
+    overflow: hidden;
+}
+
+/* Removed static center reference line - only show moving needle */
+
+.tuner-needle {
+    position: absolute;
+    top: 50%;
+    width: 3px;
+    height: 60%;
+    background: #e74c3c;
+    transform: translate(-50%, -50%);
+    transition: left 0.1s ease;
+    z-index: 3;
+    border-radius: 1px;
+    box-shadow: 0 0 4px rgba(231, 76, 60, 0.8);
+}
+
+
+
+.tuner-scale {
+    position: relative;
+    height: 20px;
+    color: #bdc3c7;
+    font-size: 12px;
+    margin-top: 5px;
+    padding: 0 8px;
+}
+
+/* Position all marks absolutely for perfect alignment */
+.tuner-scale span {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Flat symbol - leftmost */
+.tuner-scale span:nth-child(1) {
+    left: 8px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* -20 mark */
+.tuner-scale span:nth-child(2) {
+    left: 16.67%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* -10 mark */
+.tuner-scale span:nth-child(3) {
+    left: 33.33%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* 0 mark - center */
+.tuner-scale span:nth-child(4) {
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+/* +10 mark */
+.tuner-scale span:nth-child(5) {
+    left: 66.67%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* +20 mark */
+.tuner-scale span:nth-child(6) {
+    left: 83.33%;
+    transform: translate(-50%, -50%);
+    opacity: 0.7;
+}
+
+/* Sharp symbol - rightmost */
+.tuner-scale span:nth-child(7) {
+    right: 8px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.tuner-frequency-display {
+    text-align: center;
+    color: #ecf0f1;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.tuner-note-display {
+    text-align: center;
+    color: #3498db;
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+
+
+.tuner-controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.tuner-help {
+    background: #ecf0f1;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 15px;
+    font-size: 14px;
+    color: #2c3e50;
+    line-height: 1.4;
+}
+
+.tuner-help strong {
+    color: #e67e22;
+}
+
+.tuner-status {
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 10px 0;
+    color: #7f8c8d;
+}
+
+.tuner-status.listening {
+    color: #27ae60;
+}
+
+.tuner-status.off {
+    color: #95a5a6;
+}
+
+.tuner-status.in-tune {
+    color: #2ecc71;
+}
+
+.tuner-status.tuning {
+    color: #f1c40f;
+}
+
+
+
+@media (max-width: 768px) {
+    .tuner-controls-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+}
+

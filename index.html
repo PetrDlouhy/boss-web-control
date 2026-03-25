@@ -40,18 +40,18 @@
         fetch('versions.json')
             .then(r => r.json())
             .then(versions => {
-                var list = document.getElementById('versionList');
+                const list = document.getElementById('versionList');
                 if (!versions.length) {
                     list.innerHTML = '<div class="loading">No versions deployed yet.</div>';
                     return;
                 }
-                list.innerHTML = versions.map(function(v, i) {
-                    return '<a href="' + v.path + '" class="version-link">' +
+                list.innerHTML = versions.map((v, i) =>
+                    '<a href="' + v.path + '" class="version-link">' +
                     '<span class="tag">' + v.tag + '</span>' +
                     (i === 0 ? '<span class="latest">latest</span>' : '') +
                     '<span class="date">' + v.date + '</span>' +
-                    '</a>';
-                }).join('');
+                    '</a>'
+                ).join('');
                 var saved = localStorage.getItem('boss-cube-preferred-version');
                 var match = versions.find(function(v) { return v.tag === saved; });
                 if (match) {
