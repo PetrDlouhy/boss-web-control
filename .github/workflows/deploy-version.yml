@@ -179,4 +179,4 @@ jobs:
         git add -A
         git diff --cached --quiet && echo "No changes to deploy" && exit 0
         git commit -m "Deploy ${{ steps.version.outputs.tag }}"
-        git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+        git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:gh-pages
