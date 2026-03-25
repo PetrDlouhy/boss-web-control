@@ -1,17 +1,40 @@
 # Boss Cube Web Control - Version History
 
-## Version 2.26.1-alpha.3 (dev)
+## Version 2.27.0 (2025-03-25)
 
-### 🎸 **Guitar & Mic/Inst Effect Type Selectors in Live Performance**
+### 🚀 **Architecture Refactor, Versioned Deployment & Bug Fixes**
 
-Added effect type selectors for Guitar Effects and Mic/Inst sections in Live Performance mode, and refactored CSS button styles into a shared design system.
+Major refactoring of the codebase for maintainability, plus versioned deployment infrastructure and several bug fixes.
 
 ### ✨ **What's New**
 
-- **Guitar Effect Type buttons**: Switch between Phaser, Chorus, Tremolo, T.WAH, Flanger directly in Live Performance mode — displayed first in the Guitar Effects preset category
-- **Mic/Inst Effect Type buttons**: Switch mic/inst effect type in Live Performance mode via buttons (was slider before)
-- **Tiny control labels**: Both effect type controls display a compact label ("Guitar effect type" / "Mic/Inst effect type") for identification
-- **CSS design system**: Refactored duplicate button styles into shared base classes (`.btn-base`, `.btn-effect`, `.btn-looper`, `.btn-group`, `.btn-group--grid`) — eliminates duplication across amp-type, looper, and effect buttons
+- **In-app version switcher**: Dropdown in the header lets you switch between deployed versions
+- **Versioned deployment**: GitHub Actions workflow deploys tagged versions to `gh-pages` under `/v/<tag>/` subdirectories
+- **Dark/light mode**: Theme toggle in the header with persistence
+- **Preset export/import**: Save and load Live Performance presets as JSON files
+- **Settings loaded on startup**: Settings (CC codes etc.) now apply correctly without requiring a manual "Save" click
+- **Tab switching no longer closes Live Performance**: Switching browser tabs keeps Live Performance mode open
+- **Pedal control persistence**: Selected pedal parameter is remembered when Live Performance is closed and reopened
+- **Master/Aux bind fix**: "Bind master out with Aux" now correctly mirrors volume changes in both directions
+
+### 🏗️ **Architecture Improvements**
+
+- **Event bus** (`event-bus.js`): Lightweight pub/sub replacing `window.*` global function assignments
+- **Control factory** (`control-factory.js`): Centralized UI control creation (sliders, button groups, looper) with shared drag interaction logic — eliminates duplication between `app.js` and `live-performance.js`
+- **CSS modularization**: Extracted Live Performance styles (977 lines) and Tuner styles (198 lines) into separate files; introduced CSS custom properties for theming
+- **Shared constants**: Interaction thresholds moved from hardcoded values to `constants.js`
+- **Dead code removal**: Removed unused variables, duplicate `window.*` assignments, stale SW cache entries
+
+---
+
+## Version 2.26.1 (2025-03-25)
+
+### 🔀 **Version Switcher Backport**
+
+Backport of the in-app version switcher to the v2.26.x release line.
+
+- **In-app version switcher**: Dropdown in the header to switch between deployed versions
+- **GitHub Actions deploy workflow**: Tagged versions deploy automatically to `gh-pages`
 
 ---
 
@@ -269,6 +292,10 @@ Based on the [Boss Cube Street II SysEx project](https://github.com/PetrDlouhy/s
 | **2.22.1** | Jul 7, 2025 | Tuner & Looper | Professional tuner interface, complete looper integration |
 | **2.22.14** | Jul 7, 2025 | Quality Assurance | Comprehensive testing, reliability improvements, code refactoring |
 | **2.23.0** | Jul 10, 2025 | Interface & Mobile | Looper redesign, Live Performance enhancements, mobile optimization |
+| **2.24.0** | Jan 17, 2025 | Tuner | Professional tuner with real-time pitch detection |
+| **2.26.0** | Jan 9, 2025 | Looper & Amp | Looper volume control, amp type buttons |
+| **2.26.1** | Mar 25, 2025 | Version Switcher | Backported version switcher to v2.26.x |
+| **2.27.0** | Mar 25, 2025 | Architecture | Refactor, versioned deployment, dark mode, bug fixes |
 
 ---
 

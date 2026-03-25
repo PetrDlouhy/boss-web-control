@@ -14,31 +14,36 @@ Main checkpoints:
 
 ## Project Status & Cooperation Summary
 
-**Current Version**: 2.26.0 (Stable Release - January 9, 2025)
+**Current Version**: 2.27.0 (Stable Release - March 25, 2025)
 
 **Key Documentation**:
 - **AI_SELFTALK.md**: Complete cooperation summary, project status, and future guidance
 - **PICKUP_MODE.md**: Technical pickup mode implementation and debugging guide
 - **README.md**: User documentation with Live Performance mode features
 - **HISTORY.md**: Clean release history with accurate git-based dates
+- **RELEASE_PROCESS.md**: Versioned deployment and release workflow
 
 **Recent Major Work Completed**:
-- Live Performance mode mobile enhancements (drag & drop, long hold, visual feedback)
-- Comprehensive pickup mode documentation and JSDoc comments
-- Code cleanup and organization (templates, styles, debug logging removal)
-- 2.23.0 release preparation with accurate version management
+- Architecture refactor: event bus, control factory, CSS modularization
+- Versioned deployment with GitHub Actions (tagged versions → gh-pages subdirectories)
+- In-app version switcher (backported to v2.26.1)
+- Dark/light mode, preset export/import, settings persistence fixes
+- Master/Aux bind and Live Performance drag interaction bug fixes
 
 **Critical Technical Notes**:
 - Live Performance mode requires different pickup mode behavior than main app
 - Mobile touch handling needs `touch-action: none` and proper event management
 - Red bar visual feedback requires careful timeout management
 - Template system separation requires async loading patterns
+- `event-bus.js` replaces `window.*` globals for inter-module communication
+- `control-factory.js` centralizes slider/button-group/looper control creation — changes to control behavior should be made there, not in individual modules
 
 **For Future Development**:
 - Reference AI_SELFTALK.md for detailed technical insights and cooperation patterns
-- Pickup mode changes must update both main app and Live Performance implementations
+- Control creation changes go in `control-factory.js`, not duplicated in `app.js`/`live-performance.js`
 - Mobile features require testing on actual touch devices, not just browser dev tools
-- Version releases must check actual git dates and update all JavaScript files consistently
+- Releases use git tags (`v*`) which trigger the deploy workflow automatically
+- The `release/v2.26.x` branch exists for backports to the v2.26 line
 
 ## Development Workflow
 
