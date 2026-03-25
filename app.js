@@ -5,13 +5,18 @@ import BossCubeController from './boss-cube-controller.js';
 import TemplateLoader from './template-loader.js';
 import { LivePerformance } from './live-performance.js';
 import { LOOPER_VOLUME_CONFIG } from './constants.js';
+import { bus } from './event-bus.js';
+import {
+    createSliderControl, createButtonGroupControl,
+    getDisplayValue, updateControlDisplay, updateButtonGroupDisplay,
+    queueFillUpdate,
+} from './control-factory.js';
 
-const VERSION = '2.26.1-alpha.5';
+const VERSION = '2.26.1-alpha.6';
 
 let bossCubeController = null;
 let templateLoader = null;
 let currentParameterKey = 'masterVolume';
-let pedalExpression = 64; // Current pedal expression value (0-127)
 let lastPedalValue = null; // Previous pedal value for crossing detection
 
 // Screen Wake Lock
@@ -37,6 +42,7 @@ let tunerEnabled = false;
 
 // Master Out binding state
 let masterBindEnabled = false;
+let isUpdatingMasterBind = false;
 let masterBindControl, masterBindInfoIcon;
 let bindInfoOverlay, bindInfoPopup;
 
@@ -161,11 +167,8 @@ if (typeof document !== 'undefined') {
     // Set up looper control monitoring for Live Performance sync
     setupLooperControlMonitoring();
     
-    // Expose global functions for live performance mode
-    window.pendingAnimationUpdates = pendingAnimationUpdates;
-    window.processPendingAnimationUpdates = processPendingAnimationUpdates;
-    window.updateParameterDisplay = updateParameterDisplay;
-    window.selectParameter = selectParameter;
+    // Event bus: Live Performance emits 'param:update' when user changes a control
+    bus.on('param:update', (key, value) => updateParameterValue(key, value));
     
     // Load settings from localStorage before applying them to controller
     loadSettings();
@@ -194,10 +197,6 @@ if (typeof document !== 'undefined') {
     initializeWakeLock();
     
     log(`Boss Cube Web Control v${VERSION} initialized`, 'success');
-    
-    // Make key functions available globally for Live Performance mode
-    window.updateParameterValue = updateParameterValue;
-    window.updateParameterDisplay = updateParameterDisplay;
 });
 }
 
@@ -1390,227 +1389,20 @@ async function updateLooperVolume(targetVolume) {
 
 
 
-async function createParameterControl(param, key) {
-    const control = document.createElement('div');
-    control.className = 'parameter-control';
-    control.setAttribute('data-param-key', key);
-    
-    // Special handling for amp type - render as buttons
+function createParameterControl(param, key) {
     if (key === 'guitarAmpType') {
-        return await createAmpTypeControl(param, key);
-    }
-    
-    // Get initial display value
-    let initialDisplayValue;
-    if (param.valueLabels && param.valueLabels[param.current] !== undefined) {
-        initialDisplayValue = param.valueLabels[param.current];
-    } else if (param.displayValue && typeof param.displayValue === 'function') {
-        initialDisplayValue = param.displayValue(param.current);
-    } else {
-        initialDisplayValue = `${param.current}/${param.max}`;
-    }
-    
-    try {
-        const paramHTML = await templateLoader.renderTemplate('templates/parameter-control.html', {
-            PARAM_KEY: key,
-            PARAM_NAME: param.name,
-            PARAM_VALUE: initialDisplayValue,
-            PARAM_MIN: param.min,
-            PARAM_MAX: param.max,
-            PARAM_CURRENT: param.current
+        return createButtonGroupControl(param, key, {
+            className: 'amp-type-control',
+            buttonClass: 'btn-base btn-effect amp-type-btn',
+            groupClass: 'btn-group amp-type-buttons',
+            onValueChange: (k, v) => updateParameterValue(k, v),
         });
-        control.innerHTML = paramHTML;
-    } catch (error) {
-        console.error('Failed to load parameter control template:', error);
-        control.innerHTML = '<div class="error">Template load failed</div>';
-        throw error; // Re-throw to indicate critical failure
     }
-    
-    // Set initial visual fill
-    updateParameterFill(key, param.current, param.min, param.max);
-    
-    // Add interaction handlers for the entire control
-    addControlInteraction(control, key, param);
-    
-    // Add traditional slider handler for accessibility
-    const slider = control.querySelector('.parameter-slider');
-    slider.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
-        updateParameterValue(key, value);
-        updateParameterDisplay(key, value);
-    });
-    
-    return control;
-}
 
-/**
- * Create amp type control with buttons (similar to looper control)
- */
-async function createAmpTypeControl(param, key) {
-    const control = document.createElement('div');
-    control.className = 'amp-type-control';
-    control.setAttribute('data-param-key', key);
-    
-    // Amp type button definitions
-    const ampTypeButtons = param.valueLabels.map((label, index) => ({
-        value: index,
-        label: label,
-        shortLabel: label.length > 8 ? label.substring(0, 8) + '...' : label
-    }));
-    
-    // Create buttons HTML
-    const buttonsHTML = ampTypeButtons.map((btn) => `
-        <button class="btn-base btn-effect amp-type-btn ${param.current === btn.value ? 'active' : ''}" 
-                data-value="${btn.value}" 
-                title="${btn.label}">
-            ${btn.shortLabel}
-        </button>
-    `).join('');
-    
-    // Create control HTML (no labels, just buttons)
-    control.innerHTML = `
-        <div class="btn-group amp-type-buttons">
-            ${buttonsHTML}
-        </div>
-    `;
-    
-    // Add click handlers for buttons
-    const buttons = control.querySelectorAll('.amp-type-btn');
-    buttons.forEach(button => {
-        button.addEventListener('click', async (e) => {
-            const value = parseInt(button.getAttribute('data-value'));
-            
-            // Update button states
-            buttons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            
-            // Update parameter via main app logic
-            updateParameterValue(key, value);
-        });
+    return createSliderControl(param, key, {
+        onValueChange: (k, v) => { updateParameterValue(k, v); updateParameterDisplay(k, v); },
+        onSelect: (k) => { selectParameter(k); log(`Selected for pedal control: ${param.name}`, 'info'); },
     });
-    
-    return control;
-}
-
-function addControlInteraction(control, key, param) {
-    let isDragging = false;
-    let holdTimer = null;
-    let hasMovedDuringHold = false;
-    let startPosition = null;
-    
-    const HOLD_DURATION = 800; // 800ms hold to select for pedal control
-    const MOVEMENT_THRESHOLD = 10; // pixels of movement allowed during hold
-    
-    function startHoldTimer(initialEvent) {
-        hasMovedDuringHold = false;
-        startPosition = { x: initialEvent.clientX, y: initialEvent.clientY };
-        
-        holdTimer = setTimeout(() => {
-            if (!hasMovedDuringHold && isDragging) {
-                // Long hold without movement - select for pedal control
-                selectParameter(key);
-                log(`Selected for pedal control: ${param.name}`, 'info');
-                
-                // Optional: Add vibration feedback if supported
-                if (navigator.vibrate) {
-                    navigator.vibrate(50);
-                }
-            }
-        }, HOLD_DURATION);
-    }
-    
-    function checkMovement(currentEvent) {
-        if (startPosition) {
-            const deltaX = Math.abs(currentEvent.clientX - startPosition.x);
-            const deltaY = Math.abs(currentEvent.clientY - startPosition.y);
-            
-            if (deltaX > MOVEMENT_THRESHOLD || deltaY > MOVEMENT_THRESHOLD) {
-                hasMovedDuringHold = true;
-                if (holdTimer) {
-                    clearTimeout(holdTimer);
-                    holdTimer = null;
-                }
-            }
-        }
-    }
-    
-    function cleanup() {
-        if (holdTimer) {
-            clearTimeout(holdTimer);
-            holdTimer = null;
-        }
-        isDragging = false;
-        hasMovedDuringHold = false;
-        startPosition = null;
-    }
-    
-    // Handle mouse events
-    control.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        isDragging = true;
-        handlePositionInput(e, control, key, param);
-        startHoldTimer(e);
-        
-        // Add temporary mouse move and up listeners
-        const handleMouseMove = (e) => {
-            if (isDragging) {
-                checkMovement(e);
-                handlePositionInput(e, control, key, param);
-            }
-        };
-        
-        const handleMouseUp = () => {
-            cleanup();
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-        
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    });
-    
-    // Handle touch events
-    control.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        isDragging = true;
-        handlePositionInput(e.touches[0], control, key, param);
-        startHoldTimer(e.touches[0]);
-    });
-    
-    control.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        if (isDragging) {
-            checkMovement(e.touches[0]);
-            handlePositionInput(e.touches[0], control, key, param);
-        }
-    });
-    
-    control.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        cleanup();
-    });
-    
-    // Prevent context menu on long press
-    control.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-    });
-}
-
-function handlePositionInput(event, control, key, param) {
-    const rect = control.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const width = rect.width;
-    
-    // Calculate value based on position (left = min, right = max)
-    const percentage = Math.max(0, Math.min(1, x / width));
-    const value = Math.round(param.min + (param.max - param.min) * percentage);
-    
-    updateParameterValue(key, value);
-    updateParameterDisplay(key, value);
-    
-    // Update the hidden slider for accessibility
-    const slider = control.querySelector('.parameter-slider');
-    slider.value = value;
 }
 
 function updateParameterFill(key, value, min, max) {
@@ -1623,36 +1415,6 @@ function updateParameterFill(key, value, min, max) {
         fill.style.transform = '';
         fill.style.width = `${percentage}%`;
     }
-}
-
-// Unified visual update system using requestAnimationFrame for smooth rendering
-let pendingAnimationUpdates = new Map();
-
-function updateParameterFillFast(control, value, min, max) {
-    const paramKey = control.getAttribute('data-param-key');
-    
-    // Store the update and use requestAnimationFrame for smooth rendering
-    pendingAnimationUpdates.set(paramKey, { control, value, min, max });
-    
-    // Schedule animation frame update if not already scheduled
-    if (pendingAnimationUpdates.size === 1) {
-        requestAnimationFrame(processPendingAnimationUpdates);
-    }
-}
-
-function processPendingAnimationUpdates() {
-    for (const [paramKey, { control, value, min, max }] of pendingAnimationUpdates) {
-        const fill = control.querySelector('.parameter-fill');
-        const percentage = ((value - min) / (max - min)) * 100;
-        
-        // Always use width for consistency (no transform conflicts)
-        // Reset any transform that might have been applied
-        fill.style.transform = '';
-        fill.style.width = `${percentage}%`;
-    }
-    
-    // Clear pending updates
-    pendingAnimationUpdates.clear();
 }
 
 function selectParameter(key) {
@@ -1751,57 +1513,32 @@ function updateParameterValue(key, value) {
     
     // Update parameter display
     updateParameterDisplay(key, value);
+
+    // Master bind: mirror between masterVolume and auxBluetoothVolume
+    if (masterBindEnabled && !isUpdatingMasterBind) {
+        isUpdatingMasterBind = true;
+        if (key === 'masterVolume') {
+            updateParameterValue('auxBluetoothVolume', value);
+        } else if (key === 'auxBluetoothVolume') {
+            updateParameterValue('masterVolume', value);
+        }
+        isUpdatingMasterBind = false;
+    }
 }
 
 function updateParameterDisplay(key, value) {
     const control = document.querySelector(`[data-param-key="${key}"]`);
-    if (control) {
-        // Special handling for amp type buttons
-        if (key === 'guitarAmpType') {
-            // Update button states
-            const buttons = control.querySelectorAll('.amp-type-btn');
-            buttons.forEach(btn => {
-                const btnValue = parseInt(btn.getAttribute('data-value'));
-                if (btnValue === value) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            
-            // Update internal parameter
-            const param = bossCubeController.parameters[key];
-            if (param) {
-                param.current = value;
-            }
-            return; // Skip slider update for amp type
-        }
-        const slider = control.querySelector('.parameter-slider');
-        const valueDisplay = control.querySelector('.parameter-value');
-        const param = bossCubeController.parameters[key];
-        
-        slider.value = value;
-        
-        // Display meaningful labels or formatted values
-        let displayText;
-        if (param.valueLabels && param.valueLabels[value] !== undefined) {
-            // Use value labels for discrete parameters
-            displayText = param.valueLabels[value];
-        } else if (param.displayValue && typeof param.displayValue === 'function') {
-            // Use custom display function
-            displayText = param.displayValue(value);
-        } else {
-            // Default numeric display
-            displayText = `${value}/${param.max}`;
-        }
-        
-        valueDisplay.textContent = displayText;
-        
-        // Update visual fill
-        updateParameterFill(key, value, param.min, param.max);
-        
-        // Update internal parameter
-        param.current = value;
+    if (!control) return;
+
+    const param = bossCubeController.parameters[key];
+    if (!param) return;
+
+    param.current = value;
+
+    if (key === 'guitarAmpType') {
+        updateButtonGroupDisplay(control, value);
+    } else {
+        updateControlDisplay(control, param, key, value);
     }
 }
 
@@ -1809,57 +1546,27 @@ function updateParameterDisplay(key, value) {
 let cachedPedalElements = null;
 
 function updateParameterDisplayFast(key, value) {
-    // Cache elements on first use for the current parameter
     if (!cachedPedalElements || cachedPedalElements.key !== key) {
         const control = document.querySelector(`[data-param-key="${key}"]`);
         if (!control) return;
-        
         cachedPedalElements = {
-            key: key,
-            control: control,
-            fill: control.querySelector('.parameter-fill'),
+            key,
+            control,
             valueDisplay: control.querySelector('.parameter-value'),
             slider: control.querySelector('.parameter-slider'),
-            param: bossCubeController.parameters[key]
+            param: bossCubeController.parameters[key],
         };
     }
-    
-    const { fill, valueDisplay, slider, param } = cachedPedalElements;
-    
-    // Update internal parameter immediately
+
+    const { control, valueDisplay, slider, param } = cachedPedalElements;
     param.current = value;
-    
-    // Fast visual fill update using requestAnimationFrame
-    const percentage = ((value - param.min) / (param.max - param.min)) * 100;
-    pendingAnimationUpdates.set(key, { 
-        control: cachedPedalElements.control, 
-        value, 
-        min: param.min, 
-        max: param.max 
-    });
-    
-    if (pendingAnimationUpdates.size === 1) {
-        requestAnimationFrame(processPendingAnimationUpdates);
-    }
-    
-    // Display meaningful labels or formatted values
-    let newText;
-    if (param.valueLabels && param.valueLabels[value] !== undefined) {
-        // Use value labels for discrete parameters
-        newText = param.valueLabels[value];
-    } else if (param.displayValue && typeof param.displayValue === 'function') {
-        // Use custom display function
-        newText = param.displayValue(value);
-    } else {
-        // Default numeric display
-        newText = `${value}/${param.max}`;
-    }
-    
+
+    queueFillUpdate(control, key, value, param.min, param.max);
+
+    const newText = getDisplayValue(param, value);
     if (valueDisplay.textContent !== newText) {
         valueDisplay.textContent = newText;
     }
-    
-    // Update value display and slider immediately (these are less expensive)
     slider.value = value;
 }
 
@@ -2182,6 +1889,14 @@ async function readValuesFromCube() {
 }
 
 function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = false) {
+    // Master bind: mirror aux knob changes to master volume
+    if (masterBindEnabled && paramKey === 'auxBluetoothVolume') {
+        updateParameterValue('masterVolume', value);
+        if (livePerformance && livePerformance.isActive) {
+            livePerformance.updateLivePerformanceDisplay('masterVolume', value);
+        }
+    }
+
     // Update the parameter display when Boss Cube sends us a value
     updateParameterDisplay(paramKey, value);
     

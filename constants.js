@@ -77,9 +77,18 @@ export const EFFECT_TYPES = {
     }
 };
 
+// Shared interaction constants (used by app.js and live-performance.js)
+export const INTERACTION = {
+    HOLD_DURATION: 800,           // ms — long press to select for pedal
+    MOVEMENT_THRESHOLD: 10,       // px — cancels hold if finger moves
+    VIBRATION_DURATION: 50,       // ms — haptic feedback
+    THROTTLE_INTERVAL: 50,        // ms — LP update batching (~20 FPS)
+    PEDAL_POSITION_TIMEOUT: 3000, // ms — pedal position indicator display
+};
+
 // Application version configuration
 export const VERSION_CONFIG = {
-    CURRENT_VERSION: 'v2.26.1-alpha.5'
+    CURRENT_VERSION: 'v2.26.1-alpha.6'
 };
 
 // Master Out binding configuration

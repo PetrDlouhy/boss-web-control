@@ -17,15 +17,12 @@
  */
 
 import { PedalUtils } from './pedal-utils.js';
-
-// Constants for better maintainability
-const LIVE_PERFORMANCE_CONSTANTS = {
-    THROTTLE_INTERVAL: 50,              // 20 FPS for parameter updates
-    HOLD_DURATION: 800,                 // 800ms hold to select for pedal control
-    MOVEMENT_THRESHOLD: 10,             // pixels of movement allowed during hold
-    PEDAL_POSITION_TIMEOUT: 3000,      // 3 seconds to show pedal position indicator
-    VIBRATION_DURATION: 50              // vibration feedback duration
-};
+import { INTERACTION } from './constants.js';
+import { bus } from './event-bus.js';
+import {
+    createSliderControl, createButtonGroupControl, createLooperControl as createLooperControlFactory,
+    getDisplayValue, updateControlDisplay, updateButtonGroupDisplay,
+} from './control-factory.js';
 
 export class LivePerformance {
     constructor(bossCubeController, templateLoader, logger) {
@@ -41,7 +38,7 @@ export class LivePerformance {
         this.throttle = {
             pending: new Map(),
             isProcessing: false,
-            updateInterval: LIVE_PERFORMANCE_CONSTANTS.THROTTLE_INTERVAL
+            updateInterval: INTERACTION.THROTTLE_INTERVAL
         };
         
         // User-created presets (start empty)
@@ -167,7 +164,7 @@ export class LivePerformance {
                 if (!this.pickupModeState.active) {
                     control.classList.remove('show-pedal-position');
                 }
-            }, LIVE_PERFORMANCE_CONSTANTS.PEDAL_POSITION_TIMEOUT);
+            }, INTERACTION.PEDAL_POSITION_TIMEOUT);
         }
     }
 
@@ -616,596 +613,81 @@ export class LivePerformance {
     }
     
     /**
-     * Create individual control element
+     * Create individual control element using shared control-factory.
      */
     async createControl(param, key, label, controlConfig) {
-        const control = document.createElement('div');
-        control.className = 'live-performance-control';
-        control.setAttribute('data-param-key', key);
-        
-        // Special handling for button-based controls
+        const isPedalControl = controlConfig && controlConfig.pedalControl;
+
+        // Looper buttons
         if (key === 'looperControl') {
-            return await this.createLooperControl(param, key, label, controlConfig);
-        }
-        if (key === 'guitarAmpType') {
-            return await this.createAmpTypeControl(param, key, label, controlConfig);
-        }
-        if (key === 'guitarEffectType') {
-            return await this.createGuitarEffectControl(param, key, label, controlConfig);
-        }
-        if (key === 'micInstEffectType') {
-            return await this.createMicInstEffectControl(param, key, label, controlConfig);
-        }
-        
-        // Get current display value
-        let displayValue = this.getDisplayValue(param, param.current);
-        
-        // Check if this control is pedal controllable
-        const isPedalControl = controlConfig && controlConfig.pedalControl;
-        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
-        
-        // Create control HTML
-        control.innerHTML = `
-            <div class="parameter-fill"></div>
-            <div class="parameter-pedal-position"></div>
-            <div class="parameter-label">${label}</div>
-            <div class="parameter-value">${displayValue}</div>
-            ${pedalIndicator}
-            <input type="range" class="parameter-slider" 
-                   min="${param.min}" max="${param.max}" value="${param.current}"
-                   data-param-key="${key}">
-        `;
-        
-        // Update visual fill
-        const fill = control.querySelector('.parameter-fill');
-        const percentage = ((param.current - param.min) / (param.max - param.min)) * 100;
-        fill.style.width = `${percentage}%`;
-        
-        // Add interaction handling
-        this.addControlInteraction(control, key, param, isPedalControl);
-        
-        return control;
-    }
-    
-    /**
-     * Create looper control with buttons (similar to main app)
-     */
-    async createLooperControl(param, key, label, controlConfig) {
-        const control = document.createElement('div');
-        control.className = 'live-performance-control looper-control';
-        control.setAttribute('data-param-key', key);
-        
-        // Check if this control is pedal controllable
-        const isPedalControl = controlConfig && controlConfig.pedalControl;
-        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
-        
-        // Looper button definitions (same as main app)
-        const looperButtons = [
-            { icon: '🗑️', title: 'Erase Loop', label: 'Erase' },      // 0
-            { icon: '⏸️', title: 'Paused', label: 'Paused' },          // 1
-            { icon: '🔴', title: 'Recording', label: 'Record' },       // 2
-            { icon: '▶️', title: 'Playing', label: 'Play' },           // 3
-            { icon: '🔄', title: 'Overdub', label: 'Overdub' },        // 4
-            { icon: '⏯️', title: 'Standby', label: 'Standby' }         // 5
-        ];
-        
-        // Create buttons HTML
-        const buttonsHTML = looperButtons.map((btn, index) => `
-            <button class="btn-base btn-looper looper-btn-live ${param.current === index ? 'active' : ''}" 
-                    data-value="${index}" 
-                    title="${btn.title}">
-                <div class="btn-icon looper-icon">${btn.icon}</div>
-                <div class="btn-label looper-label">${btn.label}</div>
-            </button>
-        `).join('');
-        
-        // Create control HTML (no label to fit buttons on one line)
-        control.innerHTML = `
-            ${pedalIndicator}
-            <div class="btn-group--grid btn-group--grid-6 looper-buttons-live">
-                ${buttonsHTML}
-            </div>
-        `;
-        
-        // Add click handlers for buttons
-        const buttons = control.querySelectorAll('.looper-btn-live');
-        buttons.forEach(button => {
-            button.addEventListener('click', async (e) => {
-                const value = parseInt(button.getAttribute('data-value'));
-                
-                // Update button states
-                buttons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Update parameter via main app logic
-                if (window.updateParameterValue) {
-                    window.updateParameterValue(key, value);
-                }
+            const looperButtons = [
+                { icon: '🗑️', title: 'Erase Loop', label: 'Erase' },
+                { icon: '⏸️', title: 'Paused', label: 'Paused' },
+                { icon: '🔴', title: 'Recording', label: 'Record' },
+                { icon: '▶️', title: 'Playing', label: 'Play' },
+                { icon: '🔄', title: 'Overdub', label: 'Overdub' },
+                { icon: '⏯️', title: 'Standby', label: 'Standby' },
+            ];
+            const control = createLooperControlFactory(param, key, looperButtons, {
+                className: 'live-performance-control looper-control',
+                showPedalIndicator: isPedalControl,
+                onValueChange: (k, v) => bus.emit('param:update', k, v),
             });
-        });
-        
-        // Add pedal selection if enabled
-        if (isPedalControl) {
-            this.setupPedalSelection(control, key, param);
+            if (isPedalControl) this.setupPedalSelection(control, key, param);
+            return control;
         }
-        
-        return control;
-    }
-    
-    /**
-     * Create amp type control with buttons (similar to looper control)
-     */
-    async createAmpTypeControl(param, key, label, controlConfig) {
-        const control = document.createElement('div');
-        control.className = 'live-performance-control amp-type-control';
-        control.setAttribute('data-param-key', key);
-        
-        // Check if this control is pedal controllable
-        const isPedalControl = controlConfig && controlConfig.pedalControl;
-        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
-        
-        // Amp type button definitions
-        const ampTypeButtons = param.valueLabels.map((ampLabel, index) => ({
-            value: index,
-            label: ampLabel,
-            shortLabel: ampLabel.length > 8 ? ampLabel.substring(0, 8) + '...' : ampLabel
-        }));
-        
-        // Create buttons HTML
-        const buttonsHTML = ampTypeButtons.map((btn) => `
-            <button class="btn-base btn-effect amp-type-btn-live ${param.current === btn.value ? 'active' : ''}" 
-                    data-value="${btn.value}" 
-                    title="${btn.label}">
-                ${btn.shortLabel}
-            </button>
-        `).join('');
-        
-        // Create control HTML (no labels, just buttons like effect controls)
-        control.innerHTML = `
-            ${pedalIndicator}
-            <div class="btn-group amp-type-buttons-live">
-                ${buttonsHTML}
-            </div>
-        `;
-        
-        // Add click handlers for buttons
-        const buttons = control.querySelectorAll('.amp-type-btn-live');
-        buttons.forEach(button => {
-            button.addEventListener('click', async (e) => {
-                const value = parseInt(button.getAttribute('data-value'));
-                
-                // Update button states
-                buttons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Update parameter via main app logic
-                if (window.updateParameterValue) {
-                    window.updateParameterValue(key, value);
-                }
+
+        // Button groups: amp type, guitar effect type, mic/inst effect type
+        if (key === 'guitarAmpType' || key === 'guitarEffectType' || key === 'micInstEffectType') {
+            const labelMap = { guitarEffectType: 'Guitar effect type', micInstEffectType: 'Mic/Inst effect type' };
+            const control = createButtonGroupControl(param, key, {
+                className: `live-performance-control ${key.replace(/([A-Z])/g, '-$1').toLowerCase()}-control`,
+                label: labelMap[key],
+                showPedalIndicator: isPedalControl,
+                onValueChange: (k, v) => bus.emit('param:update', k, v),
+                onButtonClick: key === 'guitarEffectType' ? async (k, v, btn) => {
+                    try { await this.bossCubeController.switchGuitarEffect(param.valueLabels[v].toLowerCase()); this.log(`🎸 Switched to guitar effect: ${param.valueLabels[v]}`, 'info'); }
+                    catch (err) { this.log(`❌ Failed to switch guitar effect: ${err.message}`, 'error'); }
+                } : key === 'micInstEffectType' ? async (k, v, btn) => {
+                    try { await this.bossCubeController.switchMicInstEffect(param.valueLabels[v].toLowerCase()); this.log(`🎤 Switched to mic/inst effect: ${param.valueLabels[v]}`, 'info'); }
+                    catch (err) { this.log(`❌ Failed to switch mic/inst effect: ${err.message}`, 'error'); }
+                } : undefined,
             });
-        });
-        
-        // Add pedal selection if enabled
-        if (isPedalControl) {
-            this.setupPedalSelection(control, key, param);
+            if (isPedalControl) this.setupPedalSelection(control, key, param);
+            return control;
         }
-        
+
+        // Default: slider control
+        const control = createSliderControl(param, key, {
+            className: 'live-performance-control',
+            label,
+            showPedalIndicator: isPedalControl,
+            onValueChange: (k, v) => {
+                param.current = v;
+                this.checkAndActivatePickupMode(k, v);
+                this.updateParameter(k, v);
+            },
+            onSelect: (k) => { this.selectParameter(k, param); this.log(`🔘 Selected for pedal control: ${param.name}`, 'info'); },
+        });
+        if (isPedalControl) this.setupPedalSelection(control, key, param);
         return control;
     }
     
-    /**
-     * Create guitar effect type control with buttons
-     */
-    async createGuitarEffectControl(param, key, label, controlConfig) {
-        const control = document.createElement('div');
-        control.className = 'live-performance-control guitar-effect-control';
-        control.setAttribute('data-param-key', key);
-        
-        // Check if this control is pedal controllable
-        const isPedalControl = controlConfig && controlConfig.pedalControl;
-        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
-        
-        // Guitar effect button definitions
-        const guitarEffectButtons = param.valueLabels.map((effectLabel, index) => ({
-            value: index,
-            label: effectLabel,
-            dataEffect: effectLabel.toLowerCase()
-        }));
-        
-        // Create buttons HTML
-        const buttonsHTML = guitarEffectButtons.map((btn) => `
-            <button class="btn-base btn-effect guitar-effect-btn-live ${param.current === btn.value ? 'active' : ''}" 
-                    data-value="${btn.value}" 
-                    data-effect="${btn.dataEffect}"
-                    title="${btn.label}">
-                ${btn.label}
-            </button>
-        `).join('');
-        
-        // Create control HTML with tiny label
-        control.innerHTML = `
-            <div class="control-label">Guitar effect type</div>
-            ${pedalIndicator}
-            <div class="btn-group guitar-effect-buttons-live">
-                ${buttonsHTML}
-            </div>
-        `;
-        
-        // Add click handlers for buttons
-        const buttons = control.querySelectorAll('.guitar-effect-btn-live');
-        buttons.forEach(button => {
-            button.addEventListener('click', async (e) => {
-                const value = parseInt(button.getAttribute('data-value'));
-                const effectType = button.getAttribute('data-effect');
-                
-                // Update button states
-                buttons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Switch guitar effect via controller
-                try {
-                    await this.bossCubeController.switchGuitarEffect(effectType);
-                    this.log(`🎸 Switched to guitar effect: ${effectType}`, 'info');
-                } catch (error) {
-                    this.log(`❌ Failed to switch guitar effect: ${error.message}`, 'error');
-                }
-                
-                // Update virtual parameter
-                if (window.updateParameterValue) {
-                    window.updateParameterValue(key, value);
-                }
-            });
-        });
-        
-        // Add pedal selection if enabled
-        if (isPedalControl) {
-            this.setupPedalSelection(control, key, param);
-        }
-        
-        return control;
-    }
-    
-    /**
-     * Create mic/inst effect type control with buttons
-     */
-    async createMicInstEffectControl(param, key, label, controlConfig) {
-        const control = document.createElement('div');
-        control.className = 'live-performance-control mic-inst-effect-control';
-        control.setAttribute('data-param-key', key);
-        
-        // Check if this control is pedal controllable
-        const isPedalControl = controlConfig && controlConfig.pedalControl;
-        const pedalIndicator = isPedalControl ? '<div class="pedal-indicator">🦶</div>' : '';
-        
-        // Mic/Inst effect button definitions
-        const micInstEffectButtons = param.valueLabels.map((effectLabel, index) => ({
-            value: index,
-            label: effectLabel,
-            dataEffect: effectLabel.toLowerCase()
-        }));
-        
-        // Create buttons HTML
-        const buttonsHTML = micInstEffectButtons.map((btn) => `
-            <button class="btn-base btn-effect mic-inst-effect-btn-live ${param.current === btn.value ? 'active' : ''}" 
-                    data-value="${btn.value}" 
-                    data-effect="${btn.dataEffect}"
-                    title="${btn.label}">
-                ${btn.label}
-            </button>
-        `).join('');
-        
-        // Create control HTML with tiny label
-        control.innerHTML = `
-            <div class="control-label">Mic/Inst effect type</div>
-            ${pedalIndicator}
-            <div class="btn-group mic-inst-effect-buttons-live">
-                ${buttonsHTML}
-            </div>
-        `;
-        
-        // Add click handlers for buttons
-        const buttons = control.querySelectorAll('.mic-inst-effect-btn-live');
-        buttons.forEach(button => {
-            button.addEventListener('click', async (e) => {
-                const value = parseInt(button.getAttribute('data-value'));
-                const effectType = button.getAttribute('data-effect');
-                
-                // Update button states
-                buttons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Switch mic/inst effect via controller
-                try {
-                    await this.bossCubeController.switchMicInstEffect(effectType);
-                    this.log(`🎤 Switched to mic/inst effect: ${effectType}`, 'info');
-                } catch (error) {
-                    this.log(`❌ Failed to switch mic/inst effect: ${error.message}`, 'error');
-                }
-                
-                // Update parameter
-                if (window.updateParameterValue) {
-                    window.updateParameterValue(key, value);
-                }
-            });
-        });
-        
-        // Add pedal selection if enabled
-        if (isPedalControl) {
-            this.setupPedalSelection(control, key, param);
-        }
-        
-        return control;
-    }
-    
-    /**
-     * Add interaction handling to a control
-     */
-    addControlInteraction(control, key, param, isPedalControl = false) {
-        const slider = control.querySelector('.parameter-slider');
-        const cachedElements = {
-            control,
-            slider,
-            fill: control.querySelector('.parameter-fill'),
-            valueDisplay: control.querySelector('.parameter-value'),
-            param
-        };
-        
-        // Set up touch/mouse interaction for direct control manipulation
-        this.setupDirectInteraction(control, key, param, cachedElements);
-        
-        // Set up slider interaction for accessibility
-        this.setupSliderInteraction(slider, key, param, cachedElements);
-        
-        // Set up click selection for pedal-enabled controls
-        if (isPedalControl) {
-            this.setupPedalSelection(control, key, param);
-        }
-    }
-    
-    /**
-     * Set up direct touch/mouse interaction with long hold support
-     */
-    setupDirectInteraction(control, key, param, cachedElements) {
-        const interactionState = {
-            isDragging: false,
-            holdTimer: null,
-            hasMovedDuringHold: false,
-            startPosition: null
-        };
-        
-        // Mouse events
-        control.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            this.startInteraction(e, control, key, param, cachedElements, interactionState);
-            this.setupMouseMoveEnd(key, param, cachedElements, interactionState);
-        });
-        
-        // Touch events
-        control.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.startInteraction(e.touches[0], control, key, param, cachedElements, interactionState);
-        });
-        
-        control.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (interactionState.isDragging) {
-                this.handleInteractionMove(e.touches[0], control, key, param, cachedElements, interactionState);
-            }
-        });
-        
-        control.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            this.endInteraction(interactionState);
-        });
-        
-        control.addEventListener('contextmenu', (e) => e.preventDefault());
-    }
-    
-    /**
-     * Start interaction (mouse/touch down)
-     */
-    startInteraction(event, control, key, param, cachedElements, interactionState) {
-        interactionState.isDragging = true;
-        interactionState.hasMovedDuringHold = false;
-        interactionState.startPosition = { x: event.clientX, y: event.clientY };
-        
-        // Update parameter value immediately
-        this.updateParameterFromPosition(event, control, key, param, cachedElements);
-        
-        // Start hold timer for pedal selection
-        this.startHoldTimer(key, param, interactionState);
-    }
-    
-    /**
-     * Handle interaction movement
-     */
-    handleInteractionMove(event, control, key, param, cachedElements, interactionState) {
-        this.checkMovement(event, interactionState);
-        if (interactionState.hasMovedDuringHold) {
-            this.updateParameterFromPosition(event, control, key, param, cachedElements);
-        }
-    }
-    
-    /**
-     * Update parameter value based on touch/mouse position
-     */
-    updateParameterFromPosition(event, control, key, param, cachedElements) {
-        const rect = control.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const percentage = Math.max(0, Math.min(1, x / rect.width));
-        const value = Math.round(param.min + (param.max - param.min) * percentage);
-        
-        // Update parameter
-        param.current = value;
-        
-        // Check for pickup mode activation
-        this.checkAndActivatePickupMode(key, value);
-        
-        // Update display and hardware
-        this.updateControlDisplayFast(cachedElements, value);
-        this.updateParameter(key, value);
-        cachedElements.slider.value = value;
-    }
-    
-    /**
-     * Start hold timer for pedal selection
-     */
-    startHoldTimer(key, param, interactionState) {
-        interactionState.holdTimer = setTimeout(() => {
-            if (!interactionState.hasMovedDuringHold && interactionState.isDragging) {
-                this.selectParameter(key, param);
-                this.log(`🔘 Selected for pedal control: ${param.name}`, 'info');
-                
-                if (navigator.vibrate) {
-                    navigator.vibrate(LIVE_PERFORMANCE_CONSTANTS.VIBRATION_DURATION);
-                }
-            }
-        }, LIVE_PERFORMANCE_CONSTANTS.HOLD_DURATION);
-    }
-    
-    /**
-     * Check if movement exceeds threshold
-     */
-    checkMovement(event, interactionState) {
-        if (interactionState.startPosition) {
-            const deltaX = Math.abs(event.clientX - interactionState.startPosition.x);
-            const deltaY = Math.abs(event.clientY - interactionState.startPosition.y);
-            
-            if (deltaX > LIVE_PERFORMANCE_CONSTANTS.MOVEMENT_THRESHOLD || 
-                deltaY > LIVE_PERFORMANCE_CONSTANTS.MOVEMENT_THRESHOLD) {
-                interactionState.hasMovedDuringHold = true;
-                this.clearHoldTimer(interactionState);
-            }
-        }
-    }
-    
-    /**
-     * Set up mouse move and end listeners
-     */
-    setupMouseMoveEnd(key, param, cachedElements, interactionState) {
-        const handleMouseMove = (e) => {
-            if (interactionState.isDragging) {
-                this.handleInteractionMove(e, null, key, param, cachedElements, interactionState);
-            }
-        };
-        
-        const handleMouseUp = () => {
-            this.endInteraction(interactionState);
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-        
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    }
-    
-    /**
-     * End interaction and cleanup
-     */
-    endInteraction(interactionState) {
-        this.clearHoldTimer(interactionState);
-        interactionState.isDragging = false;
-        interactionState.hasMovedDuringHold = false;
-        interactionState.startPosition = null;
-    }
-    
-    /**
-     * Clear hold timer
-     */
-    clearHoldTimer(interactionState) {
-        if (interactionState.holdTimer) {
-            clearTimeout(interactionState.holdTimer);
-            interactionState.holdTimer = null;
-        }
-    }
-    
-    /**
-     * Set up slider interaction for accessibility
-     */
-    setupSliderInteraction(slider, key, param, cachedElements) {
-        slider.addEventListener('input', (e) => {
-            const value = parseInt(e.target.value);
-            param.current = value;
-            
-            // Check for pickup mode activation
-            this.checkAndActivatePickupMode(key, value);
-            
-            // Update display and hardware
-            this.updateControlDisplayFast(cachedElements, value);
-            this.updateParameter(key, value);
-        });
-    }
-    
-    /**
-     * Set up pedal selection for pedal-enabled controls
-     */
     setupPedalSelection(control, key, param) {
         control.addEventListener('click', (e) => {
-            // Only handle click if not part of drag operation
             if (!e.defaultPrevented) {
                 this.selectParameter(key, param);
-                this.updateParameterSelectionUI();
+                const allControls = document.querySelectorAll('.live-performance-control');
+                allControls.forEach(c => c.classList.remove('current'));
             }
         });
     }
-    
+
     /**
-     * Update parameter selection UI
-     */
-    updateParameterSelectionUI() {
-        const allControls = document.querySelectorAll('.live-performance-control');
-        allControls.forEach(c => c.classList.remove('current'));
-        // Current control will be marked by selectParameter method
-    }
-    
-    /**
-     * Fast display update for controls (using requestAnimationFrame)
-     */
-    updateControlDisplayFast(cachedElements, value) {
-        const { fill, valueDisplay, slider, param } = cachedElements;
-        
-        // Use the same batching system as main controls
-        const paramKey = cachedElements.control.getAttribute('data-param-key');
-        
-        // Add to pending animation updates (assumes access to global pendingAnimationUpdates)
-        if (window.pendingAnimationUpdates) {
-            window.pendingAnimationUpdates.set(paramKey, { 
-                control: cachedElements.control, 
-                value, 
-                min: param.min, 
-                max: param.max 
-            });
-            
-            if (window.pendingAnimationUpdates.size === 1) {
-                requestAnimationFrame(window.processPendingAnimationUpdates);
-            }
-        } else {
-            // Fallback direct update
-            const percentage = ((value - param.min) / (param.max - param.min)) * 100;
-            fill.style.width = `${percentage}%`;
-        }
-        
-        // Fast value display update
-        const displayValue = this.getDisplayValue(param, value);
-        if (valueDisplay.textContent !== displayValue) {
-            valueDisplay.textContent = displayValue;
-        }
-        
-        // Update slider value
-        slider.value = value;
-    }
-    
-    /**
-     * Get formatted display value for parameter
+     * Get formatted display value for parameter (delegates to shared factory)
      */
     getDisplayValue(param, value) {
-        if (param.valueLabels && param.valueLabels[value] !== undefined) {
-            return param.valueLabels[value];
-        } else if (param.displayValue && typeof param.displayValue === 'function') {
-            return param.displayValue(value);
-        } else {
-            return `${value}/${param.max}`;
-        }
+        return getDisplayValue(param, value);
     }
     
     /**
@@ -1226,20 +708,7 @@ export class LivePerformance {
                 
                 for (const [paramKey, paramValue] of updates) {
                     try {
-                        // Use main app's parameter update function to ensure all logic (including looper volume) is triggered
-                        if (window.updateParameterValue) {
-                            window.updateParameterValue(paramKey, paramValue);
-                        } else {
-                            // Fallback to direct method if main app function not available
-                            if (this.bossCubeController.isCubeConnected) {
-                                await this.bossCubeController.setParameter(paramKey, paramValue);
-                            }
-                            
-                            // Always update main interface
-                            if (window.updateParameterDisplay) {
-                                window.updateParameterDisplay(paramKey, paramValue);
-                            }
-                        }
+                        bus.emit('param:update', paramKey, paramValue);
                     } catch (error) {
                         this.log(`Failed to update ${paramKey}: ${error.message}`, 'error');
                     }
@@ -2158,13 +1627,7 @@ export class LivePerformance {
             // In pickup mode - show pedal position indicator only
             PedalUtils.updatePedalPositionIndicator(parameterKey, value, parameter, '.live-performance-control');
         } else {
-            // Normal mode - trigger main app logic first, then update Live Performance display
-            // Also trigger main app parameter update logic (including looper volume)
-            if (window.updateParameterValue) {
-                window.updateParameterValue(parameterKey, value);
-            }
-            
-            // Update the Live Performance display (this will be updated again by looper volume logic if needed)
+            bus.emit('param:update', parameterKey, value);
             this.updateLivePerformanceDisplay(parameterKey, value);
         }
     }
@@ -2245,91 +1708,18 @@ export class LivePerformance {
      */
     updateLivePerformanceDisplay(parameterKey, value) {
         const control = document.querySelector(`.live-performance-control[data-param-key="${parameterKey}"]`);
-        if (!control) {
-            return;
-        }
+        if (!control) return;
 
         const param = this.bossCubeController.parameters[parameterKey];
-        if (!param) {
-            return;
-        }
+        if (!param) return;
 
-        // Update the parameter value in the controller
         param.current = value;
 
-        // Special handling for button-based controls
-        if (parameterKey === 'looperControl') {
-            // Update looper button states
-            const buttons = control.querySelectorAll('.looper-btn-live');
-            buttons.forEach(btn => {
-                const btnValue = parseInt(btn.getAttribute('data-value'));
-                if (btnValue === value) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            return; // Skip slider update for looper control
-        }
-        
-        if (parameterKey === 'guitarAmpType') {
-            // Update amp type button states
-            const buttons = control.querySelectorAll('.amp-type-btn-live');
-            buttons.forEach(btn => {
-                const btnValue = parseInt(btn.getAttribute('data-value'));
-                if (btnValue === value) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            return; // Skip slider update for amp type
-        }
-        
-        if (parameterKey === 'guitarEffectType') {
-            // Update guitar effect button states
-            const buttons = control.querySelectorAll('.guitar-effect-btn-live');
-            buttons.forEach(btn => {
-                const btnValue = parseInt(btn.getAttribute('data-value'));
-                if (btnValue === value) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            return; // Skip slider update for guitar effect type
-        }
-        
-        if (parameterKey === 'micInstEffectType') {
-            // Update mic/inst effect button states
-            const buttons = control.querySelectorAll('.mic-inst-effect-btn-live');
-            buttons.forEach(btn => {
-                const btnValue = parseInt(btn.getAttribute('data-value'));
-                if (btnValue === value) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            return; // Skip slider update for mic/inst effect type
-        }
-
-        // Update visual elements for regular slider controls
-        const fill = control.querySelector('.parameter-fill');
-        const valueDisplay = control.querySelector('.parameter-value');
-        const slider = control.querySelector('.parameter-slider');
-
-        if (fill && valueDisplay && slider) {
-            // Update fill percentage
-            const percentage = ((value - param.min) / (param.max - param.min)) * 100;
-            fill.style.width = `${percentage}%`;
-
-            // Update value display
-            const displayValue = this.getDisplayValue(param, value);
-            valueDisplay.textContent = displayValue;
-
-            // Update slider
-            slider.value = value;
+        const isButtonControl = ['looperControl', 'guitarAmpType', 'guitarEffectType', 'micInstEffectType'].includes(parameterKey);
+        if (isButtonControl) {
+            updateButtonGroupDisplay(control, value);
+        } else {
+            updateControlDisplay(control, param, parameterKey, value);
         }
     }
 
