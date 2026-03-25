@@ -88,7 +88,7 @@ export const INTERACTION = {
 
 // Application version configuration
 export const VERSION_CONFIG = {
-    CURRENT_VERSION: 'v2.26.1-alpha.6'
+    CURRENT_VERSION: 'v2.27.0'
 };
 
 // Master Out binding configuration

@@ -11,8 +11,9 @@ import {
     getDisplayValue, updateControlDisplay, updateButtonGroupDisplay,
     queueFillUpdate,
 } from './control-factory.js';
+import { initVersionSwitcher } from './version-switcher.js';
 
-const VERSION = '2.26.1-alpha.6';
+const VERSION = '2.27.0';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -201,10 +202,10 @@ if (typeof document !== 'undefined') {
 }
 
 function initializeVersioning() {
-    // Display current version
     if (versionTextEl) {
         versionTextEl.textContent = `v${VERSION}`;
     }
+    initVersionSwitcher(VERSION);
     
     // Always show refresh button for development versions (alpha, beta, rc)
     if (VERSION.includes('-alpha') || VERSION.includes('-beta') || VERSION.includes('-rc')) {
