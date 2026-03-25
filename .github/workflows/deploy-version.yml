@@ -170,10 +170,27 @@ jobs:
                         document.getElementById('versionList').innerHTML =
                             '<div class="loading">Failed to load versions.</div>';
                     });
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('sw.js');
+                }
             </script>
         </body>
         </html>
         HTMLEOF
+
+    - name: 🧹 Create root cleanup SW (replaces old cache-first SW)
+      run: |
+        cat > gh-pages/sw.js <<'        SWEOF'
+        self.addEventListener('install', function() { self.skipWaiting(); });
+        self.addEventListener('activate', function(e) {
+          e.waitUntil(
+            caches.keys().then(function(names) {
+              return Promise.all(names.map(function(n) { return caches.delete(n); }));
+            }).then(function() { return self.clients.claim(); })
+          );
+        });
+        self.addEventListener('fetch', function(e) { e.respondWith(fetch(e.request)); });
+        SWEOF
 
     - name: 🚀 Deploy to gh-pages
       working-directory: gh-pages
