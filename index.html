@@ -40,7 +40,10 @@
                 🎹 Pedal: Not connected
             </div>
             
-
+            <div id="hardwareBadges" class="hardware-badges" style="display: none;">
+                <span id="powerBadge" class="hw-badge"></span>
+                <span id="inputBadge" class="hw-badge"></span>
+            </div>
         </div>
         
         <div class="controls-section">
@@ -71,8 +74,20 @@
 
         </div>
         
-        <div id="log" class="log">
-            <div class="log-entry info">Ready to connect...</div>
+        <div class="log-panel">
+            <div class="log-panel-controls">
+                <label>Log: </label>
+                <select id="logVerbosity" class="log-verbosity-select">
+                    <option value="minimal">Minimal</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="verbose">Verbose</option>
+                </select>
+                <button id="saveLogsBtn" class="btn-small">💾 Save Logs</button>
+                <button id="toggleLogBtn" class="btn-small">▼ Show</button>
+            </div>
+            <div id="log" class="log" style="display: none;">
+                <div class="log-entry info">Ready to connect...</div>
+            </div>
         </div>
     </div>
 
@@ -138,6 +153,40 @@
         <h4>🔗 Master Out Binding</h4>
         <p>Use the Aux volume knob to control Master Out volume. This is a workaround for the missing physical Master Out knob on the Boss Cube II.</p>
         <p><strong>When enabled:</strong> Turning the Aux knob will move both sliders and control the Master Out volume.</p>
+    </div>
+
+    <!-- Tuner Modal (overlays everything including live performance) -->
+    <div id="tunerModal" class="tuner-modal" style="display: none;">
+        <div class="tuner-modal-content">
+            <button id="tunerModalClose" class="tuner-modal-close">✕</button>
+            <h3>🎵 Tuner</h3>
+            <div class="tuner-modal-visual">
+                <div id="modalTunerNoteDisplay" class="tuner-note-display">--</div>
+                <div id="modalTunerFrequencyDisplay" class="tuner-frequency-display">--Hz</div>
+                <div class="tuner-meter">
+                    <div class="tuner-scale">
+                        <span>♭</span>
+                        <span>-20</span>
+                        <span>-10</span>
+                        <span>0</span>
+                        <span>+10</span>
+                        <span>+20</span>
+                        <span>♯</span>
+                    </div>
+                    <div id="modalTunerNeedle" class="tuner-needle" style="left: 50%; opacity: 0;"></div>
+                </div>
+            </div>
+            <div class="tuner-modal-controls">
+                <button id="modalTunerModeBtn" class="btn tuner-mode-btn">Chromatic</button>
+                <select id="modalTunerKeySelect" class="tuner-key-select" style="display: none;">
+                    <option value="0">C</option><option value="1">Db</option><option value="2">D</option>
+                    <option value="3">Eb</option><option value="4">E</option><option value="5">F</option>
+                    <option value="6">Gb</option><option value="7">G</option><option value="8">Ab</option>
+                    <option value="9">A</option><option value="10">Bb</option><option value="11">B</option>
+                </select>
+                <div id="modalTunerPitchControls" class="tuner-pitch-controls"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Live Performance Overlay -->

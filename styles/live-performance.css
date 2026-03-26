@@ -33,12 +33,6 @@
     flex-shrink: 0;
 }
 
-.live-performance-header h2 {
-    margin: 0;
-    font-size: 1.2em;
-    font-weight: bold;
-}
-
 .live-performance-close {
     background: none;
     border: none;
@@ -186,6 +180,32 @@
     opacity: 1;
 }
 
+.live-performance-control.unified-inactive {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+/* Keep looper buttons on a single row in Live Performance */
+.live-performance-control .btn-group--grid-6 {
+    grid-template-columns: repeat(6, 1fr) !important;
+}
+
+.live-performance-control.looper-control {
+    overflow: visible;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* Looper assigns: full-width toggle row */
+.live-performance-control.looper-assigns-control {
+    display: block;
+    padding: 6px;
+}
+
+.live-performance-control.looper-assigns-control .looper-settings-improved {
+    margin: 0;
+}
+
 @media (max-width: 768px) {
     .live-performance-header {
         padding: 12px 16px;
@@ -193,29 +213,17 @@
         gap: 8px;
     }
     
-    .live-performance-header h2 {
-        font-size: 0;
-        order: 1;
-        width: auto;
-        text-align: center;
-        margin: 0;
-    }
-    
-    .live-performance-header h2::after {
-        content: "🎭";
-        font-size: 1.5rem;
-    }
-    
     .header-actions {
-        order: 2;
         width: auto;
         justify-content: center;
-        gap: 8px;
+        gap: 6px;
         flex: 1;
+        min-width: 0;
     }
     
     .preset-select-header {
-        min-width: 140px;
+        min-width: 0;
+        flex: 1 1 100px;
         font-size: 0.8em;
         padding: 6px 8px;
     }
@@ -223,11 +231,13 @@
     .config-btn {
         font-size: 1em;
         padding: 6px 8px;
+        flex-shrink: 0;
     }
     
     .live-performance-close {
         padding: 6px 8px;
         font-size: 1em;
+        flex-shrink: 0;
     }
     
     .live-performance-content {
@@ -536,7 +546,8 @@
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    flex: 1;
 }
 
 .preset-select-header {
@@ -547,7 +558,8 @@
     padding: 8px 12px;
     font-size: 0.9em;
     cursor: pointer;
-    min-width: 200px;
+    min-width: 0;
+    flex: 1 1 120px;
     outline: none;
     transition: all 0.2s;
 }
@@ -823,6 +835,7 @@
     gap: 12px;
     cursor: move;
     transition: all 0.2s;
+    flex-wrap: wrap;
 }
 
 .selected-control-item:hover {
@@ -831,15 +844,20 @@
 
 .selected-control-item.dragging {
     opacity: 0.5;
-    transform: rotate(5deg);
+}
+
+.selected-control-item.dragging-touch {
+    opacity: 0.9;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    background: var(--surface, #fff);
 }
 
 .drag-placeholder {
-    opacity: 0.7;
-    background: #f0f0f0 !important;
-    border: 2px dashed #007bff !important;
+    background: var(--surface-dim, #e9ecef);
+    border: 2px dashed var(--border-strong, #007bff);
     border-radius: 6px;
     box-sizing: border-box;
+    transition: none;
 }
 
 .drag-handle {
@@ -903,6 +921,74 @@
 .pedal-control-checkbox:hover {
     border-color: #2196F3;
     background: rgba(33, 150, 243, 0.1);
+}
+
+.mapping-config-btn {
+    background: none;
+    border: 1px solid var(--border-strong, #ccc);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    line-height: 1;
+}
+
+.mapping-config-btn:hover {
+    background: var(--surface-dim, #f0f0f0);
+}
+
+.mapping-config-panel {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--surface-dim, #f5f5f5);
+    border-radius: 4px;
+    border: 1px solid var(--border, #ddd);
+    font-size: 0.85em;
+}
+
+.mapping-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border, #eee);
+}
+
+.mapping-row:last-child {
+    border-bottom: none;
+}
+
+.mapping-effect-label {
+    min-width: 70px;
+    font-weight: 600;
+    color: var(--text-muted, #666);
+    padding-top: 2px;
+}
+
+.mapping-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+}
+
+.mapping-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.mapping-checkbox input[type="checkbox"] {
+    margin: 0;
+    width: 14px;
+    height: 14px;
+}
+
+.mapping-checkbox span {
+    font-size: 0.85em;
+    color: var(--text, #333);
 }
 
 .pedal-control-info {

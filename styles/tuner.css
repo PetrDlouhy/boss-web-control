@@ -1,3 +1,125 @@
+/* Tuner Modal Overlay */
+.tuner-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.tuner-modal-content {
+    background: #1a2332;
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    color: #ecf0f1;
+    text-align: center;
+}
+
+.tuner-modal-content h3 {
+    margin: 0 0 16px;
+    font-size: 1.4em;
+}
+
+.tuner-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #95a5a6;
+    font-size: 1.4em;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.tuner-modal-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tuner-modal-visual {
+    margin: 12px 0;
+}
+
+.tuner-modal-visual .tuner-note-display {
+    font-size: 3em;
+    font-weight: bold;
+    color: #3498db;
+    margin-bottom: 4px;
+}
+
+.tuner-modal-visual .tuner-frequency-display {
+    font-size: 1.2em;
+    color: #bdc3c7;
+    margin-bottom: 16px;
+}
+
+.tuner-modal-visual .tuner-meter {
+    background: #2c3e50;
+    height: 50px;
+    border-radius: 25px;
+    position: relative;
+    margin: 16px 0;
+    overflow: hidden;
+}
+
+.tuner-modal-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.tuner-mode-btn {
+    min-width: 100px;
+}
+
+.tuner-mode-btn.active {
+    background: #2980b9;
+    color: #fff;
+}
+
+.tuner-key-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 2px solid #3498db;
+    background: #1a2332;
+    color: #ecf0f1;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.tuner-pitch-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    color: #bdc3c7;
+}
+
+.tuner-pitch-controls .pitch-label {
+    white-space: nowrap;
+}
+
+.tuner-pitch-controls select {
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #1a2332;
+    color: #ecf0f1;
+    font-size: 0.95em;
+}
+
 /* Tuner Section Styles */
 .tuner-container {
     display: flex;
@@ -44,14 +166,20 @@
 .tuner-needle {
     position: absolute;
     top: 50%;
-    width: 3px;
-    height: 60%;
+    width: 4px;
+    height: 70%;
     background: #e74c3c;
     transform: translate(-50%, -50%);
-    transition: left 0.1s ease;
+    transition: left 0.15s ease-out, opacity 0.2s ease;
     z-index: 3;
-    border-radius: 1px;
-    box-shadow: 0 0 4px rgba(231, 76, 60, 0.8);
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(231, 76, 60, 0.8);
+    will-change: left;
+}
+
+.tuner-needle.in-tune {
+    background: #27ae60;
+    box-shadow: 0 0 8px rgba(39, 174, 96, 0.8);
 }
 
 

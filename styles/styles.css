@@ -231,6 +231,24 @@ h5 {
     border-color: #4caf50;
 }
 
+.hardware-badges {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.hw-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+}
+
 .current-parameter {
     padding: 8px 12px;
     border-radius: 6px;
@@ -444,7 +462,7 @@ h5 {
 
 .effect-btn {
     background: var(--surface);
-    border: 2px solid #2196F3;
+    border: 2px solid var(--border, #ccc);
     border-radius: 6px;
     padding: 8px 12px;
     font-size: 0.9em;
@@ -463,14 +481,47 @@ h5 {
 
 .effect-btn:focus {
     outline: none;
-    border-color: #1976D2;
     box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
 }
 
 .effect-btn.active {
+    border-color: #2196F3;
+    transform: translateY(-1px);
+}
+
+.effect-btn.effect-on {
     background: #4CAF50;
     color: white;
-    transform: translateY(-1px);
+}
+
+.reverb-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.reverb-toggle-btn {
+    padding: 4px 10px;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.8em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reverb-toggle-btn.on {
+    background: #4CAF50;
+    border-color: #4CAF50;
+    color: #fff;
+}
+
+.reverb-toggle-label {
+    font-size: 0.85em;
+    color: var(--text-secondary, #666);
 }
 
 .parameter-grid {
@@ -589,13 +640,38 @@ h5 {
     margin-bottom: 8px;
 }
 
-.log {
+.log-panel {
     margin-top: 16px;
+}
+
+.log-panel-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface-alt, #f5f5f5);
+    border-radius: 8px;
+    font-size: 0.85em;
+}
+
+.log-panel-controls label {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.log-verbosity-select {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border, #ccc);
+    background: var(--surface);
+    font-size: 0.9em;
+}
+
+.log {
     padding: 12px;
     background: var(--log-bg);
-    border-radius: 8px;
-    max-height: 500px;
-    height: 500px;
+    border-radius: 0 0 8px 8px;
+    max-height: 400px;
     overflow-y: auto;
     font-family: monospace;
     font-size: 0.75em;
@@ -1206,8 +1282,8 @@ h5 {
 /* Standard Effect Button (Blue theme) */
 .btn-effect {
     background: var(--surface);
-    border: 2px solid #2196F3;
-    color: #2196F3;
+    border: 2px solid var(--border, #ccc);
+    color: var(--text);
     padding: 6px 8px;
     font-size: 0.8em;
     flex: 1;
@@ -1220,14 +1296,17 @@ h5 {
 }
 
 .btn-effect:focus {
-    border-color: #1976D2;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
 }
 
 .btn-effect.active {
+    border-color: #2196F3;
+    transform: translateY(-1px);
+}
+
+.btn-effect.effect-on {
     background: #4CAF50;
     color: white;
-    border-color: #4CAF50;
-    transform: translateY(-1px);
 }
 
 /* Looper Button (Gray/Green theme) */

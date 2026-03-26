@@ -34,6 +34,9 @@ export class BossCubeCommunication {
         // Notification maintenance
         this.notificationMaintenanceTimer = null;
         
+        // GATT write queue — BLE allows only one writeValue() at a time
+        this._gattQueue = Promise.resolve();
+        
         // Event callbacks
         this.onLog = null;
         this.onParameterUpdate = null;
@@ -49,6 +52,22 @@ export class BossCubeCommunication {
         if (this.onLog) {
             this.onLog(message, type);
         }
+    }
+
+    /**
+     * Enqueue a GATT write operation so only one writeValue() runs at a time.
+     */
+    _enqueueGattWrite(operation) {
+        let resolve, reject;
+        const result = new Promise((res, rej) => { resolve = res; reject = rej; });
+        this._gattQueue = this._gattQueue.then(async () => {
+            try {
+                resolve(await operation());
+            } catch (err) {
+                reject(err);
+            }
+        });
+        return result;
     }
 
     /**
@@ -74,13 +93,60 @@ export class BossCubeCommunication {
     }
 
     /**
-     * Connect to Boss Cube via Web Bluetooth
+     * Try to auto-reconnect to a previously paired Boss Cube device.
+     * Uses watchAdvertisements() to detect the device, then connects.
+     */
+    async tryAutoReconnect() {
+        if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return false;
+
+        try {
+            const devices = await navigator.bluetooth.getDevices();
+            const cubeDevice = devices.find(d => d.name && d.name.startsWith('CUBE'));
+            if (!cubeDevice) return false;
+
+            this.log('🔄 Scanning for Boss Cube...', 'info');
+            await this.waitForDevice(cubeDevice, 8000);
+            this.log('📡 Boss Cube detected, connecting...', 'info');
+            return await this.connectToDevice(cubeDevice);
+        } catch (error) {
+            this.log(`Auto-reconnect: ${error.message}`, 'info');
+            return false;
+        }
+    }
+
+    waitForDevice(device, timeoutMs) {
+        return new Promise((resolve, reject) => {
+            const abortCtrl = new AbortController();
+
+            const timer = setTimeout(() => {
+                device.removeEventListener('advertisementreceived', onAdvert);
+                abortCtrl.abort();
+                reject(new Error('Boss Cube not found nearby (timeout)'));
+            }, timeoutMs);
+
+            const onAdvert = () => {
+                clearTimeout(timer);
+                device.removeEventListener('advertisementreceived', onAdvert);
+                abortCtrl.abort();
+                resolve();
+            };
+
+            device.addEventListener('advertisementreceived', onAdvert);
+            device.watchAdvertisements({ signal: abortCtrl.signal }).catch(() => {
+                clearTimeout(timer);
+                reject(new Error('watchAdvertisements not supported'));
+            });
+        });
+    }
+
+    /**
+     * Connect to Boss Cube via Web Bluetooth (shows device picker)
      */
     async connect() {
         try {
             this.log('🔍 Requesting Boss Cube device...', 'info');
             
-            this.device = await navigator.bluetooth.requestDevice({
+            const device = await navigator.bluetooth.requestDevice({
                 filters: [
                     { namePrefix: 'CUBE' },
                     { services: [BLE_MIDI_SERVICE] }
@@ -88,43 +154,7 @@ export class BossCubeCommunication {
                 optionalServices: [BLE_MIDI_SERVICE]
             });
 
-            this.log(`📱 Selected device: ${this.device.name}`, 'info');
-
-            this.device.addEventListener('gattserverdisconnected', () => {
-                this.handleDisconnection();
-            });
-
-            this.log('🔌 Connecting to GATT server...', 'info');
-            this.server = await this.device.gatt.connect();
-            
-            this.log('🎵 Getting MIDI service...', 'info');
-            const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
-            
-            this.log('📡 Getting MIDI characteristic...', 'info');
-            this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
-            
-            this.log('🔔 Starting notifications...', 'info');
-            await this.characteristic.startNotifications();
-            
-            this.characteristic.addEventListener('characteristicvaluechanged', (event) => {
-                this.handleMIDIData(event.target.value);
-            });
-
-            this.isConnected = true;
-            this.notifyConnectionStatusChange(true);
-            
-            // Test connection
-            await this.testConnection();
-            
-            // Enable continuous notifications
-            await this.enableContinuousNotifications();
-            
-            // Start notification maintenance
-            this.startNotificationMaintenance();
-            
-            this.log('✅ Boss Cube connected successfully!', 'success');
-            
-            return true;
+            return await this.connectToDevice(device);
             
         } catch (error) {
             this.log(`❌ Boss Cube connection failed: ${error.message}`, 'error');
@@ -132,6 +162,49 @@ export class BossCubeCommunication {
             this.notifyConnectionStatusChange(false);
             throw error;
         }
+    }
+
+    async connectToDevice(device) {
+        this.device = device;
+        this.log(`📱 Selected device: ${this.device.name}`, 'info');
+
+        if (!this._boundDisconnectHandler) {
+            this._boundDisconnectHandler = () => this.handleDisconnection();
+        }
+        this.device.removeEventListener('gattserverdisconnected', this._boundDisconnectHandler);
+        this.device.addEventListener('gattserverdisconnected', this._boundDisconnectHandler);
+
+        this.log('🔌 Connecting to GATT server...', 'info');
+        this.server = await this.device.gatt.connect();
+        
+        this.log('🎵 Getting MIDI service...', 'info');
+        const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
+        
+        this.log('📡 Getting MIDI characteristic...', 'info');
+        this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
+        
+        this.log('🔔 Starting notifications...', 'info');
+        await this.characteristic.startNotifications();
+        
+        this.characteristic.addEventListener('characteristicvaluechanged', (event) => {
+            this.handleMIDIData(event.target.value);
+        });
+
+        this.isConnected = true;
+        this.notifyConnectionStatusChange(true);
+        
+        // Test connection
+        await this.testConnection();
+        
+        // Enable continuous notifications
+        await this.enableContinuousNotifications();
+        
+        // Start notification maintenance
+        this.startNotificationMaintenance();
+        
+        this.log('✅ Boss Cube connected successfully!', 'success');
+        
+        return true;
     }
 
     /**
@@ -301,7 +374,7 @@ export class BossCubeCommunication {
         
         // Calculate cents deviation from 6-bit tuning value
         const tunerValue = (tunerHigh << 4) | tunerLow;  // Combine to 6-bit value (0-47)
-        const centsDeviation = (tunerValue - 18) * 3;    // Center=18, scale=3¢ per step
+        const centsDeviation = (tunerValue - 19) * 3;    // Center=19, scale=3¢ per step
         
         // Calculate frequency from note + cents
         const baseFrequency = 440 * Math.pow(2, (midiNote - 69) / 12);  // A4=440Hz, MIDI 69
@@ -309,7 +382,7 @@ export class BossCubeCommunication {
         
         // Calculate signal strength and status
         const signalStrength = (signalByte / 127) * 100;
-        const status = Math.abs(centsDeviation) < 3 ? 'In Tune' 
+        const status = Math.abs(centsDeviation) <= 3 ? 'In Tune' 
                      : centsDeviation > 0 ? 'Sharp' : 'Flat';
         
         // Log tuner data with raw bytes
@@ -350,40 +423,50 @@ export class BossCubeCommunication {
         const command = sysexData[7]; // 0x12 for response to read request
         
         if (command === 0x12) {
-            // Data response - extract address and value
+            // DT1 (Data Set 1) — extract address and value(s)
             const addressBytes = sysexData.slice(8, 12);
             const addressStr = addressBytes.map(b => b.toString(16).padStart(2, '0')).join('');
             const isTunerData = addressStr === '7f000300';
             
-            // Calculate value size and position
-            const valueBytes = sysexData.length - 13; // SysEx length minus header, command, address, and checksum
-            const valueStart = 12;
-            const valueEnd = sysexData.length - 1;
+            const dataByteCount = sysexData.length - 13; // total minus header(7)+cmd(1)+addr(4)+checksum(1)
+            const dataStart = 12;
+            const dataEnd = sysexData.length - 1;
             
-            if (valueBytes <= 0) {
-                this.log(`⚠️ Invalid SysEx message: no value bytes detected (length=${sysexData.length})`, 'warning');
+            if (dataByteCount <= 0) {
+                this.log(`⚠️ Invalid SysEx message: no data bytes (length=${sysexData.length})`, 'warning');
                 return;
             }
             
-            let value;
-            if (isTunerData && valueBytes === 6) {
-                // Decode 6-byte tuner data
-                const tunerBytes = sysexData.slice(valueStart, valueEnd);
-                value = this.decodeTunerData(tunerBytes) || 0;
-            } else if (valueBytes === 1) {
-                // Single-byte parameter
-                value = sysexData[valueStart];
+            if (isTunerData && dataByteCount === 6) {
+                const tunerBytes = sysexData.slice(dataStart, dataEnd);
+                const value = this.decodeTunerData(tunerBytes) || 0;
+                this.updateParameterFromCube(addressBytes, value, false);
+            } else if (dataByteCount === 1) {
+                this.updateParameterFromCube(addressBytes, sysexData[dataStart], false);
+            } else if (this.isMultiByteParameter(addressStr)) {
+                // Known multi-byte value (e.g. delay time) — Roland 7-bit decoding
+                let value = 0;
+                for (let i = 0; i < dataByteCount; i++) {
+                    value = (value << 7) | sysexData[dataStart + i];
+                }
+                this.updateParameterFromCube(addressBytes, value, false);
             } else {
-                // Multi-byte parameter using Roland 7-bit format
-                value = 0;
-                for (let i = 0; i < valueBytes; i++) {
-                    value = (value << 7) | sysexData[valueStart + i];
+                // DT1 block write: consecutive single-byte parameters starting at address
+                const addr = [...addressBytes];
+                for (let i = 0; i < dataByteCount; i++) {
+                    this.updateParameterFromCube([...addr], sysexData[dataStart + i], false);
+                    addr[3]++;
+                    if (addr[3] > 0x7F) { addr[3] = 0; addr[2]++; }
+                    if (addr[2] > 0x7F) { addr[2] = 0; addr[1]++; }
                 }
             }
-            
-            // Update parameter
-            this.updateParameterFromCube(addressBytes, value, false);
         }
+    }
+
+    // Parameters that use Roland 7-bit multi-byte encoding (not block writes)
+    static MULTI_BYTE_ADDRESSES = new Set(['10000061', '1000002f', '7f000300']);
+    isMultiByteParameter(addressStr) {
+        return BossCubeCommunication.MULTI_BYTE_ADDRESSES.has(addressStr);
     }
 
     /**
@@ -434,22 +517,15 @@ export class BossCubeCommunication {
             throw new Error('Boss Cube not connected');
         }
         
-        const dataBytes = [...BOSS_CUBE_HEADER, ...address, value];
-        const checksum = this.rolandChecksum(dataBytes.slice(5)); // Exclude header for checksum
-        const sysexData = [...dataBytes, checksum];
-        
-        const command = this.createBLEMidiCommand(sysexData);
-        
-        try {
+        return this._enqueueGattWrite(async () => {
+            const dataBytes = [...BOSS_CUBE_HEADER, ...address, value];
+            const checksum = this.rolandChecksum(dataBytes.slice(5));
+            const sysexData = [...dataBytes, checksum];
+            const command = this.createBLEMidiCommand(sysexData);
+            
             await this.characteristic.writeValue(command);
-            
-            // Small delay to prevent overwhelming the device
             await new Promise(resolve => setTimeout(resolve, SYSEX_CONFIG.COMMAND_DELAY));
-            
-        } catch (error) {
-            this.log(`❌ Failed to send parameter command: ${error.message}`, 'error');
-            throw error;
-        }
+        });
     }
 
     /**
@@ -460,31 +536,26 @@ export class BossCubeCommunication {
             throw new Error('Boss Cube not connected');
         }
         
-        // Track this read request for physical knob detection
         const addressKey = address.map(b => b.toString(16).padStart(2, '0')).join('');
         this.pendingReadRequests.set(addressKey, Date.now());
         
-        // Boss Cube specific read request (based on working v2.22.1)
-        const readHeader = [...BOSS_CUBE_HEADER];
-        readHeader[7] = 0x11; // Change command from 0x12 to 0x11 for read request
-        const dataBytes = [...readHeader, ...address, 0x00, 0x00, 0x00, 0x01];
-        const checksum = this.rolandChecksum([...address, 0x00, 0x00, 0x00, 0x01]);
-        const sysexData = [...dataBytes, checksum];
-        
-        const command = this.createBLEMidiCommand(sysexData);
-        
-        try {
-            await this.characteristic.writeValue(command);
-            this.lastReadRequestTime = Date.now();
+        return this._enqueueGattWrite(async () => {
+            const readHeader = [...BOSS_CUBE_HEADER];
+            readHeader[7] = 0x11;
+            const dataBytes = [...readHeader, ...address, 0x00, 0x00, 0x00, 0x01];
+            const checksum = this.rolandChecksum([...address, 0x00, 0x00, 0x00, 0x01]);
+            const sysexData = [...dataBytes, checksum];
+            const command = this.createBLEMidiCommand(sysexData);
             
-            // Small delay to prevent overwhelming the device
-            await new Promise(resolve => setTimeout(resolve, SYSEX_CONFIG.READ_DELAY));
-            
-        } catch (error) {
-            this.log(`❌ Failed to send read request: ${error.message}`, 'error');
-            this.pendingReadRequests.delete(addressKey);
-            throw error;
-        }
+            try {
+                await this.characteristic.writeValue(command);
+                this.lastReadRequestTime = Date.now();
+                await new Promise(resolve => setTimeout(resolve, SYSEX_CONFIG.READ_DELAY));
+            } catch (error) {
+                this.pendingReadRequests.delete(addressKey);
+                throw error;
+            }
+        });
     }
 
 
@@ -497,19 +568,15 @@ export class BossCubeCommunication {
             throw new Error('Boss Cube not connected');
         }
         
-        const dataBytes = [...BOSS_CUBE_HEADER, ...address, ...data];
-        const checksum = this.rolandChecksum(dataBytes.slice(5));
-        const sysexData = [...dataBytes, checksum];
-        
-        const command = this.createBLEMidiCommand(sysexData);
-        
-        try {
+        return this._enqueueGattWrite(async () => {
+            const dataBytes = [...BOSS_CUBE_HEADER, ...address, ...data];
+            const checksum = this.rolandChecksum(dataBytes.slice(5));
+            const sysexData = [...dataBytes, checksum];
+            const command = this.createBLEMidiCommand(sysexData);
+            
             await this.characteristic.writeValue(command);
             await new Promise(resolve => setTimeout(resolve, SYSEX_CONFIG.COMMAND_DELAY));
-        } catch (error) {
-            this.log(`❌ Failed to send special command: ${error.message}`, 'error');
-            throw error;
-        }
+        });
     }
 
     /**

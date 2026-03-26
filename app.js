@@ -12,6 +12,7 @@ import {
     queueFillUpdate,
 } from './control-factory.js';
 import { initVersionSwitcher } from './version-switcher.js';
+import { LooperTimeline } from './looper-timeline.js';
 
 const VERSION = '2.27.0';
 
@@ -40,6 +41,29 @@ let versionTextEl, refreshBtn;
 
 // Tuner state
 let tunerEnabled = false;
+let tunerModalEl = null;
+
+// Looper timeline
+const looperTimeline = new LooperTimeline();
+
+// Log buffer for save functionality
+const logBuffer = [];
+let logVerbosity = 'normal'; // 'minimal', 'normal', 'verbose'
+
+// Effect on/off switch → effect button mapping
+const EFFECT_SWITCH_MAP = {
+    guitarChorusSwitch: { group: 'guitar', effect: 'chorus' },
+    guitarPhaserSwitch: { group: 'guitar', effect: 'phaser' },
+    guitarFlangerSwitch: { group: 'guitar', effect: 'flanger' },
+    guitarTremoloSwitch: { group: 'guitar', effect: 'tremolo' },
+    guitarTWahSwitch: { group: 'guitar', effect: 'twah' },
+    micInstHarmonySwitch: { group: 'micInst', effect: 'harmony' },
+    micInstChorusSwitch: { group: 'micInst', effect: 'chorus' },
+    micInstPhaserSwitch: { group: 'micInst', effect: 'phaser' },
+    micInstFlangerSwitch: { group: 'micInst', effect: 'flanger' },
+    micInstTremoloSwitch: { group: 'micInst', effect: 'tremolo' },
+    micInstTWahSwitch: { group: 'micInst', effect: 'twah' },
+};
 
 // Master Out binding state
 let masterBindEnabled = false;
@@ -98,6 +122,12 @@ if (typeof document !== 'undefined') {
     // Initialize settings modal and theme
     initializeSettingsModal();
     initializeThemeToggle();
+    setupLogPanel();
+
+    // Auto-detect dev server log endpoint
+    fetch('/api/log', { method: 'POST', body: '--- client connected ---' })
+        .then(() => { window._devLogEnabled = true; console.log('📡 Dev log streaming enabled'); })
+        .catch(() => {}); // Not running dev server, silently skip
     
     // Set up event listeners (removed duplicate connectBtn listener)
     
@@ -162,7 +192,9 @@ if (typeof document !== 'undefined') {
     
     // Initialize live performance mode after controller and template loader are ready
     const livePerformanceOverlay = document.getElementById('livePerformanceOverlay');
+    looperTimeline.logger = log;
     livePerformance = new LivePerformance(bossCubeController, templateLoader, log);
+    livePerformance.looperTimeline = looperTimeline;
     livePerformance.initialize(livePerformanceOverlay);
     
     // Set up looper control monitoring for Live Performance sync
@@ -194,10 +226,14 @@ if (typeof document !== 'undefined') {
     // Initialize version checking and updates
     initializeVersioning();
     
-    // Initialize wake lock
+    // Initialize tuner modal and wake lock
+    initTunerModal();
     initializeWakeLock();
     
     log(`Boss Cube Web Control v${VERSION} initialized`, 'success');
+
+    // Try auto-reconnect to previously paired devices
+    tryAutoReconnect();
 });
 }
 
@@ -481,41 +517,51 @@ async function createEffectsInterface() {
 }
 
 function setupEffectSelectors() {
-    // Guitar effect buttons (first effect-buttons container)
     const guitarEffectContainer = document.querySelector('.effects-section .effect-buttons');
-    const guitarEffectButtons = guitarEffectContainer.querySelectorAll('.effect-btn');
-    
-    // Mic/Inst effect buttons (fourth effect-buttons container)
     const micInstEffectContainer = document.querySelectorAll('.effects-section .effect-buttons')[1];
-    const micInstEffectButtons = micInstEffectContainer.querySelectorAll('.effect-btn');
-    
-    guitarEffectButtons.forEach((button) => {
+
+    setupEffectToggleButtons(guitarEffectContainer, 'guitar', () => {
+        updateGuitarEffectControls();
+        refreshEffectButtonStates('guitar');
+    });
+
+    setupEffectToggleButtons(micInstEffectContainer, 'micInst', () => {
+        updateMicInstEffectControls();
+        refreshEffectButtonStates('micInst');
+    });
+
+    refreshEffectButtonStates('guitar');
+    refreshEffectButtonStates('micInst');
+}
+
+function setupEffectToggleButtons(container, channel, onUIUpdate) {
+    if (!container) return;
+    container.querySelectorAll('.effect-btn').forEach((button) => {
         button.addEventListener('click', async (e) => {
             const effectType = e.target.getAttribute('data-effect');
             try {
-                await bossCubeController.switchGuitarEffect(effectType);
-                updateGuitarEffectControls();
-                updateGuitarEffectButtonHighlight(effectType);
-                log(`Switched to guitar effect: ${effectType}`, 'info');
+                const result = await bossCubeController.toggleEffect(channel, effectType);
+                onUIUpdate();
+                log(`${channel} effect ${effectType}: ${result.active ? 'ON' : 'OFF'}${result.switched ? ' (switched)' : ''}`, 'info');
             } catch (error) {
-                log(`Failed to switch guitar effect: ${error.message}`, 'error');
+                log(`Failed to toggle ${channel} effect: ${error.message}`, 'error');
             }
         });
     });
-    
-    micInstEffectButtons.forEach((button) => {
-        button.addEventListener('click', async (e) => {
-            const effectType = e.target.getAttribute('data-effect');
-            await bossCubeController.switchMicInstEffect(effectType);
-            updateMicInstEffectControls();
-            updateMicInstEffectButtonHighlight(effectType);
-            log(`Switched to mic/inst effect: ${effectType}`, 'info');
-        });
+}
+
+function refreshEffectButtonStates(channel) {
+    const isGuitar = channel === 'guitar';
+    const containerIndex = isGuitar ? 0 : 1;
+    const container = document.querySelectorAll('.effects-section .effect-buttons')[containerIndex];
+    if (!container) return;
+    const currentEffect = isGuitar ? bossCubeController.currentGuitarEffect : bossCubeController.currentMicInstEffect;
+    const isActive = isGuitar ? bossCubeController.guitarEffectActive : bossCubeController.micInstEffectActive;
+    container.querySelectorAll('.effect-btn').forEach(btn => {
+        const isSelected = btn.getAttribute('data-effect') === currentEffect;
+        btn.classList.toggle('active', isSelected);
+        btn.classList.toggle('effect-on', isSelected && isActive);
     });
-    
-    // Set initial highlights
-    updateGuitarEffectButtonHighlight(bossCubeController.currentGuitarEffect);
-    updateMicInstEffectButtonHighlight(bossCubeController.currentMicInstEffect);
 }
 
 function setupCollapsibleSections() {
@@ -579,6 +625,7 @@ async function updateGuitarEffectControls() {
     const effectParams = bossCubeController.getCurrentGuitarEffectParameters();
     
     for (const [key, param] of Object.entries(effectParams)) {
+        if (param.hidden) continue;
         const control = await createParameterControl(param, key);
         container.appendChild(control);
     }
@@ -592,6 +639,7 @@ async function updateMicInstEffectControls() {
     const effectParams = bossCubeController.getCurrentMicInstEffectParameters();
     
     for (const [key, param] of Object.entries(effectParams)) {
+        if (param.hidden) continue;
         const control = await createParameterControl(param, key);
         container.appendChild(control);
     }
@@ -620,10 +668,35 @@ async function updateReverbDelayControls() {
         }
     }
     
-    // Reverb Levels (separate for Guitar and Mic/Inst)
+    // Reverb Levels (separate for Guitar and Mic/Inst) with on/off toggles
     const reverbLevelsContainer = document.getElementById('reverbLevelsControls');
     if (reverbLevelsContainer) {
         reverbLevelsContainer.innerHTML = '';
+
+        const togglePairs = [
+            { switchKey: 'guitarReverbSwitch', label: 'Guitar Reverb' },
+            { switchKey: 'micInstReverbSwitch', label: 'Mic/Inst Reverb' },
+        ];
+        const toggleRow = document.createElement('div');
+        toggleRow.className = 'reverb-toggle-row';
+        for (const { switchKey, label } of togglePairs) {
+            const switchParam = bossCubeController.parameters[switchKey];
+            const btn = document.createElement('button');
+            btn.className = 'reverb-toggle-btn' + (switchParam && switchParam.current === 1 ? ' on' : '');
+            btn.textContent = label;
+            btn.dataset.switchKey = switchKey;
+            btn.addEventListener('click', async () => {
+                if (!bossCubeController.isCubeConnected) return;
+                const sp = bossCubeController.parameters[switchKey];
+                const newVal = sp && sp.current === 1 ? 0 : 1;
+                await bossCubeController.setParameter(switchKey, newVal);
+                sp.current = newVal;
+                btn.classList.toggle('on', newVal === 1);
+            });
+            toggleRow.appendChild(btn);
+        }
+        reverbLevelsContainer.appendChild(toggleRow);
+
         const reverbLevelsParams = bossCubeController.getParametersByCategory('reverbLevels');
         for (const [key, param] of Object.entries(reverbLevelsParams)) {
             const control = await createParameterControl(param, key);
@@ -666,9 +739,12 @@ async function updateLooperControls() {
         });
         
         container.innerHTML = looperHTML;
+
+        const timelineEl = LooperTimeline.createProgressElement();
+        container.appendChild(timelineEl);
+        looperTimeline.addProgressElement(timelineEl);
     } catch (error) {
         console.error('Failed to load looper controls template:', error);
-        // Fallback to basic content
         container.innerHTML = '<div class="error">Failed to load looper controls</div>';
         return;
             }
@@ -687,10 +763,9 @@ async function updateLooperControls() {
             const value = parseInt(button.getAttribute('data-looper-value'));
             
             try {
-                // Use main app parameter update function for full synchronization
+                looperTimeline.onLooperStateChange(value, 'ui-click');
                 updateParameterValue('looperControl', value);
                 
-                // Also explicitly update Live Performance if active
                 if (livePerformance && livePerformance.isActive) {
                     livePerformance.updateLivePerformanceDisplay('looperControl', value);
                 }
@@ -1020,33 +1095,16 @@ async function updateGuitarAmpControls() {
 }
 
 async function updateTunerControls() {
-    const container = document.getElementById('tunerControls');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    const tunerParams = bossCubeController.getParametersByCategory('tuner');
-    
-    for (const [key, param] of Object.entries(tunerParams)) {
-        const control = await createParameterControl(param, key);
-        container.appendChild(control);
-    }
-    
-    // Set up the new tuner toggle button
     const tunerToggleBtn = document.getElementById('tunerToggleBtn');
     if (tunerToggleBtn) {
-        // Remove any existing event listeners
         tunerToggleBtn.replaceWith(tunerToggleBtn.cloneNode(true));
         const newTunerToggleBtn = document.getElementById('tunerToggleBtn');
         
-        // Enable the button if Boss Cube is connected
         if (bossCubeController.isCubeConnected) {
             newTunerToggleBtn.disabled = false;
         }
         
-        // Update button text based on current state
         updateTunerButtonState();
-        
-        // Add click handler
         newTunerToggleBtn.addEventListener('click', toggleTuner);
     }
     
@@ -1111,56 +1169,14 @@ function updateTunerButtonState() {
 }
 
 function updateTunerVisualState() {
-    const tunerVisual = document.getElementById('tunerVisual');
-    
-    if (tunerVisual) {
-        if (tunerEnabled) {
-            tunerVisual.classList.add('active');
-            tunerVisual.style.display = 'block';
-        } else {
-            tunerVisual.classList.remove('active');
-            tunerVisual.style.display = 'none';
-            
-            // Clear display when tuner is off
-            const tunerFrequencyDisplay = document.getElementById('tunerFrequencyDisplay');
-            const tunerNoteDisplay = document.getElementById('tunerNoteDisplay');
-            
-            if (tunerFrequencyDisplay) {
-                tunerFrequencyDisplay.textContent = '440Hz';
-            }
-            if (tunerNoteDisplay) {
-                tunerNoteDisplay.textContent = 'A';
-            }
-            
-            // Remove needle
-            const tunerNeedle = document.querySelector('.tuner-needle');
-            if (tunerNeedle) {
-                tunerNeedle.remove();
-            }
-        }
-    }
+    // Tuner visual is now only in the modal — nothing to do here for the section
 }
 
 
 
 function updateTunerVisualDisplay() {
-    const frequencyDisplay = document.getElementById('tunerFrequencyDisplay');
-    const noteDisplay = document.getElementById('tunerNoteDisplay');
-    
-    if (frequencyDisplay && bossCubeController.parameters.tunerPitch) {
-        const pitchParam = bossCubeController.parameters.tunerPitch;
-        const frequency = pitchParam.current + 435; // Convert from parameter value
-        frequencyDisplay.textContent = `${frequency}Hz`;
-    }
-    
-    if (noteDisplay && bossCubeController.parameters.tunerManualKey) {
-        const keyParam = bossCubeController.parameters.tunerManualKey;
-        const keyLabels = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
-        noteDisplay.textContent = keyLabels[keyParam.current] || 'A';
-    }
-    
-        // Real-time tuner display is handled by the controller's updateTunerDisplay method
-    
+    // noop — tuner visual display is now only in the modal, updated by controller.updateTunerDisplay
+
 
 }
 
@@ -1379,22 +1395,25 @@ function selectParameter(key) {
 }
 
 function updateParameterSelection() {
-    // Update visual selection
     const allControls = document.querySelectorAll('.parameter-control');
+    let targetControl = null;
     
     allControls.forEach((control) => {
         const key = control.getAttribute('data-param-key');
         if (key === currentParameterKey) {
             control.classList.add('current');
-            // Scroll to the mixer section containing this control
-            const mixerSection = control.closest('.mixer-section');
-            if (mixerSection) {
-                mixerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            targetControl = control;
         } else {
             control.classList.remove('current');
         }
     });
+
+    // Delay scroll slightly so DOM/log updates don't cancel it
+    if (targetControl) {
+        requestAnimationFrame(() => {
+            targetControl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    }
 }
 
 /**
@@ -1457,6 +1476,29 @@ function updateParameterValue(key, value) {
     
     // Update parameter display
     updateParameterDisplay(key, value);
+
+    // Sync effect type changes from live mode to non-live mode UI.
+    // Derive effect key from value index because currentGuitarEffect
+    // hasn't been updated yet (onButtonClick fires after onValueChange).
+    if (key === 'guitarEffectType') {
+        const typeParam = bossCubeController.parameters[key];
+        const effectLabel = typeParam.valueLabels?.[value];
+        if (effectLabel) {
+            const effectKey = effectLabel.toLowerCase().replace(/\./g, '');
+            bossCubeController.currentGuitarEffect = effectKey;
+            updateGuitarEffectControls();
+            refreshEffectButtonStates('guitar');
+        }
+    } else if (key === 'micInstEffectType') {
+        const typeParam = bossCubeController.parameters[key];
+        const effectLabel = typeParam.valueLabels?.[value];
+        if (effectLabel) {
+            const effectKey = effectLabel.toLowerCase().replace(/\./g, '');
+            bossCubeController.currentMicInstEffect = effectKey;
+            updateMicInstEffectControls();
+            refreshEffectButtonStates('micInst');
+        }
+    }
 
     // Master bind: mirror between masterVolume and auxBluetoothVolume
     if (masterBindEnabled && !isUpdatingMasterBind) {
@@ -1545,6 +1587,40 @@ function updatePedalPositionIndicator(key, pedalValue) {
             pedalIndicator.style.left = `${percentage}%`;
         }
     }
+}
+
+async function tryAutoReconnect() {
+    const cubePromise = (async () => {
+        try {
+            const cubeReconnected = await bossCubeController.tryAutoReconnectCube();
+            if (cubeReconnected) {
+                statusEl.textContent = 'Boss Cube Connected';
+                statusEl.className = 'status success';
+                connectBtn.textContent = 'Disconnect Boss Cube';
+                connectBtn.className = 'btn danger';
+                readValuesBtn.disabled = false;
+                const tunerToggleBtn = document.getElementById('tunerToggleBtn');
+                if (tunerToggleBtn) tunerToggleBtn.disabled = false;
+                log('🔄 Auto-reconnected to Boss Cube', 'success');
+                await readCurrentValuesOnConnect();
+            }
+        } catch (error) {
+            log(`Cube auto-reconnect failed: ${error.message}`, 'info');
+        }
+    })();
+
+    const pedalPromise = (async () => {
+        try {
+            const pedalReconnected = await bossCubeController.tryAutoReconnectPedal();
+            if (pedalReconnected) {
+                log('🔄 Auto-reconnected to pedal', 'success');
+            }
+        } catch (error) {
+            log(`Pedal auto-reconnect failed: ${error.message}`, 'info');
+        }
+    })();
+
+    await Promise.all([cubePromise, pedalPromise]);
 }
 
 async function handleBossCubeButton() {
@@ -1751,6 +1827,21 @@ async function testConnection() {
 
 function log(message, type = 'info') {
     const timestamp = new Date().toLocaleTimeString();
+    const line = `${timestamp} [${type}] ${message}`;
+
+    // Always store in buffer for save
+    logBuffer.push(line);
+    if (logBuffer.length > 5000) logBuffer.shift();
+
+    // Stream to dev server
+    if (window._devLogEnabled) {
+        navigator.sendBeacon('/api/log', line);
+    }
+
+    // Verbosity filter for UI display
+    if (logVerbosity === 'minimal' && type === 'info') return;
+    if (logVerbosity === 'normal' && type === 'warning') return;
+
     const logEntry = document.createElement('div');
     logEntry.className = `log-entry ${type}`;
     logEntry.innerHTML = `<span class="timestamp">${timestamp}</span>${message}`;
@@ -1758,8 +1849,7 @@ function log(message, type = 'info') {
     logEl.appendChild(logEntry);
     logEl.scrollTop = logEl.scrollHeight;
     
-    // Keep only last 100 entries
-    while (logEl.children.length > 100) {
+    while (logEl.children.length > 200) {
         logEl.removeChild(logEl.firstChild);
     }
 }
@@ -1771,6 +1861,38 @@ let pedalLogThrottle = {
     finalLogTimer: null,
     logInterval: 100 // Reduced to 100ms for more responsive feedback
 };
+
+function setupLogPanel() {
+    const verbositySelect = document.getElementById('logVerbosity');
+    const saveBtn = document.getElementById('saveLogsBtn');
+    const toggleBtn = document.getElementById('toggleLogBtn');
+
+    if (verbositySelect) {
+        verbositySelect.addEventListener('change', () => {
+            logVerbosity = verbositySelect.value;
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const blob = new Blob([logBuffer.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `boss-cube-log-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = logEl.style.display === 'none';
+            logEl.style.display = isHidden ? 'block' : 'none';
+            toggleBtn.textContent = isHidden ? '▲ Hide' : '▼ Show';
+        });
+    }
+}
 
 function throttledPedalLog(paramName, value) {
     const now = Date.now();
@@ -1844,9 +1966,43 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     // Update the parameter display when Boss Cube sends us a value
     updateParameterDisplay(paramKey, value);
     
+    // Effect on/off switch indicators
+    if (EFFECT_SWITCH_MAP[paramKey]) {
+        updateEffectOnOffIndicator(paramKey, value);
+    }
+
+    // Hardware status badges
+    if (paramKey === 'outputPowerMode') updatePowerBadge(value);
+    if (paramKey === 'micInstInputSelect') updateInputBadge(value);
+
+    // Tuner hardware switch → show/hide modal
+    if (paramKey === 'tunerSwitch') {
+        if (value === 1) {
+            showTunerModal();
+        } else {
+            hideTunerModal();
+        }
+    }
+
+    // Tuner mode/key sync from hardware
+    if (paramKey === 'manualTunerMode') updateTunerModeUI(value);
+    if (paramKey === 'tunerManualKey') {
+        const keySelect = document.getElementById('modalTunerKeySelect');
+        if (keySelect) keySelect.value = value;
+    }
+    if (paramKey === 'tunerPitch') {
+        const pitchSelect = document.querySelector('#modalTunerPitchControls select');
+        if (pitchSelect) pitchSelect.value = value;
+    }
+
+    // Reverb on/off switches → update toggle buttons
+    if (paramKey === 'guitarReverbSwitch' || paramKey === 'micInstReverbSwitch') {
+        updateReverbToggle(paramKey, value);
+    }
+
     // Handle special controls that need custom updates
     if (paramKey === 'looperControl') {
-        // Fire and forget - just update the UI asynchronously
+        looperTimeline.onLooperStateChange(value, 'hardware');
         updateLooperControls().catch(error => {
             console.error('Failed to update looper controls UI:', error);
         });
@@ -1860,7 +2016,6 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     // Handle looper settings toggle buttons - regenerate the UI to show updated values
     const looperSettingParams = ['looperRecTime', 'looperMicInstAssign', 'looperGuitarMicAssign', 'looperReverbAssign', 'looperICubeLinkAssign'];
     if (looperSettingParams.includes(paramKey)) {
-        // Fire and forget - just update the UI asynchronously
         updateLooperSettingsControls().catch(error => {
             console.error('Failed to update looper settings UI:', error);
         });
@@ -1870,8 +2025,6 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     const param = bossCubeController.parameters[paramKey];
     if (param && param.category === 'tuner') {
         updateTunerVisualDisplay();
-        
-        // Tuner data logging is now handled in the communication module
     }
     
     // Reset pickup mode when physical knob changes are detected
@@ -1901,30 +2054,135 @@ function handlePhysicalKnobChange(paramKey, paramName, value) {
     // Remove the regular "Physical knob: ..." logging since it's handled in the controller now
 }
 
-function updateGuitarEffectButtonHighlight(activeEffect) {
-    const guitarEffectContainer = document.querySelector('.effects-section .effect-buttons');
-    const buttons = guitarEffectContainer.querySelectorAll('.effect-btn');
-    
-    buttons.forEach(button => {
-        if (button.getAttribute('data-effect') === activeEffect) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
-        }
-    });
+function updateEffectOnOffIndicator(paramKey, value) {
+    const mapping = EFFECT_SWITCH_MAP[paramKey];
+    if (!mapping) return;
+    refreshEffectButtonStates(mapping.group);
+    if (livePerformance && livePerformance.isActive) {
+        livePerformance.refreshLiveEffectButtonStates(mapping.group);
+    }
 }
 
-function updateMicInstEffectButtonHighlight(activeEffect) {
-    const micInstEffectContainer = document.querySelectorAll('.effects-section .effect-buttons')[1];
-    const buttons = micInstEffectContainer.querySelectorAll('.effect-btn');
-    
-    buttons.forEach(button => {
-        if (button.getAttribute('data-effect') === activeEffect) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
+function updatePowerBadge(value) {
+    const badge = document.getElementById('powerBadge');
+    const container = document.getElementById('hardwareBadges');
+    if (!badge) return;
+    badge.textContent = value === 0 ? '⚡ MAX' : '🔋 ECO';
+    if (container) container.style.display = 'flex';
+}
+
+function updateInputBadge(value) {
+    const badge = document.getElementById('inputBadge');
+    const container = document.getElementById('hardwareBadges');
+    if (!badge) return;
+    badge.textContent = value === 0 ? '🎤 MIC' : '🎸 INST';
+    if (container) container.style.display = 'flex';
+}
+
+function showTunerModal() {
+    tunerModalEl = tunerModalEl || document.getElementById('tunerModal');
+    if (tunerModalEl) {
+        tunerModalEl.style.display = 'flex';
+        tunerEnabled = true;
+        updateTunerButtonState();
+
+        const modeParam = bossCubeController.parameters.manualTunerMode;
+        updateTunerModeUI(modeParam ? modeParam.current : 0);
+        const keySelect = document.getElementById('modalTunerKeySelect');
+        const keyParam = bossCubeController.parameters.tunerManualKey;
+        if (keySelect && keyParam) keySelect.value = keyParam.current;
+        const pitchSelect = document.querySelector('#modalTunerPitchControls select');
+        const pitchParam = bossCubeController.parameters.tunerPitch;
+        if (pitchSelect && pitchParam) pitchSelect.value = pitchParam.current;
+    }
+}
+
+function hideTunerModal() {
+    tunerModalEl = tunerModalEl || document.getElementById('tunerModal');
+    if (tunerModalEl) {
+        tunerModalEl.style.display = 'none';
+        tunerEnabled = false;
+        updateTunerButtonState();
+        updateTunerVisualState();
+    }
+}
+
+function updateReverbToggle(paramKey, value) {
+    const btn = document.querySelector(`.reverb-toggle-btn[data-switch-key="${paramKey}"]`);
+    if (btn) {
+        btn.classList.toggle('on', value === 1);
+    }
+}
+
+function initTunerModal() {
+    const modal = document.getElementById('tunerModal');
+    const closeBtn = document.getElementById('tunerModalClose');
+    const modeBtn = document.getElementById('modalTunerModeBtn');
+    const keySelect = document.getElementById('modalTunerKeySelect');
+    const pitchContainer = document.getElementById('modalTunerPitchControls');
+    if (!modal) return;
+
+    const closeTuner = async () => {
+        hideTunerModal();
+        if (bossCubeController.isCubeConnected) {
+            await bossCubeController.setTunerControl(false);
         }
-    });
+    };
+
+    closeBtn.addEventListener('click', closeTuner);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeTuner(); });
+
+    if (modeBtn) {
+        modeBtn.addEventListener('click', async () => {
+            if (!bossCubeController.isCubeConnected) return;
+            const param = bossCubeController.parameters.manualTunerMode;
+            const newValue = param && param.current === 1 ? 0 : 1;
+            await bossCubeController.setParameter('manualTunerMode', newValue);
+            updateTunerModeUI(newValue);
+        });
+    }
+
+    if (keySelect) {
+        keySelect.addEventListener('change', async () => {
+            if (!bossCubeController.isCubeConnected) return;
+            await bossCubeController.setParameter('tunerManualKey', parseInt(keySelect.value));
+        });
+    }
+
+    if (pitchContainer) {
+        const pitchParam = bossCubeController.parameters.tunerPitch;
+        if (pitchParam) {
+            const pitchSelect = document.createElement('select');
+            for (let i = pitchParam.min; i <= pitchParam.max; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `${435 + i}Hz`;
+                if (i === pitchParam.current) opt.selected = true;
+                pitchSelect.appendChild(opt);
+            }
+            pitchSelect.addEventListener('change', async () => {
+                if (!bossCubeController.isCubeConnected) return;
+                await bossCubeController.setParameter('tunerPitch', parseInt(pitchSelect.value));
+            });
+            const label = document.createElement('span');
+            label.className = 'pitch-label';
+            label.textContent = 'A=';
+            pitchContainer.appendChild(label);
+            pitchContainer.appendChild(pitchSelect);
+        }
+    }
+}
+
+function updateTunerModeUI(manualMode) {
+    const modeBtn = document.getElementById('modalTunerModeBtn');
+    const keySelect = document.getElementById('modalTunerKeySelect');
+    if (modeBtn) {
+        modeBtn.textContent = manualMode === 1 ? 'Manual' : 'Chromatic';
+        modeBtn.classList.toggle('active', manualMode === 1);
+    }
+    if (keySelect) {
+        keySelect.style.display = manualMode === 1 ? 'inline-block' : 'none';
+    }
 }
 
 // Load settings from localStorage

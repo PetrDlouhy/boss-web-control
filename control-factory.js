@@ -120,8 +120,10 @@ export function createButtonGroupControl(param, key, opts = {}) {
         buttonClass = 'btn-base btn-effect',
         groupClass = 'btn-group',
         showPedalIndicator = false,
+        allowDeselect = false,
         onValueChange,
         onButtonClick,
+        onDeselect,
     } = opts;
 
     const control = document.createElement('div');
@@ -156,6 +158,14 @@ export function createButtonGroupControl(param, key, opts = {}) {
     buttons.forEach(button => {
         button.addEventListener('click', () => {
             const value = parseInt(button.getAttribute('data-value'));
+            const isAlreadyActive = button.classList.contains('active');
+
+            if (allowDeselect && isAlreadyActive) {
+                button.classList.remove('active');
+                if (onDeselect) onDeselect(key, value, buttonsData[value]);
+                return;
+            }
+
             buttons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             if (onValueChange) onValueChange(key, value);

@@ -7,6 +7,7 @@
     "test": "node test-runner-headless.js",
     "test:browser": "open test-runner.html",
     "start": "npx http-server -p 8080 -c-1",
+    "dev": "node dev-server.js",
     "lint": "find . -name '*.js' -not -path './node_modules/*' -exec node -c {} \\;",
     "bump": "node increment-version.js"
   },

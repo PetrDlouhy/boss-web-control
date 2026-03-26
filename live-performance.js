@@ -23,6 +23,7 @@ import {
     createSliderControl, createButtonGroupControl, createLooperControl as createLooperControlFactory,
     getDisplayValue, updateControlDisplay, updateButtonGroupDisplay,
 } from './control-factory.js';
+import { LooperTimeline } from './looper-timeline.js';
 
 export class LivePerformance {
     constructor(bossCubeController, templateLoader, logger) {
@@ -33,6 +34,7 @@ export class LivePerformance {
         // State management
         this.isActive = false;
         this.overlay = null;
+        this.looperTimeline = null;
         
         // Performance optimization for throttled updates
         this.throttle = {
@@ -283,6 +285,15 @@ export class LivePerformance {
         if (settingsBtn) {
             settingsBtn.addEventListener('click', () => {
                 this.openSettings();
+            });
+        }
+        
+        const tunerBtn = document.getElementById('liveTunerBtn');
+        if (tunerBtn) {
+            tunerBtn.addEventListener('click', async () => {
+                if (this.bossCubeController.isCubeConnected) {
+                    await this.bossCubeController.setTunerControl(true);
+                }
             });
         }
         
@@ -631,29 +642,112 @@ export class LivePerformance {
             const control = createLooperControlFactory(param, key, looperButtons, {
                 className: 'live-performance-control looper-control',
                 showPedalIndicator: isPedalControl,
-                onValueChange: (k, v) => bus.emit('param:update', k, v),
+                onValueChange: (k, v) => {
+                    if (this.looperTimeline) this.looperTimeline.onLooperStateChange(v, 'live-ui');
+                    bus.emit('param:update', k, v);
+                },
             });
             if (isPedalControl) this.setupPedalSelection(control, key, param);
+            if (this.looperTimeline) {
+                const timelineEl = LooperTimeline.createProgressElement();
+                control.appendChild(timelineEl);
+                this.looperTimeline.addProgressElement(timelineEl);
+            }
+        return control;
+    }
+    
+        // Composite toggle row (looper assigns)
+        if (param.isComposite && param.childKeys) {
+            const control = document.createElement('div');
+            control.className = 'live-performance-control looper-assigns-control';
+            control.setAttribute('data-param-key', key);
+
+            const buttonsHTML = param.childKeys.map(childKey => {
+                const childParam = this.bossCubeController.parameters[childKey];
+                if (!childParam) return '';
+                const isActive = childParam.current === 1;
+                const icon = param.childIcons?.[childKey] || '';
+                const lbl = param.childLabels?.[childKey] || childParam.name;
+                return `<button class="toggle-btn-improved ${isActive ? 'active' : ''}" data-param="${childKey}" title="${childParam.name}"><div class="toggle-icon">${icon}</div><div class="toggle-label">${lbl}</div></button>`;
+            }).join('');
+
+            control.innerHTML = `<div class="looper-settings-improved">${buttonsHTML}</div>`;
+
+            control.querySelectorAll('.toggle-btn-improved').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const ck = btn.dataset.param;
+                    const cp = this.bossCubeController.parameters[ck];
+                    if (!cp) return;
+                    const newVal = cp.current === 1 ? 0 : 1;
+                    cp.current = newVal;
+                    btn.classList.toggle('active', newVal === 1);
+                    bus.emit('param:update', ck, newVal);
+                });
+            });
+
             return control;
         }
 
         // Button groups: amp type, guitar effect type, mic/inst effect type
         if (key === 'guitarAmpType' || key === 'guitarEffectType' || key === 'micInstEffectType') {
-            const labelMap = { guitarEffectType: 'Guitar effect type', micInstEffectType: 'Mic/Inst effect type' };
+            const isEffectType = key === 'guitarEffectType' || key === 'micInstEffectType';
             const control = createButtonGroupControl(param, key, {
                 className: `live-performance-control ${key.replace(/([A-Z])/g, '-$1').toLowerCase()}-control`,
-                label: labelMap[key],
                 showPedalIndicator: isPedalControl,
+                allowDeselect: isEffectType,
                 onValueChange: (k, v) => bus.emit('param:update', k, v),
-                onButtonClick: key === 'guitarEffectType' ? async (k, v, btn) => {
-                    try { await this.bossCubeController.switchGuitarEffect(param.valueLabels[v].toLowerCase()); this.log(`🎸 Switched to guitar effect: ${param.valueLabels[v]}`, 'info'); }
-                    catch (err) { this.log(`❌ Failed to switch guitar effect: ${err.message}`, 'error'); }
-                } : key === 'micInstEffectType' ? async (k, v, btn) => {
-                    try { await this.bossCubeController.switchMicInstEffect(param.valueLabels[v].toLowerCase()); this.log(`🎤 Switched to mic/inst effect: ${param.valueLabels[v]}`, 'info'); }
-                    catch (err) { this.log(`❌ Failed to switch mic/inst effect: ${err.message}`, 'error'); }
+                onButtonClick: isEffectType ? async (k, v, btn) => {
+                    const channel = key === 'guitarEffectType' ? 'guitar' : 'micInst';
+                    const effectKey = this.normalizeEffectKey(param.valueLabels[v].toLowerCase());
+                    try {
+                        const result = await this.bossCubeController.toggleEffect(channel, effectKey);
+                        this.log(`${channel} effect ${effectKey}: ${result.active ? 'ON' : 'OFF'}`, 'info');
+                    } catch (err) { this.log(`❌ Failed to toggle effect: ${err.message}`, 'error'); }
+                    this.refreshLiveEffectButtonStates(channel);
+                    this.refreshUnifiedEffectControls();
+                } : undefined,
+                onDeselect: isEffectType ? async (k, v, btn) => {
+                    const channel = key === 'guitarEffectType' ? 'guitar' : 'micInst';
+                    const effectKey = this.normalizeEffectKey(param.valueLabels[v].toLowerCase());
+                    try {
+                        await this.bossCubeController.toggleEffect(channel, effectKey);
+                    } catch (err) { this.log(`❌ Failed to deactivate effect: ${err.message}`, 'error'); }
+                    this.refreshLiveEffectButtonStates(channel);
+                    this.refreshUnifiedEffectControls();
                 } : undefined,
             });
             if (isPedalControl) this.setupPedalSelection(control, key, param);
+            return control;
+        }
+
+        // Unified virtual effect controls (resolveKey)
+        if (param.resolveKey) {
+            const resolvedKey = this.resolveVirtualKey(param, controlConfig);
+            const resolvedParam = resolvedKey ? this.bossCubeController.parameters[resolvedKey] : null;
+            const displayParam = resolvedParam || param;
+            const effectLabel = this.getActiveEffectLabel(param);
+
+            const control = createSliderControl(displayParam, key, {
+                className: 'live-performance-control unified-effect-control',
+                label: effectLabel ? `${label} (${effectLabel})` : label,
+                showPedalIndicator: isPedalControl,
+                onValueChange: (k, v) => {
+                    const cc = this.getControlConfig(key);
+                    const allKeys = this.resolveAllVirtualKeys(param, cc);
+                    for (const realKey of allKeys) {
+                        const realParam = this.bossCubeController.parameters[realKey];
+                        if (realParam) {
+                            realParam.current = v;
+                            this.checkAndActivatePickupMode(realKey, v);
+                            this.updateParameter(realKey, v);
+                        }
+                    }
+                },
+                onSelect: (k) => { this.selectParameter(k, displayParam); this.log(`🔘 Selected for pedal control: ${param.name}`, 'info'); },
+            });
+            control.dataset.virtualKey = key;
+            if (!resolvedKey) control.classList.add('unified-inactive');
+            if (isPedalControl) this.setupPedalSelection(control, key, displayParam);
             return control;
         }
 
@@ -677,8 +771,8 @@ export class LivePerformance {
         control.addEventListener('click', (e) => {
             if (!e.defaultPrevented) {
                 this.selectParameter(key, param);
-                const allControls = document.querySelectorAll('.live-performance-control');
-                allControls.forEach(c => c.classList.remove('current'));
+        const allControls = document.querySelectorAll('.live-performance-control');
+        allControls.forEach(c => c.classList.remove('current'));
             }
         });
     }
@@ -717,6 +811,115 @@ export class LivePerformance {
                 this.throttle.isProcessing = false;
             }, this.throttle.updateInterval);
         }
+    }
+
+    getControlConfig(key) {
+        if (!this.config || !this.config.controls) return null;
+        return this.config.controls.find(c => c.key === key) || null;
+    }
+
+    getEditingControlConfig(key) {
+        const currentConfig = this.editingPresetId
+            ? this.presets[this.editingPresetId]
+            : this.tempPresetConfig;
+        if (!currentConfig || !currentConfig.controls) return null;
+        return currentConfig.controls.find(c => c.key === key) || null;
+    }
+
+    getParamsForEffectType(category, effectType) {
+        const params = this.bossCubeController.parameters;
+        const result = [];
+        for (const [key, p] of Object.entries(params)) {
+            if (p.category !== category || p.isVirtual) continue;
+            const et = p.effectType;
+            if (!et) continue;
+            if (et !== effectType && !(effectType === 'twah' && et === 't.wah') && !(effectType === 't.wah' && et === 'twah')) continue;
+            result.push({ key, name: p.name });
+        }
+        return result;
+    }
+
+    normalizeEffectKey(key) {
+        return key ? key.replace('.', '') : key;
+    }
+
+    resolveVirtualKey(param, controlConfig) {
+        if (!param.resolveKey || !param.resolveSource) return null;
+        const currentEffect = this.bossCubeController[param.resolveSource];
+        const normalized = this.normalizeEffectKey(currentEffect);
+        const overrides = controlConfig?.resolveOverrides || {};
+        const mapping = overrides[normalized] ?? overrides[currentEffect]
+            ?? param.resolveKey[normalized] ?? param.resolveKey[currentEffect];
+        if (!mapping) return null;
+        return Array.isArray(mapping) ? mapping[0] : mapping;
+    }
+
+    resolveAllVirtualKeys(param, controlConfig) {
+        if (!param.resolveKey || !param.resolveSource) return [];
+        const currentEffect = this.bossCubeController[param.resolveSource];
+        const normalized = this.normalizeEffectKey(currentEffect);
+        const overrides = controlConfig?.resolveOverrides || {};
+        const mapping = overrides[normalized] ?? overrides[currentEffect]
+            ?? param.resolveKey[normalized] ?? param.resolveKey[currentEffect];
+        if (!mapping) return [];
+        return Array.isArray(mapping) ? mapping : [mapping];
+    }
+
+    getActiveEffectLabel(param) {
+        if (!param.resolveSource) return null;
+        const typeKey = param.resolveSource === 'currentGuitarEffect' ? 'guitarEffectType' : 'micInstEffectType';
+        const typeParam = this.bossCubeController.parameters[typeKey];
+        if (!typeParam || !typeParam.valueLabels) return null;
+        const idx = typeParam.current;
+        return typeParam.valueLabels[idx] || null;
+    }
+
+    refreshUnifiedEffectControls() {
+        const controls = document.querySelectorAll('.unified-effect-control');
+        for (const control of controls) {
+            const virtualKey = control.dataset.virtualKey;
+            if (!virtualKey) continue;
+            const param = this.bossCubeController.parameters[virtualKey];
+            if (!param || !param.resolveKey) continue;
+
+            const cc = this.getControlConfig(virtualKey);
+            const resolvedKey = this.resolveVirtualKey(param, cc);
+            const resolvedParam = resolvedKey ? this.bossCubeController.parameters[resolvedKey] : null;
+
+            control.classList.toggle('unified-inactive', !resolvedParam);
+
+            const effectLabel = this.getActiveEffectLabel(param);
+            const labelEl = control.querySelector('.parameter-label');
+            if (labelEl) {
+                const baseName = cc ? cc.label : param.name;
+                labelEl.textContent = effectLabel ? `${baseName} (${effectLabel})` : baseName;
+            }
+
+            if (resolvedParam) {
+                updateControlDisplay(control, resolvedParam, virtualKey, resolvedParam.current);
+            }
+        }
+    }
+
+    refreshLiveEffectButtonStates(channel) {
+        const paramKey = channel === 'guitar' ? 'guitarEffectType' : 'micInstEffectType';
+        const control = document.querySelector(`.live-performance-control[data-param-key="${paramKey}"]`);
+        if (!control) return;
+        const currentEffect = channel === 'guitar'
+            ? this.bossCubeController.currentGuitarEffect
+            : this.bossCubeController.currentMicInstEffect;
+        const isActive = channel === 'guitar'
+            ? this.bossCubeController.guitarEffectActive
+            : this.bossCubeController.micInstEffectActive;
+        const typeParam = this.bossCubeController.parameters[paramKey];
+        if (!typeParam || !typeParam.valueLabels) return;
+        control.querySelectorAll('[data-value]').forEach(btn => {
+            const idx = parseInt(btn.getAttribute('data-value'));
+            const effectKey = this.normalizeEffectKey(typeParam.valueLabels[idx].toLowerCase());
+            const isSelected = effectKey === currentEffect;
+            btn.classList.toggle('active', isSelected);
+            btn.classList.toggle('effect-on', isSelected && isActive);
+        });
     }
     
     /**
@@ -957,16 +1160,18 @@ export class LivePerformance {
                 container.innerHTML = '';
                 
                 if (paramKeys.length > 0) {
-                    // Sort parameters with effect type controls first, then alphabetically
                     paramKeys.sort((a, b) => {
+                        const aParam = parameters[a];
+                        const bParam = parameters[b];
                         const aIsEffectType = a === 'guitarEffectType' || a === 'micInstEffectType';
                         const bIsEffectType = b === 'guitarEffectType' || b === 'micInstEffectType';
+                        const aIsUnified = !!(aParam.resolveKey);
+                        const bIsUnified = !!(bParam.resolveKey);
                         
-                        if (aIsEffectType && !bIsEffectType) return -1; // a comes first
-                        if (!aIsEffectType && bIsEffectType) return 1;  // b comes first
-                        
-                        // Both are effect types or both are regular - sort alphabetically
-                        return parameters[a].name.localeCompare(parameters[b].name);
+                        const aOrder = aIsEffectType ? 0 : aIsUnified ? 1 : 2;
+                        const bOrder = bIsEffectType ? 0 : bIsUnified ? 1 : 2;
+                        if (aOrder !== bOrder) return aOrder - bOrder;
+                        return aParam.name.localeCompare(bParam.name);
                     });
                     
                     paramKeys.forEach((key) => {
@@ -1134,20 +1339,38 @@ export class LivePerformance {
         item.draggable = true;
         item.dataset.index = index;
         
+        const param = this.bossCubeController.parameters[control.key];
+        const isUnified = param && param.resolveKey;
+        
         item.innerHTML = `
             <div class="drag-handle">⋮⋮</div>
             <div class="selected-control-label">${control.label}</div>
             <div class="selected-control-key">${control.key}</div>
+            ${isUnified ? '<button class="mapping-config-btn" title="Configure effect mappings">⚙️</button>' : ''}
             <div class="pedal-control-checkbox ${control.pedalControl ? 'checked' : ''}" title="Pedal Control">🦶</div>
             <button class="remove-control">×</button>
         `;
+
+        if (isUnified) {
+            const configBtn = item.querySelector('.mapping-config-btn');
+            configBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const existing = item.querySelector('.mapping-config-panel');
+                if (existing) {
+                    existing.remove();
+                    return;
+                }
+                const panel = this.createMappingConfigPanel(control, param);
+                item.appendChild(panel);
+            });
+        }
         
         const dragHandle = item.querySelector('.drag-handle');
         
         // Touch-based drag implementation for mobile
         let isDragging = false;
         let dragStartY = 0;
-        let draggedElement = null;
+        let itemStartY = 0;
         let placeholder = null;
         
         dragHandle.addEventListener('touchstart', (e) => {
@@ -1156,99 +1379,85 @@ export class LivePerformance {
             
             isDragging = true;
             dragStartY = e.touches[0].clientY;
-            draggedElement = item;
+            const rect = item.getBoundingClientRect();
+            itemStartY = rect.top;
             
-            // Add visual feedback
-            item.classList.add('dragging');
-            
-            // Create placeholder
+            // Create placeholder that takes the item's space
             placeholder = document.createElement('div');
-            placeholder.className = 'selected-control-item drag-placeholder';
-            placeholder.style.height = item.offsetHeight + 'px';
-            placeholder.style.backgroundColor = '#f0f0f0';
-            placeholder.style.border = '2px dashed #ccc';
+            placeholder.className = 'drag-placeholder';
+            placeholder.style.height = rect.height + 'px';
+            item.parentNode.insertBefore(placeholder, item);
             
+            // Float the item so it follows the finger
+            item.classList.add('dragging-touch');
+            item.style.position = 'fixed';
+            item.style.top = rect.top + 'px';
+            item.style.left = rect.left + 'px';
+            item.style.width = rect.width + 'px';
+            item.style.zIndex = '10000';
         }, { passive: false });
         
         dragHandle.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
-            
             e.preventDefault();
             e.stopPropagation();
             
-            const touch = e.touches[0];
+            const touchY = e.touches[0].clientY;
+            const dy = touchY - dragStartY;
+            item.style.top = (itemStartY + dy) + 'px';
+            
+            // Find which sibling the touch is over and move the placeholder there
             const container = document.getElementById('selectedControlsList');
-            const items = Array.from(container.children).filter(child => 
-                child !== draggedElement && !child.classList.contains('drag-placeholder')
+            const siblings = Array.from(container.children).filter(
+                child => child !== item && child !== placeholder
             );
             
-            // Find the element we're hovering over
-            let targetElement = null;
-            let insertBefore = true;
-            
-            for (const otherItem of items) {
-                const rect = otherItem.getBoundingClientRect();
-                const centerY = rect.top + rect.height / 2;
-                
-                if (touch.clientY > rect.top && touch.clientY < rect.bottom) {
-                    targetElement = otherItem;
-                    insertBefore = touch.clientY < centerY;
+            let moved = false;
+            for (const sib of siblings) {
+                const rect = sib.getBoundingClientRect();
+                const mid = rect.top + rect.height / 2;
+                if (touchY < mid) {
+                    container.insertBefore(placeholder, sib);
+                    moved = true;
                     break;
                 }
             }
-            
-            // Update placeholder position
-            if (targetElement) {
-                if (insertBefore) {
-                    container.insertBefore(placeholder, targetElement);
-                } else {
-                    container.insertBefore(placeholder, targetElement.nextSibling);
-                }
-            } else {
-                // If not over any item, put at end
+            if (!moved && siblings.length > 0) {
                 container.appendChild(placeholder);
             }
-            
         }, { passive: false });
         
         dragHandle.addEventListener('touchend', (e) => {
             if (!isDragging) return;
-            
             e.preventDefault();
             e.stopPropagation();
-            
             isDragging = false;
-            item.classList.remove('dragging');
+            
+            // Reset inline styles
+            item.classList.remove('dragging-touch');
+            item.style.position = '';
+            item.style.top = '';
+            item.style.left = '';
+            item.style.width = '';
+            item.style.zIndex = '';
             
             if (placeholder && placeholder.parentNode) {
-                // Calculate new position
                 const container = document.getElementById('selectedControlsList');
                 const allItems = Array.from(container.children);
                 const placeholderIndex = allItems.indexOf(placeholder);
                 const originalIndex = parseInt(item.dataset.index);
-                
-                // Remove placeholder
                 placeholder.remove();
                 
-                // Perform reorder if position changed
                 if (placeholderIndex !== -1 && placeholderIndex !== originalIndex) {
-                    // Adjust for placeholder removal
                     let newIndex = placeholderIndex;
-                    if (originalIndex < placeholderIndex) {
-                        newIndex--; // Account for the original item being removed
-                    }
-                    
+                    if (originalIndex < placeholderIndex) newIndex--;
                     this.reorderControls(originalIndex, newIndex);
                 }
             }
-            
-            // Clean up
-            draggedElement = null;
             placeholder = null;
-            
         }, { passive: false });
         
-        // Add drag event listeners for desktop
+        // Desktop HTML5 drag and drop
         item.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('text/plain', index);
             item.classList.add('dragging');
@@ -1286,6 +1495,86 @@ export class LivePerformance {
         });
         
         return item;
+    }
+    
+    createMappingConfigPanel(control, param) {
+        const panel = document.createElement('div');
+        panel.className = 'mapping-config-panel';
+
+        const category = param.category;
+        const resolveSource = param.resolveSource;
+        const typeKey = resolveSource === 'currentGuitarEffect' ? 'guitarEffectType' : 'micInstEffectType';
+        const typeParam = this.bossCubeController.parameters[typeKey];
+        if (!typeParam || !typeParam.valueLabels) return panel;
+
+        const effectTypes = typeParam.valueLabels;
+        const effectTypeKeys = effectTypes.map(l => l.toLowerCase().replace('.', ''));
+
+        const overrides = control.resolveOverrides || {};
+
+        for (let i = 0; i < effectTypes.length; i++) {
+            const effectLabel = effectTypes[i];
+            const effectKey = effectTypeKeys[i];
+
+            const availableParams = this.getParamsForEffectType(category, effectKey);
+            if (availableParams.length === 0) continue;
+
+            const defaultMapping = param.resolveKey[effectKey] || param.resolveKey[effectLabel.toLowerCase()];
+            const currentMapping = (effectKey in overrides) ? overrides[effectKey] : defaultMapping;
+            const currentKeys = Array.isArray(currentMapping) ? currentMapping : currentMapping ? [currentMapping] : [];
+
+            const row = document.createElement('div');
+            row.className = 'mapping-row';
+
+            const label = document.createElement('span');
+            label.className = 'mapping-effect-label';
+            label.textContent = effectLabel;
+            row.appendChild(label);
+
+            const checkboxes = document.createElement('div');
+            checkboxes.className = 'mapping-checkboxes';
+
+            for (const ap of availableParams) {
+                const cb = document.createElement('label');
+                cb.className = 'mapping-checkbox';
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.value = ap.key;
+                input.checked = currentKeys.includes(ap.key);
+                input.addEventListener('change', () => {
+                    this.updateMappingOverride(control, param, effectKey, checkboxes);
+                });
+                cb.appendChild(input);
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = ap.name;
+                cb.appendChild(nameSpan);
+                checkboxes.appendChild(cb);
+            }
+            row.appendChild(checkboxes);
+            panel.appendChild(row);
+        }
+
+        return panel;
+    }
+
+    updateMappingOverride(control, param, effectKey, checkboxesContainer) {
+        const checked = Array.from(checkboxesContainer.querySelectorAll('input:checked')).map(i => i.value);
+
+        if (!control.resolveOverrides) control.resolveOverrides = {};
+
+        const defaultMapping = param.resolveKey[effectKey] || param.resolveKey[effectKey.replace('twah', 't.wah')];
+        const defaultKeys = Array.isArray(defaultMapping) ? defaultMapping : defaultMapping ? [defaultMapping] : [];
+
+        const isDefault = checked.length === defaultKeys.length && checked.every(k => defaultKeys.includes(k));
+
+        if (isDefault) {
+            delete control.resolveOverrides[effectKey];
+            if (Object.keys(control.resolveOverrides).length === 0) {
+                delete control.resolveOverrides;
+            }
+        } else {
+            control.resolveOverrides[effectKey] = checked.length === 1 ? checked[0] : checked;
+        }
     }
     
     /**
@@ -1584,52 +1873,50 @@ export class LivePerformance {
     }
 
     /**
-     * Handle pedal volume changes with automatic pickup mode activation
-     * 
-     * Live Performance mode automatically activates pickup mode when pedal position
-     * doesn't match control value, ensuring smooth parameter transitions.
-     * 
-     * @param {Object} event - Pedal event object
-     * @param {number} event.value - Converted parameter value
-     * @param {Object} event.parameter - Parameter object
-     * @param {string} event.parameterKey - Parameter identifier
-     * @param {number} event.originalControlValue - Control value before pedal change
+     * Handle pedal volume changes in Live Performance mode.
+     * Pickup mode activation only happens on parameter switch (handleLivePerformancePedalButton),
+     * not during normal pedal movement.
      */
     handleLivePerformanceVolumeChange(event) {
-        const { value, parameter, parameterKey, originalControlValue } = event;
-        
-        // Store previous pedal value for crossing detection
-        const previousPedalValue = this.lastPedalValue || value;
-        this.lastPedalValue = value;
-        
-        // Check for pickup mode activation (skip for looper volume to prevent conflicts)
-        if (!this.pickupModeState.active && parameterKey !== 'looperVolume') {
-            const valueDifference = Math.abs(value - originalControlValue);
-            if (valueDifference > this.pickupModeState.threshold) {
-                this.activatePickupMode(parameterKey, originalControlValue, `(pedal: ${value}, target: ${originalControlValue})`);
-            }
-        }
-        
-        // Check for pickup mode exit
+        const { value, parameter, parameterKey } = event;
+
+        const virtualParam = this.bossCubeController.parameters[parameterKey];
+        const cc = (virtualParam && virtualParam.resolveKey) ? this.getControlConfig(parameterKey) : null;
+        const isVirtual = virtualParam && virtualParam.resolveKey;
+
+        // Check for pickup mode exit (activation only happens on parameter switch)
         if (this.pickupModeState.active) {
+            const previousPedalValue = this.lastPedalValue ?? value;
             const targetValue = this.pickupModeState.targetControlValue;
-            const valueDifference = Math.abs(value - targetValue);
-            const shouldExit = valueDifference <= this.pickupModeState.threshold || 
+            const shouldExit = Math.abs(value - targetValue) <= this.pickupModeState.threshold ||
                               PedalUtils.hasCrossedTarget(previousPedalValue, value, targetValue);
-            
             if (shouldExit) {
                 this.deactivatePickupMode(parameterKey);
             }
         }
+        this.lastPedalValue = value;
 
-        // Update display based on pickup mode state
         if (this.pickupModeState.active) {
-            // In pickup mode - show pedal position indicator only
             PedalUtils.updatePedalPositionIndicator(parameterKey, value, parameter, '.live-performance-control');
-        } else {
-            bus.emit('param:update', parameterKey, value);
-            this.updateLivePerformanceDisplay(parameterKey, value);
+            return;
         }
+
+        // For virtual unified controls, resolve to real keys and send them
+        // (controller's throttle can't send virtual params)
+        if (isVirtual) {
+            const allKeys = this.resolveAllVirtualKeys(virtualParam, cc);
+            for (const rk of allKeys) {
+                const rp = this.bossCubeController.parameters[rk];
+                if (rp) {
+                    rp.current = value;
+                    bus.emit('param:update', rk, value);
+                }
+            }
+        }
+        // For non-virtual params, the controller's own pedal throttle
+        // already sends to hardware — don't emit param:update to avoid double writes.
+
+        this.updateLivePerformanceDisplay(parameterKey, value);
     }
 
     /**
@@ -1707,19 +1994,49 @@ export class LivePerformance {
      * Update Live Performance control display when value changes
      */
     updateLivePerformanceDisplay(parameterKey, value) {
-        const control = document.querySelector(`.live-performance-control[data-param-key="${parameterKey}"]`);
-        if (!control) return;
+        let control = document.querySelector(`.live-performance-control[data-param-key="${parameterKey}"]`);
 
+        if (control) {
         const param = this.bossCubeController.parameters[parameterKey];
-        if (!param) return;
+            if (!param) return;
 
-        param.current = value;
+            let displayParam = param;
+            if (param.resolveKey) {
+                const cc = this.getControlConfig(parameterKey);
+                const resolvedKey = this.resolveVirtualKey(param, cc);
+                if (resolvedKey) displayParam = this.bossCubeController.parameters[resolvedKey] || param;
+            }
 
-        const isButtonControl = ['looperControl', 'guitarAmpType', 'guitarEffectType', 'micInstEffectType'].includes(parameterKey);
-        if (isButtonControl) {
-            updateButtonGroupDisplay(control, value);
-        } else {
-            updateControlDisplay(control, param, parameterKey, value);
+            displayParam.current = value;
+
+            const isButtonControl = ['looperControl', 'guitarAmpType', 'guitarEffectType', 'micInstEffectType'].includes(parameterKey);
+            if (isButtonControl) {
+                updateButtonGroupDisplay(control, value);
+                if (parameterKey === 'guitarEffectType') this.refreshLiveEffectButtonStates('guitar');
+                if (parameterKey === 'micInstEffectType') this.refreshLiveEffectButtonStates('micInst');
+            } else {
+                updateControlDisplay(control, displayParam, parameterKey, value);
+            }
+            return;
+        }
+
+        // Real parameter key may correspond to a virtual unified control —
+        // find any unified control whose resolved target matches this key.
+        const unifiedControls = document.querySelectorAll('.unified-effect-control');
+        for (const uc of unifiedControls) {
+            const virtualKey = uc.dataset.virtualKey;
+            if (!virtualKey) continue;
+            const vParam = this.bossCubeController.parameters[virtualKey];
+            if (!vParam || !vParam.resolveKey) continue;
+
+            const cc = this.getControlConfig(virtualKey);
+            const allKeys = this.resolveAllVirtualKeys(vParam, cc);
+            if (allKeys.includes(parameterKey)) {
+                const resolvedParam = this.bossCubeController.parameters[parameterKey];
+                if (resolvedParam) resolvedParam.current = value;
+                updateControlDisplay(uc, resolvedParam || vParam, virtualKey, value);
+                return;
+            }
         }
     }
 

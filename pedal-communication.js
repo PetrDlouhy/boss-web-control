@@ -45,13 +45,60 @@ export class PedalCommunication {
     }
 
     /**
-     * Connect to EV-1-WL Pedal via Web Bluetooth
+     * Try to auto-reconnect to a previously paired pedal.
+     * Uses watchAdvertisements() to detect the device, then connects.
+     */
+    async tryAutoReconnect() {
+        if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return false;
+
+        try {
+            const devices = await navigator.bluetooth.getDevices();
+            const pedalDevice = devices.find(d => d.name && (d.name.startsWith('EV-1') || d.name.startsWith('EV-1-WL')));
+            if (!pedalDevice) return false;
+
+            this.log('🔄 Scanning for pedal...', 'info');
+            await this.waitForDevice(pedalDevice, 8000);
+            this.log('📡 Pedal detected, connecting...', 'info');
+            return await this.connectToDevice(pedalDevice);
+        } catch (error) {
+            this.log(`Pedal auto-reconnect: ${error.message}`, 'info');
+            return false;
+        }
+    }
+
+    waitForDevice(device, timeoutMs) {
+        return new Promise((resolve, reject) => {
+            const abortCtrl = new AbortController();
+
+            const timer = setTimeout(() => {
+                device.removeEventListener('advertisementreceived', onAdvert);
+                abortCtrl.abort();
+                reject(new Error('Pedal not found nearby (timeout)'));
+            }, timeoutMs);
+
+            const onAdvert = () => {
+                clearTimeout(timer);
+                device.removeEventListener('advertisementreceived', onAdvert);
+                abortCtrl.abort();
+                resolve();
+            };
+
+            device.addEventListener('advertisementreceived', onAdvert);
+            device.watchAdvertisements({ signal: abortCtrl.signal }).catch(() => {
+                clearTimeout(timer);
+                reject(new Error('watchAdvertisements not supported'));
+            });
+        });
+    }
+
+    /**
+     * Connect to EV-1-WL Pedal via Web Bluetooth (shows device picker)
      */
     async connect() {
         try {
             this.log('🔍 Requesting EV-1-WL pedal device...', 'info');
             
-            this.device = await navigator.bluetooth.requestDevice({
+            const device = await navigator.bluetooth.requestDevice({
                 filters: [
                     { namePrefix: 'EV-1' },
                     { namePrefix: 'EV-1-WL' },
@@ -60,34 +107,7 @@ export class PedalCommunication {
                 optionalServices: [BLE_MIDI_SERVICE]
             });
 
-            this.log(`🦶 Selected device: ${this.device.name}`, 'info');
-
-            this.device.addEventListener('gattserverdisconnected', () => {
-                this.handleDisconnection();
-            });
-
-            this.log('🔌 Connecting to pedal GATT server...', 'info');
-            this.server = await this.device.gatt.connect();
-            
-            this.log('🎵 Getting pedal MIDI service...', 'info');
-            const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
-            
-            this.log('📡 Getting pedal MIDI characteristic...', 'info');
-            this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
-            
-            this.log('🔔 Starting pedal notifications...', 'info');
-            await this.characteristic.startNotifications();
-            
-            this.characteristic.addEventListener('characteristicvaluechanged', (event) => {
-                this.handleMIDIData(event.target.value);
-            });
-
-            this.isConnected = true;
-            this.notifyConnectionStatusChange(true);
-            
-            this.log('✅ EV-1-WL pedal connected successfully!', 'success');
-            
-            return true;
+            return await this.connectToDevice(device);
             
         } catch (error) {
             this.log(`❌ Pedal connection failed: ${error.message}`, 'error');
@@ -95,6 +115,40 @@ export class PedalCommunication {
             this.notifyConnectionStatusChange(false);
             throw error;
         }
+    }
+
+    async connectToDevice(device) {
+        this.device = device;
+        this.log(`🦶 Selected device: ${this.device.name}`, 'info');
+
+        if (!this._boundDisconnectHandler) {
+            this._boundDisconnectHandler = () => this.handleDisconnection();
+        }
+        this.device.removeEventListener('gattserverdisconnected', this._boundDisconnectHandler);
+        this.device.addEventListener('gattserverdisconnected', this._boundDisconnectHandler);
+
+        this.log('🔌 Connecting to pedal GATT server...', 'info');
+        this.server = await this.device.gatt.connect();
+        
+        this.log('🎵 Getting pedal MIDI service...', 'info');
+        const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
+        
+        this.log('📡 Getting pedal MIDI characteristic...', 'info');
+        this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
+        
+        this.log('🔔 Starting pedal notifications...', 'info');
+        await this.characteristic.startNotifications();
+        
+        this.characteristic.addEventListener('characteristicvaluechanged', (event) => {
+            this.handleMIDIData(event.target.value);
+        });
+
+        this.isConnected = true;
+        this.notifyConnectionStatusChange(true);
+        
+        this.log('✅ EV-1-WL pedal connected successfully!', 'success');
+        
+        return true;
     }
 
     /**

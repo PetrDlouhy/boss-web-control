@@ -5,7 +5,7 @@
  */
 
 import { BOSS_CUBE_PARAMETERS } from './parameters.js';
-import { EFFECT_SWITCH_COMMANDS } from './effect-definitions.js';
+import { EFFECT_SWITCH_COMMANDS, GUITAR_EFFECT_ONOFF, MIC_INST_EFFECT_ONOFF } from './effect-definitions.js';
 import { BossCubeCommunication } from './boss-cube-communication.js';
 import { PedalCommunication } from './pedal-communication.js';
 
@@ -58,6 +58,22 @@ class BossCubeController {
         // Effect state management
         this.currentGuitarEffect = 'phaser'; // phaser, chorus, tremolo, twah, flanger
         this.currentMicInstEffect = 'harmony'; // harmony, chorus, phaser, flanger, tremolo, twah
+        this.guitarEffectActive = true;
+        this.micInstEffectActive = true;
+
+        this._effectSwitchToInfo = {
+            guitarChorusSwitch: { channel: 'guitar', effect: 'chorus' },
+            guitarPhaserSwitch: { channel: 'guitar', effect: 'phaser' },
+            guitarFlangerSwitch: { channel: 'guitar', effect: 'flanger' },
+            guitarTremoloSwitch: { channel: 'guitar', effect: 'tremolo' },
+            guitarTWahSwitch: { channel: 'guitar', effect: 'twah' },
+            micInstHarmonySwitch: { channel: 'micInst', effect: 'harmony' },
+            micInstChorusSwitch: { channel: 'micInst', effect: 'chorus' },
+            micInstPhaserSwitch: { channel: 'micInst', effect: 'phaser' },
+            micInstFlangerSwitch: { channel: 'micInst', effect: 'flanger' },
+            micInstTremoloSwitch: { channel: 'micInst', effect: 'tremolo' },
+            micInstTWahSwitch: { channel: 'micInst', effect: 'twah' },
+        };
         
         // Use imported effect switching commands
         this.effectSwitchCommands = EFFECT_SWITCH_COMMANDS;
@@ -162,6 +178,16 @@ class BossCubeController {
         }
 
         return await this.bossCubeComm.connect();
+    }
+
+    async tryAutoReconnectCube() {
+        if (!BossCubeController.isSupported()) return false;
+        return await this.bossCubeComm.tryAutoReconnect();
+    }
+
+    async tryAutoReconnectPedal() {
+        if (!BossCubeController.isSupported()) return false;
+        return await this.pedalComm.tryAutoReconnect();
     }
 
     /**
@@ -796,92 +822,33 @@ class BossCubeController {
      * Update tuner display with structured tuner data
      */
     updateTunerDisplay(tunerData) {
-        const tunerFrequencyDisplay = document.getElementById('tunerFrequencyDisplay');
-        const tunerNoteDisplay = document.getElementById('tunerNoteDisplay');
-        const tunerVisual = document.getElementById('tunerVisual');
-        const tunerMeter = document.querySelector('.tuner-meter');
-        
-        if (!tunerFrequencyDisplay || !tunerNoteDisplay || !tunerVisual) {
-            this.log(`🎵 TUNER UI: Missing elements`, 'warning');
-            return;
-        }
-        
+        const modalFreq = document.getElementById('modalTunerFrequencyDisplay');
+        const modalNote = document.getElementById('modalTunerNoteDisplay');
+        const modalNeedle = document.getElementById('modalTunerNeedle');
+
         if (!tunerData.hasSignal) {
-            // No signal
-            tunerFrequencyDisplay.textContent = '--Hz';
-            tunerNoteDisplay.textContent = '--';
-            tunerVisual.style.background = '#333';
-            
-            // Remove needle if present
-            const tunerNeedle = document.querySelector('.tuner-needle');
-            if (tunerNeedle) {
-                tunerNeedle.remove();
-            }
+            if (modalFreq) modalFreq.textContent = '--Hz';
+            if (modalNote) modalNote.textContent = '--';
+            if (modalNeedle) modalNeedle.style.opacity = '0';
             return;
         }
-        
-        // Display structured tuner information
+
         const noteDisplay = `${tunerData.note}${tunerData.octave}`;
-        tunerNoteDisplay.textContent = noteDisplay;
-        
-        // Show frequency and status info
         const centsDisplay = tunerData.centsDeviation > 0 ? `+${tunerData.centsDeviation}¢` : `${tunerData.centsDeviation}¢`;
-        tunerFrequencyDisplay.textContent = `${tunerData.frequency}Hz (${centsDisplay})`;
-        
-        // Color coding based on tuning status
-        let backgroundColor = '#333';
-        if (tunerData.status === 'In Tune') {
-            backgroundColor = '#2d5a2d';
-        } else if (tunerData.status === 'Sharp') {
-            backgroundColor = '#5a3d2d';
-        } else if (tunerData.status === 'Flat') {
-            backgroundColor = '#5a2d2d';
-        }
-        
-        tunerVisual.style.background = backgroundColor;
-        
-        // Update tuner meter needle - always show with color feedback
-        if (tunerMeter) {
-            let tunerNeedle = document.querySelector('.tuner-needle');
-            
-            // Create needle if it doesn't exist
-            if (!tunerNeedle) {
-                tunerNeedle = document.createElement('div');
-                tunerNeedle.className = 'tuner-needle';
-                tunerNeedle.style.cssText = `
-                    position: absolute;
-                    top: 50%;
-                    width: 3px;
-                    height: 60%;
-                    background: #e74c3c;
-                    transform: translate(-50%, -50%);
-                    transition: left 0.1s ease;
-                    z-index: 3;
-                    border-radius: 1px;
-                    box-shadow: 0 0 4px rgba(231, 76, 60, 0.8);
-                `;
-                tunerMeter.appendChild(tunerNeedle);
-            }
-            
-                        // Correct mathematical positioning based on scale layout
-            // Scale has 7 marks with justify-content: space-between: ♭, -20, -10, 0, +10, +20, ♯
-            // Positions: 0%, 16.67%, 33.33%, 50%, 66.67%, 83.33%, 100%
-            const maxDisplayCents = 20;
-            const normalizedCents = Math.max(-maxDisplayCents, Math.min(maxDisplayCents, tunerData.centsDeviation));
-            
-            // Map cents to scale positions:
-            // -20¢ at 16.67%, -10¢ at 33.33%, 0¢ at 50%, +10¢ at 66.67%, +20¢ at 83.33%
-            const needlePosition = 50 + (normalizedCents / 20) * 33.33;
-            tunerNeedle.style.left = `${needlePosition}%`;
-            
-            // Change needle color based on tuning status - green when in tune for positive feedback
-            if (tunerData.status === 'In Tune') {
-                tunerNeedle.style.background = '#27ae60'; // Green when perfectly tuned
-                tunerNeedle.style.boxShadow = '0 0 4px rgba(39, 174, 96, 0.8)';
-            } else {
-                tunerNeedle.style.background = '#e74c3c'; // Red when needs adjustment
-                tunerNeedle.style.boxShadow = '0 0 4px rgba(231, 76, 60, 0.8)';
-            }
+        const freqText = `${tunerData.frequency}Hz (${centsDisplay})`;
+        const inTune = tunerData.status === 'In Tune';
+
+        if (modalNote) modalNote.textContent = noteDisplay;
+        if (modalFreq) modalFreq.textContent = freqText;
+
+        const maxDisplayCents = 20;
+        const normalizedCents = Math.max(-maxDisplayCents, Math.min(maxDisplayCents, tunerData.centsDeviation));
+        const needlePosition = 50 + (normalizedCents / 20) * 33.33;
+
+        if (modalNeedle) {
+            modalNeedle.style.opacity = '1';
+            modalNeedle.style.left = `${needlePosition}%`;
+            modalNeedle.classList.toggle('in-tune', inTune);
         }
     }
 
@@ -912,6 +879,16 @@ class BossCubeController {
         
         // Update parameter current value
         param.current = uiValue;
+
+        // Track effect on/off state from hardware feedback
+        const switchInfo = this._effectSwitchToInfo[parameterId];
+        if (switchInfo) {
+            if (switchInfo.channel === 'guitar' && switchInfo.effect === this.currentGuitarEffect) {
+                this.guitarEffectActive = uiValue === 1;
+            } else if (switchInfo.channel === 'micInst' && switchInfo.effect === this.currentMicInstEffect) {
+                this.micInstEffectActive = uiValue === 1;
+            }
+        }
         
         // Notify parameter update callback
         if (this.onParameterUpdate) {
@@ -960,11 +937,35 @@ class BossCubeController {
     // ===== EFFECT SWITCHING METHODS =====
 
     /**
-     * Switch guitar effect
+     * Toggle effect: second click deactivates, click on different effect switches.
+     * Shared logic used by both live and non-live modes.
+     * @returns {{ switched: boolean, active: boolean }}
      */
+    async toggleEffect(channel, effectType) {
+        const isGuitar = channel === 'guitar';
+        const current = isGuitar ? this.currentGuitarEffect : this.currentMicInstEffect;
+        const isActive = isGuitar ? this.guitarEffectActive : this.micInstEffectActive;
+
+        if (effectType === current && isActive) {
+            if (isGuitar) await this.deactivateGuitarEffect(effectType);
+            else await this.deactivateMicInstEffect(effectType);
+            return { switched: false, active: false };
+        }
+
+        if (effectType === current) {
+            if (isGuitar) await this.activateGuitarEffect(effectType);
+            else await this.activateMicInstEffect(effectType);
+            return { switched: false, active: true };
+        }
+
+        if (isGuitar) await this.switchGuitarEffect(effectType);
+        else await this.switchMicInstEffect(effectType);
+        return { switched: true, active: true };
+    }
+
     async switchGuitarEffect(effectType) {
         this.currentGuitarEffect = effectType;
-        
+        this.guitarEffectActive = true;
         if (this.effectSwitchCommands.guitar[effectType]) {
             const commands = [this.effectSwitchCommands.guitar[effectType]];
             await this.sendEffectSwitchCommands(commands);
@@ -972,16 +973,53 @@ class BossCubeController {
         }
     }
 
-    /**
-     * Switch mic/inst effect
-     */
+    async deactivateGuitarEffect(effectType) {
+        const effectKey = effectType || this.currentGuitarEffect;
+        const address = GUITAR_EFFECT_ONOFF[effectKey];
+        if (address) {
+            await this.bossCubeComm.sendParameterCommand(address, 0);
+            this.guitarEffectActive = false;
+            this.log(`🎸 Guitar effect ${effectKey} deactivated`, 'info');
+        }
+    }
+
+    async activateGuitarEffect(effectType) {
+        const effectKey = effectType || this.currentGuitarEffect;
+        const address = GUITAR_EFFECT_ONOFF[effectKey];
+        if (address) {
+            await this.bossCubeComm.sendParameterCommand(address, 1);
+            this.guitarEffectActive = true;
+            this.log(`🎸 Guitar effect ${effectKey} activated`, 'info');
+        }
+    }
+
     async switchMicInstEffect(effectType) {
         this.currentMicInstEffect = effectType;
-        
+        this.micInstEffectActive = true;
         if (this.effectSwitchCommands.micInst[effectType]) {
             const commands = [this.effectSwitchCommands.micInst[effectType]];
             await this.sendEffectSwitchCommands(commands);
             this.log(`🎤 Switched to mic/inst ${effectType} effect`, 'info');
+        }
+    }
+
+    async deactivateMicInstEffect(effectType) {
+        const effectKey = effectType || this.currentMicInstEffect;
+        const address = MIC_INST_EFFECT_ONOFF[effectKey];
+        if (address) {
+            await this.bossCubeComm.sendParameterCommand(address, 0);
+            this.micInstEffectActive = false;
+            this.log(`🎤 Mic/inst effect ${effectKey} deactivated`, 'info');
+        }
+    }
+
+    async activateMicInstEffect(effectType) {
+        const effectKey = effectType || this.currentMicInstEffect;
+        const address = MIC_INST_EFFECT_ONOFF[effectKey];
+        if (address) {
+            await this.bossCubeComm.sendParameterCommand(address, 1);
+            this.micInstEffectActive = true;
+            this.log(`🎤 Mic/inst effect ${effectKey} activated`, 'info');
         }
     }
 

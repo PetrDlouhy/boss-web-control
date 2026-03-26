@@ -72,4 +72,25 @@
     background: #28a745;
     color: white;
     border-color: #1e7e34;
+}
+
+/* Looper timeline progress bar */
+.looper-timeline {
+    height: 6px;
+    background: var(--border, #ddd);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.looper-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    border-radius: 3px;
+    transition: none;
+}
+
+.looper-timeline.recording .looper-progress-bar {
+    background: linear-gradient(90deg, #f44336, #ff5722);
 } 

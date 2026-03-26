@@ -554,11 +554,11 @@ const BossCubeCommunicationTests = {
     async testTunerMathematicalConsistency() {
         const comm = this.createMockCommunication();
         
-        // Test center tuning (18) gives 0 cents for different notes
+        // Test center tuning (19) gives 0 cents for different notes
         const centerTuningCases = [
-            [0x40, 0x01, 0x02, 0x00, 0x00, 0x00], // E4, tunerValue = 18
-            [0x45, 0x01, 0x02, 0x00, 0x00, 0x00], // A4, tunerValue = 18
-            [0x47, 0x01, 0x02, 0x00, 0x00, 0x00], // B4, tunerValue = 18
+            [0x40, 0x01, 0x03, 0x00, 0x00, 0x00], // E4, tunerValue = 19
+            [0x45, 0x01, 0x03, 0x00, 0x00, 0x00], // A4, tunerValue = 19
+            [0x47, 0x01, 0x03, 0x00, 0x00, 0x00], // B4, tunerValue = 19
         ];
         
         for (const tuningCase of centerTuningCases) {
@@ -569,16 +569,16 @@ const BossCubeCommunicationTests = {
         }
         
         // Test that frequency calculation is mathematically correct
-        const a4Perfect = comm.decodeTunerData([0x45, 0x01, 0x02, 0x00, 0x00, 0x00]); // A4, 0¢
+        const a4Perfect = comm.decodeTunerData([0x45, 0x01, 0x03, 0x00, 0x00, 0x00]); // A4, 0¢
         const expectedA4Freq = 440.0; // Standard A4
         if (Math.abs(a4Perfect.frequency - expectedA4Freq) > 0.1) {
             throw new Error(`A4 frequency should be ~440Hz, got ${a4Perfect.frequency}Hz`);
         }
         
         // Test frequency relationship between notes (octave = 2x frequency)
-        const a3 = comm.decodeTunerData([0x39, 0x01, 0x02, 0x00, 0x00, 0x00]); // A3
-        const a4 = comm.decodeTunerData([0x45, 0x01, 0x02, 0x00, 0x00, 0x00]); // A4
-        const a5 = comm.decodeTunerData([0x51, 0x01, 0x02, 0x00, 0x00, 0x00]); // A5
+        const a3 = comm.decodeTunerData([0x39, 0x01, 0x03, 0x00, 0x00, 0x00]); // A3
+        const a4 = comm.decodeTunerData([0x45, 0x01, 0x03, 0x00, 0x00, 0x00]); // A4
+        const a5 = comm.decodeTunerData([0x51, 0x01, 0x03, 0x00, 0x00, 0x00]); // A5
         
         const ratio43 = a4.frequency / a3.frequency;
         const ratio54 = a5.frequency / a4.frequency;
@@ -588,8 +588,8 @@ const BossCubeCommunicationTests = {
         }
         
         // Test semitone relationship (12th root of 2)
-        const c4 = comm.decodeTunerData([0x40, 0x01, 0x02, 0x00, 0x00, 0x00]); // C4
-        const cs4 = comm.decodeTunerData([0x41, 0x01, 0x02, 0x00, 0x00, 0x00]); // C#4
+        const c4 = comm.decodeTunerData([0x40, 0x01, 0x03, 0x00, 0x00, 0x00]); // C4
+        const cs4 = comm.decodeTunerData([0x41, 0x01, 0x03, 0x00, 0x00, 0x00]); // C#4
         
         const semitoneRatio = cs4.frequency / c4.frequency;
         const expectedSemitoneRatio = Math.pow(2, 1/12);
@@ -599,9 +599,9 @@ const BossCubeCommunicationTests = {
         }
         
                  // Test cents deviation affects frequency correctly (use E4 instead of A4 for consistency)
-         const e4Perfect = comm.decodeTunerData([0x40, 0x01, 0x02, 0x00, 0x00, 0x00]); // E4, tunerValue = 18 (0¢)
-         const flatTuning = comm.decodeTunerData([0x40, 0x01, 0x01, 0x00, 0x00, 0x00]); // tunerValue = 17 (-3¢)
-         const sharpTuning = comm.decodeTunerData([0x40, 0x01, 0x03, 0x00, 0x00, 0x00]); // tunerValue = 19 (+3¢)
+         const e4Perfect = comm.decodeTunerData([0x40, 0x01, 0x03, 0x00, 0x00, 0x00]); // E4, tunerValue = 19 (0¢)
+         const flatTuning = comm.decodeTunerData([0x40, 0x01, 0x02, 0x00, 0x00, 0x00]); // tunerValue = 18 (-3¢)
+         const sharpTuning = comm.decodeTunerData([0x40, 0x01, 0x04, 0x00, 0x00, 0x00]); // tunerValue = 20 (+3¢)
          
          if (flatTuning.frequency >= e4Perfect.frequency) {
              throw new Error('Flat tuning should have lower frequency than perfect');
@@ -684,11 +684,13 @@ const BossCubeCommunicationTests = {
             }
         }
         
-                 // Test status classification accuracy
+                 // Test status classification accuracy (center=19, in-tune when |cents| <= 3)
          const statusTests = [
-             { data: [0x40, 0x01, 0x02, 0x00, 0x7F, 0x00], expectedStatus: 'In Tune', desc: 'Perfect tune' },
-             { data: [0x40, 0x01, 0x01, 0x00, 0x7F, 0x00], expectedStatus: 'Flat', desc: 'Slightly flat (-3¢)' },
-             { data: [0x40, 0x01, 0x03, 0x00, 0x7F, 0x00], expectedStatus: 'Sharp', desc: 'Slightly sharp (+3¢)' },
+             { data: [0x40, 0x01, 0x03, 0x00, 0x7F, 0x00], expectedStatus: 'In Tune', desc: 'Perfect tune (0¢)' },
+             { data: [0x40, 0x01, 0x02, 0x00, 0x7F, 0x00], expectedStatus: 'In Tune', desc: 'Edge in-tune (-3¢)' },
+             { data: [0x40, 0x01, 0x04, 0x00, 0x7F, 0x00], expectedStatus: 'In Tune', desc: 'Edge in-tune (+3¢)' },
+             { data: [0x40, 0x01, 0x01, 0x00, 0x7F, 0x00], expectedStatus: 'Flat', desc: 'Slightly flat (-6¢)' },
+             { data: [0x40, 0x01, 0x05, 0x00, 0x7F, 0x00], expectedStatus: 'Sharp', desc: 'Slightly sharp (+6¢)' },
              { data: [0x40, 0x00, 0x0C, 0x00, 0x7F, 0x00], expectedStatus: 'Flat', desc: 'Clearly flat' },
              { data: [0x40, 0x01, 0x08, 0x00, 0x7F, 0x00], expectedStatus: 'Sharp', desc: 'Clearly sharp' }
          ];

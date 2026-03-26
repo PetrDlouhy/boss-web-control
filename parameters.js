@@ -69,6 +69,18 @@ export const BOSS_CUBE_PARAMETERS = {
         },
         category: 'looper'
     },
+    // Composite looper assigns control for Live Performance mode
+    looperAssigns: {
+        name: 'Looper Assigns',
+        address: null, min: 0, max: 1, current: 0,
+        category: 'looper',
+        isVirtual: true,
+        isComposite: true,
+        childKeys: ['looperMicInstAssign', 'looperGuitarMicAssign', 'looperReverbAssign', 'looperICubeLinkAssign'],
+        childIcons: { looperMicInstAssign: '🎤', looperGuitarMicAssign: '🎸', looperReverbAssign: '🌊', looperICubeLinkAssign: '🔗' },
+        childLabels: { looperMicInstAssign: 'Mic/Inst', looperGuitarMicAssign: 'Guitar', looperReverbAssign: 'Reverb', looperICubeLinkAssign: 'Aux/BT' },
+    },
+
     looperMicInstAssign: { 
         name: 'Mic/Inst Assign', 
         address: [0x00, 0x00, 0x00, 0x0B], 
@@ -174,14 +186,97 @@ export const BOSS_CUBE_PARAMETERS = {
     // Guitar Effect Type Selector (virtual parameter for Live Performance mode)
     guitarEffectType: { 
         name: 'Guitar Effect Type', 
-        address: null, // Virtual parameter - no SysEx address
+        address: null,
         min: 0, max: 4, current: 0,
         valueLabels: ['Phaser', 'Chorus', 'Tremolo', 'T.WAH', 'Flanger'],
         category: 'guitarEffects',
         isVirtual: true
     },
 
+    // Unified guitar effect controls — resolve to whichever effect is active
+    guitarEffectLevel: {
+        name: 'Guitar Effect Level',
+        address: null, min: 0, max: 100, current: 50,
+        category: 'guitarEffects',
+        isVirtual: true,
+        resolveKey: {
+            phaser: 'guitarPhaserLevel', chorus: 'guitarChorusLowLevel',
+            tremolo: 'guitarTremoloLevel', twah: 'guitarTWahLevel',
+            't.wah': 'guitarTWahLevel', flanger: 'guitarFlangerLevel',
+        },
+        resolveSource: 'currentGuitarEffect',
+    },
+    guitarEffectDepth: {
+        name: 'Guitar Effect Depth',
+        address: null, min: 0, max: 100, current: 50,
+        category: 'guitarEffects',
+        isVirtual: true,
+        resolveKey: {
+            phaser: 'guitarPhaserDepth', chorus: ['guitarChorusLowDepth', 'guitarChorusHighDepth'],
+            tremolo: 'guitarTremoloDepth', twah: 'guitarTWahFrequency',
+            't.wah': 'guitarTWahFrequency', flanger: 'guitarFlangerDepth',
+        },
+        resolveSource: 'currentGuitarEffect',
+    },
+    guitarEffectRate: {
+        name: 'Guitar Effect Rate',
+        address: null, min: 0, max: 100, current: 50,
+        category: 'guitarEffects',
+        isVirtual: true,
+        resolveKey: {
+            phaser: 'guitarPhaserRate', chorus: ['guitarChorusLowRate', 'guitarChorusHighRate'],
+            tremolo: 'guitarTremoloRate', twah: 'guitarTWahSens',
+            't.wah': 'guitarTWahSens', flanger: 'guitarFlangerRate',
+        },
+        resolveSource: 'currentGuitarEffect',
+    },
+
     // Guitar Effects - Phaser
+    // Guitar effect on/off switches (address is 1 byte before each effect's first param)
+    guitarChorusSwitch:  { name: 'Chorus On/Off',  address: [0x10, 0x00, 0x00, 0x3a], min: 0, max: 1, current: 0, category: 'guitarEffects', effectType: 'chorus', hidden: true },
+    guitarPhaserSwitch:  { name: 'Phaser On/Off',  address: [0x10, 0x00, 0x00, 0x45], min: 0, max: 1, current: 0, category: 'guitarEffects', effectType: 'phaser', hidden: true },
+    guitarFlangerSwitch: { name: 'Flanger On/Off', address: [0x10, 0x00, 0x00, 0x4c], min: 0, max: 1, current: 0, category: 'guitarEffects', effectType: 'flanger', hidden: true },
+    guitarTremoloSwitch: { name: 'Tremolo On/Off', address: [0x10, 0x00, 0x00, 0x53], min: 0, max: 1, current: 0, category: 'guitarEffects', effectType: 'tremolo', hidden: true },
+    guitarTWahSwitch:    { name: 'T.WAH On/Off',   address: [0x10, 0x00, 0x00, 0x58], min: 0, max: 1, current: 0, category: 'guitarEffects', effectType: 'twah', hidden: true },
+
+    // Physical knob positions (read-only, reflects hardware knob state)
+    guitarVolumeKnob: { name: 'Guitar Volume Knob', address: [0x20, 0x00, 0x20, 0x08], min: 0, max: 100, current: 0, category: 'system', hidden: true },
+    auxInKnob:        { name: 'AUX IN Knob',        address: [0x20, 0x00, 0x20, 0x0b], min: 0, max: 100, current: 0, category: 'system', hidden: true },
+    harmonyKnob:      { name: 'Harmony Knob',       address: [0x20, 0x00, 0x20, 0x0e], min: 0, max: 100, current: 0, category: 'system', hidden: true },
+    micInstReverbKnob:  { name: 'Mic/Inst Reverb Knob', address: [0x20, 0x00, 0x20, 0x0f], min: 0, max: 100, current: 0, category: 'system', hidden: true },
+    guitarReverbKnob:   { name: 'Guitar Reverb Knob',  address: [0x20, 0x00, 0x20, 0x10], min: 0, max: 100, current: 0, category: 'system', hidden: true },
+    effectDelayKnob:    { name: 'Effect/Delay Knob',    address: [0x20, 0x00, 0x20, 0x11], min: 0, max: 100, current: 0, category: 'system', hidden: true },
+
+    // Physical panel switches (read-only)
+    micInstInputSelect: { name: 'Mic/Inst Select',  address: [0x20, 0x00, 0x20, 0x09], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+    outputPowerMode:    { name: 'Output Power Mode', address: [0x20, 0x00, 0x20, 0x0d], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+
+    // Tuner
+    tunerSwitch:    { name: 'Tuner On/Off',      address: [0x20, 0x00, 0x10, 0x00], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+    tunerStreaming: { name: 'Tuner Streaming',    address: [0x7f, 0x00, 0x00, 0x02], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+
+    // Mic/Inst effect on/off switches (per-effect, follows first_param-1 pattern)
+    micInstHarmonySwitch: { name: 'Harmony On/Off',         address: [0x10, 0x00, 0x00, 0x02], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+    micInstChorusSwitch:  { name: 'Mic Chorus On/Off',      address: [0x10, 0x00, 0x00, 0x07], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+    micInstPhaserSwitch:  { name: 'Mic Phaser On/Off',      address: [0x10, 0x00, 0x00, 0x12], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+    micInstFlangerSwitch: { name: 'Mic Flanger On/Off',     address: [0x10, 0x00, 0x00, 0x19], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+    micInstTremoloSwitch: { name: 'Mic Tremolo On/Off',     address: [0x10, 0x00, 0x00, 0x20], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+    micInstTWahSwitch:    { name: 'Mic T.WAH On/Off',       address: [0x10, 0x00, 0x00, 0x25], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+    micInstReverbSwitch:  { name: 'Mic/Inst Reverb On/Off', address: [0x10, 0x00, 0x00, 0x2c], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+
+    // Harmony operational params (separate from config params at 0x0B-0x0E)
+    harmonyVoiceZone: { name: 'Harmony Voice Zone', address: [0x10, 0x00, 0x00, 0x6a], min: 0, max: 5, current: 0, category: 'micInstEffects', hidden: true },
+    harmonyLevel:     { name: 'Harmony Level',      address: [0x10, 0x00, 0x00, 0x6b], min: 0, max: 100, current: 0, category: 'micInstEffects', effectType: 'harmony', effectIndex: 0 },
+
+    // Guitar reverb on/off (fires when guitar [REVERB] knob crosses zero)
+    guitarReverbSwitch: { name: 'Guitar Reverb On/Off', address: [0x10, 0x00, 0x00, 0x69], min: 0, max: 1, current: 0, category: 'guitarEffects', hidden: true },
+
+    // System signals (registered to suppress warnings)
+    systemSignal7f0005:   { name: 'System Signal 7f0005',   address: [0x7f, 0x00, 0x05, 0x02], min: 0, max: 127, current: 0, category: 'system', hidden: true },
+    systemSignal000019:   { name: 'System Signal 000019',   address: [0x00, 0x00, 0x00, 0x19], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+    manualTunerMode:   { name: 'Manual Tuner Mode',   address: [0x20, 0x00, 0x30, 0x00], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+    manualTunerParam:  { name: 'Manual Tuner Param',  address: [0x20, 0x00, 0x30, 0x02], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+
     guitarPhaserRate: { 
         name: 'Phaser Rate', 
         address: [0x10, 0x00, 0x00, 0x47], 
@@ -607,6 +702,32 @@ export const BOSS_CUBE_PARAMETERS = {
         min: 0, max: 5, current: 0,
         valueLabels: ['Harmony', 'Chorus', 'Phaser', 'Flanger', 'Tremolo', 'T.WAH'],
         category: 'micInstEffects'
+    },
+
+    // Unified mic/inst effect controls — resolve to whichever effect is active
+    micInstEffectLevel: {
+        name: 'Mic/Inst Effect Level',
+        address: null, min: 0, max: 100, current: 50,
+        category: 'micInstEffects',
+        isVirtual: true,
+        resolveKey: {
+            chorus: 'micInstChorusLowLevel', phaser: 'micInstPhaserLevel',
+            flanger: 'micInstFlangerLevel', tremolo: 'micInstTremoloLevel',
+            twah: 'micInstTWahLevel', 't.wah': 'micInstTWahLevel',
+        },
+        resolveSource: 'currentMicInstEffect',
+    },
+    micInstEffectDepth: {
+        name: 'Mic/Inst Effect Depth',
+        address: null, min: 0, max: 100, current: 50,
+        category: 'micInstEffects',
+        isVirtual: true,
+        resolveKey: {
+            chorus: ['micInstChorusLowDepth', 'micInstChorusHighDepth'], phaser: 'micInstPhaserDepth',
+            flanger: 'micInstFlangerDepth', tremolo: 'micInstTremoloDepth',
+            twah: 'micInstTWahSens', 't.wah': 'micInstTWahSens',
+        },
+        resolveSource: 'currentMicInstEffect',
     },
 
     // Mic/Inst Effects - Harmony (verified addresses from README)
