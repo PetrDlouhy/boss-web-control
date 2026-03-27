@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Boss Cube Web Control - Full Mixer</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzIxOTZGMyIvPgo8cGF0aCBkPSJNMTYgOHYxNiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHBhdGggZD0iTTggMTZoMTYiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPg==">
+    <meta name="theme-color" content="#2196F3">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/live-performance.css">
+    <link rel="stylesheet" href="styles/tuner.css">
+    <link rel="stylesheet" href="styles/looper-controls.css">
+    <link rel="stylesheet" href="styles/looper-settings.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎚️ Boss Cube Mixer</h1>
+        <p class="subtitle">Full Parameter Control via Bluetooth</p>
+        <div id="versionInfo" class="version-info">
+            <span id="versionText">Loading version...</span>
+            <select id="versionSwitcher" class="version-switcher" style="display: none;" title="Switch version"></select>
+            <button id="refreshBtn" class="btn-small" style="display: none;">🔄 Update Available</button>
+        </div>
+        
+        <div class="header-right">
+            <button id="themeToggleBtn" class="theme-toggle" title="Toggle dark/light mode">🌙</button>
+            <button id="settingsBtn" class="btn-secondary">⚙️ Settings</button>
+        </div>
+        
+        <div class="status-section">
+            <div id="status" class="status error">
+                Disconnected
+            </div>
+            
+            <div id="pedalStatus" class="pedal-status">
+                🎹 Pedal: Not connected
+            </div>
+            
+            <div id="hardwareBadges" class="hardware-badges" style="display: none;">
+                <span id="powerBadge" class="hw-badge"></span>
+                <span id="inputBadge" class="hw-badge"></span>
+                <span id="batteryBadge" class="hw-badge" style="display: none;"></span>
+            </div>
+        </div>
+        
+        <div class="controls-section">
+            <button id="connectBtn" class="btn">Connect Boss Cube</button>
+            <button id="connectPedalBtn" class="btn" disabled>Connect Pedal (EV-1-WL)</button>
+            <button id="readValuesBtn" class="btn" disabled>🔄 Reload Values</button>
+            <button id="livePerformanceBtn" class="btn warning">🎭 Live Performance</button>
+        </div>
+        
+        <div class="mixer-container">
+            <div class="mixer-section">
+                <h3>🎛️ Mixer Controls</h3>
+                <div id="mixerControls" class="parameter-grid">
+                    <!-- Mixer controls will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="mixer-section">
+                <h3>🎸 Effects Controls</h3>
+                <div id="effectsControls" class="parameter-grid">
+                    <!-- Effects controls will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <p><strong>🔧 Controls:</strong> Hold and drag to adjust values • Long hold (0.8s) without movement to select for pedal control • Expression pedal controls selected parameter • Right footswitch = Next • Left footswitch = Previous</p>
+
+        </div>
+        
+        <div class="log-panel">
+            <div class="log-panel-controls">
+                <label>Log: </label>
+                <select id="logVerbosity" class="log-verbosity-select">
+                    <option value="minimal">Minimal</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="verbose">Verbose</option>
+                </select>
+                <label class="discovery-toggle"><input type="checkbox" id="discoveryMode"> 🔍 Discovery</label>
+                <button id="probeBtn" class="btn-small">🔬 Probe</button>
+                <button id="discoveryDashboardBtn" class="btn-small">🧪 Dashboard</button>
+                <button id="saveLogsBtn" class="btn-small">💾 Save Logs</button>
+                <button id="toggleLogBtn" class="btn-small">▼ Show</button>
+            </div>
+            <div id="log" class="log" style="display: none;">
+                <div class="log-entry info">Ready to connect...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button id="closeSettingsBtn" class="close-btn">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h4>Pedal CC Codes</h4>
+                    <p class="settings-description">Configure MIDI CC codes for pedal functions</p>
+                    
+                    <div class="setting-row">
+                        <label for="prevParamCC">Previous Parameter CC:</label>
+                        <input type="number" id="prevParamCC" min="0" max="127" value="80">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label for="nextParamCC">Next Parameter CC:</label>
+                        <input type="number" id="nextParamCC" min="0" max="127" value="81">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label for="pedalControlCC">Pedal Control CC:</label>
+                        <input type="number" id="pedalControlCC" min="0" max="127" value="127">
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4>Footswitch Polarity</h4>
+                    <p class="settings-description">Configure how footswitch signals are interpreted</p>
+                    
+                    <div class="setting-row">
+                        <label>
+                            <input type="radio" name="footswitchPolarity" value="normally_open" checked>
+                            Normally Open (Boss footswitches)
+                        </label>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>
+                            <input type="radio" name="footswitchPolarity" value="normally_closed">
+                            Normally Closed (Other footswitches)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-body device-settings" id="deviceSettingsSection" style="display: none;">
+                <p class="settings-description device-settings-note">These settings are stored on the amplifier. Changes apply immediately.</p>
+
+                <div class="settings-section">
+                    <h4>🔇 Noise Suppressor</h4>
+                    <div id="settingsNoiseSuppControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🔊 AUX IN Ducking</h4>
+                    <div id="settingsDuckingControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🔗 Connectivity</h4>
+                    <div id="settingsConnectivityControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🦶 Foot Switch Assigns</h4>
+                    <div id="settingsFootSWControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🔊 Audio Output</h4>
+                    <div id="settingsAudioControls" class="settings-param-grid"></div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="resetSettingsBtn" class="btn-secondary">Reset to Defaults</button>
+                <button id="saveSettingsBtn" class="btn-primary">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bind Info Popup -->
+    <div id="bindInfoOverlay" class="bind-info-overlay"></div>
+    <div id="bindInfoPopup" class="bind-info-popup">
+        <h4>🔗 Master Out Binding</h4>
+        <p>Use the Aux volume knob to control Master Out volume. This is a workaround for the missing physical Master Out knob on the Boss Cube II.</p>
+        <p><strong>When enabled:</strong> Turning the Aux knob will move both sliders and control the Master Out volume.</p>
+    </div>
+
+    <!-- Tuner Modal (overlays everything including live performance) -->
+    <div id="tunerModal" class="tuner-modal" style="display: none;">
+        <div class="tuner-modal-content">
+            <button id="tunerModalClose" class="tuner-modal-close">✕</button>
+            <h3>🎵 Tuner</h3>
+            <div class="tuner-modal-visual">
+                <div id="modalTunerNoteDisplay" class="tuner-note-display">--</div>
+                <div id="modalTunerFrequencyDisplay" class="tuner-frequency-display">--Hz</div>
+                <div class="tuner-meter">
+                    <div class="tuner-scale">
+                        <span>♭</span>
+                        <span>-20</span>
+                        <span>-10</span>
+                        <span>0</span>
+                        <span>+10</span>
+                        <span>+20</span>
+                        <span>♯</span>
+                    </div>
+                    <div id="modalTunerNeedle" class="tuner-needle" style="left: 50%; opacity: 0;"></div>
+                </div>
+            </div>
+            <div class="tuner-modal-controls">
+                <button id="modalTunerModeBtn" class="btn tuner-mode-btn">Chromatic</button>
+                <select id="modalTunerKeySelect" class="tuner-key-select" style="display: none;">
+                    <option value="0">C</option><option value="1">D</option><option value="2">E</option>
+                    <option value="3">F</option><option value="4">G</option><option value="5">A</option>
+                    <option value="6">B</option>
+                    <option value="7" title="5th string open (A)">5A</option>
+                    <option value="8" title="5th string down ½ step (A♭)">5A♭</option>
+                </select>
+                <div id="modalTunerAccidental" class="tuner-accidental" style="display: none;">
+                    <button class="btn btn-accidental" data-value="0" title="Flat">♭</button>
+                    <button class="btn btn-accidental" data-value="1" title="Natural (no modification)">♮</button>
+                    <button class="btn btn-accidental" data-value="2" title="Sharp">♯</button>
+                </div>
+                <div id="modalTunerPitchControls" class="tuner-pitch-controls"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Performance Overlay -->
+    <div id="livePerformanceOverlay" class="live-performance-overlay"></div>
+
+    <script type="module" src="boss-cube-controller.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html> 

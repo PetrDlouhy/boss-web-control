@@ -1,0 +1,194 @@
+<div class="live-performance-container">
+    <div class="live-performance-header">
+        <div class="header-actions">
+            <select id="presetSelect" class="preset-select-header" title="Select Preset">
+                <option value="">🎛️ Select preset...</option>
+            </select>
+            <button class="config-btn" id="liveTunerBtn" title="Tuner">🎵</button>
+            <button class="config-btn" id="livePerformanceSettingsBtn" title="Settings">⚙️</button>
+            <button class="live-performance-close" id="livePerformanceClose">✕</button>
+        </div>
+    </div>
+    
+    <div class="live-performance-content">
+        <div class="live-performance-controls" id="livePerformanceControls">
+            <!-- Controls will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Preset Configuration Modal -->
+<div class="preset-config-modal" id="presetConfigModal">
+    <div class="preset-config-content">
+        <div class="preset-config-header">
+            <h3 id="configModalTitle">Create New Preset</h3>
+            <button class="modal-close" id="presetConfigClose">✕</button>
+        </div>
+        
+        <div class="preset-config-body">
+            <div class="preset-config-section">
+                <div class="preset-name-section">
+                    <label for="presetNameInput">Preset Name:</label>
+                    <input type="text" id="presetNameInput" class="preset-name-input" placeholder="Enter preset name" required>
+                </div>
+                
+                <div class="preset-icon-section">
+                    <label for="presetIconSelect">Preset Icon:</label>
+                    <select id="presetIconSelect" class="preset-icon-select">
+                        <option value="🎭">🎭 Performance</option>
+                        <option value="🎸">🎸 Guitar</option>
+                        <option value="🎤">🎤 Vocal/Mic</option>
+                        <option value="🎛️">🎛️ Mixer</option>
+                        <option value="🔁">🔁 Looper</option>
+                        <option value="🌊">🌊 Reverb</option>
+                        <option value="🎚️">🎚️ Effects</option>
+                        <option value="🎯">🎯 Precision</option>
+                        <option value="⭐">⭐ Favorite</option>
+                        <option value="🎨">🎨 Creative</option>
+                        <option value="📊">📊 Complex</option>
+                        <option value="🔥">🔥 Intense</option>
+                        <option value="⚡">⚡ Electric</option>
+                        <option value="🌟">🌟 Special</option>
+                        <option value="🎵">🎵 Musical</option>
+                        <option value="🔊">🔊 Volume</option>
+                        <option value="🎶">🎶 Melody</option>
+                        <option value="💫">💫 Magic</option>
+                        <option value="🚀">🚀 Power</option>
+                        <option value="✨">✨ Sparkle</option>
+                    </select>
+                </div>
+                
+                <div class="controls-selection">
+                    <h4>Select Controls for this Preset:</h4>
+                    <div class="controls-categories">
+                        <div class="control-category">
+                            <h5>🎛️ Mixer Controls</h5>
+                            <div class="control-options" id="modalMixerControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🔁 Looper Control</h5>
+                            <div class="control-options" id="modalLooperControlControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🔧 Looper Settings</h5>
+                            <div class="control-options" id="modalLooperSettingsControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🎸 Guitar EQ & Amp</h5>
+                            <div class="control-options" id="modalGuitarEQControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🎸 Guitar Amp Types</h5>
+                            <div class="control-options" id="modalGuitarAmpControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🎸 Guitar Effects</h5>
+                            <div class="control-options" id="modalGuitarEffectControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🎸 Guitar Delay</h5>
+                            <div class="control-options" id="modalGuitarDelayControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🌊 Shared Reverb</h5>
+                            <div class="control-options" id="modalReverbControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🔊 Reverb Levels</h5>
+                            <div class="control-options" id="modalReverbLevelsControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🎤 Mic/Inst EQ</h5>
+                            <div class="control-options" id="modalMicInstEQControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🎤 Mic/Inst Effects</h5>
+                            <div class="control-options" id="modalMicInstEffectControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="control-category">
+                            <h5>🎵 Tuner</h5>
+                            <div class="control-options" id="modalTunerControls">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="selected-controls">
+                    <h4>Selected Controls (drag to reorder):</h4>
+                    <div class="selected-controls-list" id="selectedControlsList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                    <div class="pedal-control-info">
+                        <p><strong>🦶 Pedal Control:</strong> Check the pedal icon next to controls to make them accessible via left/right footswitch navigation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="preset-config-footer">
+            <div class="footer-actions">
+                <button class="btn" id="cancelConfigBtn">Cancel</button>
+                <button class="btn danger" id="deletePresetBtn" style="display: none;">Delete Preset</button>
+                <button class="btn success" id="saveConfigBtn">Create Preset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="preset-config-modal" id="livePerformanceSettingsModal">
+    <div class="preset-config-content">
+        <div class="preset-config-header">
+            <h3>Live Performance Settings</h3>
+            <button class="modal-close" id="livePerformanceSettingsClose">✕</button>
+        </div>
+        
+        <div class="preset-config-body">
+            <div class="preset-config-section">
+                <div class="preset-management-full">
+                    <div class="preset-list-header">
+                        <h4>Manage Your Presets</h4>
+                        <button class="btn success" id="livePerformanceAddNewPresetBtn">➕ New Preset</button>
+                    </div>
+                    <div class="preset-list-full" id="livePerformancePresetListFull">
+                        <div class="empty-presets" id="livePerformanceEmptyPresetsMessageFull">
+                            <p>No presets created yet. Click "New Preset" to get started!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="preset-config-footer">
+            <div class="footer-actions">
+                <button class="btn" id="livePerformanceExportPresetsBtn">📥 Export</button>
+                <button class="btn" id="livePerformanceImportPresetsBtn">📤 Import</button>
+                <input type="file" id="livePerformanceImportFileInput" accept=".json" style="display: none;">
+                <button class="btn" id="livePerformanceCloseSettingsBtn">Close</button>
+            </div>
+        </div>
+    </div>
+</div> 
