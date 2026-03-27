@@ -2,6 +2,7 @@
  * SysEx Discovery Dashboard — dev tool for probing and monitoring unknown addresses.
  * Renders as a modal inside the existing app, reusing the active BLE connection.
  */
+import BossCubeController from './boss-cube-controller.js';
 
 export class DiscoveryDashboard {
     constructor(controller) {
@@ -351,14 +352,9 @@ export class DiscoveryDashboard {
         stopBtn.disabled = true;
     }
 
-    static DISCOVERY_BLOCKS = [
-        { address: [0x00, 0x00, 0x00, 0x00], size: [0x00, 0x00, 0x00, 0x1b], label: 'System' },
-        { address: [0x10, 0x00, 0x00, 0x00], size: [0x00, 0x00, 0x00, 0x6d], label: 'Effects' },
-        { address: [0x20, 0x00, 0x00, 0x00], size: [0x00, 0x00, 0x00, 0x05], label: 'Mixer' },
-        { address: [0x20, 0x00, 0x20, 0x00], size: [0x00, 0x00, 0x00, 0x13], label: 'Panel' },
-        { address: [0x20, 0x00, 0x10, 0x00], size: [0x00, 0x00, 0x00, 0x03], label: 'Looper' },
-        { address: [0x20, 0x00, 0x30, 0x00], size: [0x00, 0x00, 0x00, 0x03], label: 'Tuner Cfg' },
-    ];
+    static get DISCOVERY_BLOCKS() {
+        return BossCubeController.BLOCK_READS;
+    }
 
     static TWEAK_PARAMS = [
         { addr: [0x00, 0x00, 0x00, 0x0f], label: 'Mix Level Reserved (0-100)', max: 100, value: null },

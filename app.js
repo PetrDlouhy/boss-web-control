@@ -11,12 +11,12 @@ import {
     getDisplayValue, updateControlDisplay, updateButtonGroupDisplay,
     queueFillUpdate,
 } from './control-factory.js';
-import { EFFECT_SWITCH_MAP, normalizeEffectKey, refreshEffectButtons } from './effect-definitions.js';
+import { normalizeEffectKey, refreshEffectButtons } from './effect-definitions.js';
 import { initVersionSwitcher } from './version-switcher.js';
 import { LooperTimeline } from './looper-timeline.js';
 import { DiscoveryDashboard } from './discovery-dashboard.js';
 
-const VERSION = '2.27.0';
+const VERSION = '2.28.0';
 
 let bossCubeController = null;
 let templateLoader = null;
@@ -53,7 +53,7 @@ const looperTimeline = new LooperTimeline();
 const logBuffer = [];
 let logVerbosity = 'normal'; // 'minimal', 'normal', 'verbose'
 
-// EFFECT_SWITCH_MAP imported from effect-definitions.js (single source of truth)
+// Effect switch map lives in effect-definitions.js (single source of truth)
 
 // Master Out binding state
 let masterBindEnabled = false;

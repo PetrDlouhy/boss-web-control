@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Service Worker
 // Network-first strategy: always fresh when online, cached fallback when offline
 
-const VERSION = '2.27.0';
+const VERSION = '2.28.0';
 const CACHE_NAME = 'boss-cube-control';
 
 const urlsToCache = [
@@ -26,6 +26,7 @@ const urlsToCache = [
     '/effect-definitions.js',
     '/version-switcher.js',
     '/discovery-dashboard.js',
+    '/looper-timeline.js',
     '/manifest.json',
     '/templates/effects-interface.html',
     '/templates/live-performance.html',

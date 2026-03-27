@@ -1,5 +1,42 @@
 # Boss Cube Web Control - Version History
 
+## Version 2.28.0 (2026-03-25)
+
+### 🔬 **Discovery Tools, Complete SysEx Coverage & DRY Refactors**
+
+New SysEx discovery dashboard, block reads for fast initialization, corrected parameter values from official address map, and major code deduplication.
+
+### ✨ **What's New**
+
+- **SysEx Discovery Dashboard**: Modal dev tool with live monitoring, block range scanner with diff mode, and tweak panel for probing unknown addresses
+- **Block reads for initialization**: `readAllValues` now uses 6 block reads instead of individual requests — much faster startup
+- **Cached BLE reconnect**: Automatically reconnects to previously paired Boss Cube without showing device picker
+- **Device settings panel**: Noise suppressor, AUX IN ducking, connectivity (loopback, BLE ID, Apply Panel Condition), foot switch assigns, and audio output controls
+- **Tuner accidental control**: Flat/Natural/Sharp selection for manual tuner mode; corrected manual key values (C–B + 5A/5A♭)
+- **Battery level badge**: Shows battery state from amp hardware feedback
+- **USB mixer controls**: Mix Level and Master Out Level now in mixer section
+- **Harmony controls**: Voice Assign, Accurate, Key (Auto/Set), Key Setup with proper disabled-when logic
+- **Guitar delay level**: Max corrected to 120 (from 100), delay time range to 0–999ms
+
+### 🏗️ **DRY & Architecture Improvements**
+
+- **Effect definitions consolidated**: `EFFECT_SWITCH_MAP`, `normalizeEffectKey`, `refreshEffectButtons` extracted to `effect-definitions.js` — single source of truth replacing duplicates in 3 files
+- **Block read definitions shared**: `BossCubeController.BLOCK_READS` used by both controller and discovery dashboard
+- **`createLooperControl` merged** into `createButtonGroupControl` (icon+label buttons via `opts.buttons`)
+- **`createToggleGroupControl`** extracted for composite params (looper assigns) — shared between app and live performance
+- **`LOOPER_BUTTONS`** extracted to `constants.js`
+- **Effect buttons generated from param data** — no more hardcoded HTML button lists
+- **5 parameter max values corrected** from official Roland `address_map.js`
+- **Hidden byte1 params** (reverb pre-delay, delay time) properly filtered from UI
+
+### 🐛 **Bug Fixes**
+
+- Effect toggle busy guard prevents duplicate toggle operations
+- Hidden params no longer rendered as sliders in reverb/delay sections
+- `looper-timeline.js` added to service worker cache for offline support
+
+---
+
 ## Version 2.27.0 (2025-03-25)
 
 ### 🚀 **Architecture Refactor, Versioned Deployment & Bug Fixes**
@@ -295,6 +332,7 @@ Based on the [Boss Cube Street II SysEx project](https://github.com/PetrDlouhy/s
 | **2.24.0** | Jan 17, 2025 | Tuner | Professional tuner with real-time pitch detection |
 | **2.26.0** | Jan 9, 2025 | Looper & Amp | Looper volume control, amp type buttons |
 | **2.26.1** | Mar 25, 2025 | Version Switcher | Backported version switcher to v2.26.x |
+| **2.28.0** | Mar 25, 2026 | Discovery & SysEx | Discovery dashboard, block reads, complete param coverage, DRY refactors |
 | **2.27.0** | Mar 25, 2025 | Architecture | Refactor, versioned deployment, dark mode, bug fixes |
 
 ---
