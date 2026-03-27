@@ -43,6 +43,7 @@
             <div id="hardwareBadges" class="hardware-badges" style="display: none;">
                 <span id="powerBadge" class="hw-badge"></span>
                 <span id="inputBadge" class="hw-badge"></span>
+                <span id="batteryBadge" class="hw-badge" style="display: none;"></span>
             </div>
         </div>
         
@@ -82,6 +83,9 @@
                     <option value="normal" selected>Normal</option>
                     <option value="verbose">Verbose</option>
                 </select>
+                <label class="discovery-toggle"><input type="checkbox" id="discoveryMode"> 🔍 Discovery</label>
+                <button id="probeBtn" class="btn-small">🔬 Probe</button>
+                <button id="discoveryDashboardBtn" class="btn-small">🧪 Dashboard</button>
                 <button id="saveLogsBtn" class="btn-small">💾 Save Logs</button>
                 <button id="toggleLogBtn" class="btn-small">▼ Show</button>
             </div>
@@ -140,6 +144,35 @@
                 </div>
             </div>
             
+            <div class="modal-body device-settings" id="deviceSettingsSection" style="display: none;">
+                <p class="settings-description device-settings-note">These settings are stored on the amplifier. Changes apply immediately.</p>
+
+                <div class="settings-section">
+                    <h4>🔇 Noise Suppressor</h4>
+                    <div id="settingsNoiseSuppControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🔊 AUX IN Ducking</h4>
+                    <div id="settingsDuckingControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🔗 Connectivity</h4>
+                    <div id="settingsConnectivityControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🦶 Foot Switch Assigns</h4>
+                    <div id="settingsFootSWControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>🔊 Audio Output</h4>
+                    <div id="settingsAudioControls" class="settings-param-grid"></div>
+                </div>
+            </div>
+
             <div class="modal-footer">
                 <button id="resetSettingsBtn" class="btn-secondary">Reset to Defaults</button>
                 <button id="saveSettingsBtn" class="btn-primary">Save Settings</button>
@@ -179,11 +212,17 @@
             <div class="tuner-modal-controls">
                 <button id="modalTunerModeBtn" class="btn tuner-mode-btn">Chromatic</button>
                 <select id="modalTunerKeySelect" class="tuner-key-select" style="display: none;">
-                    <option value="0">C</option><option value="1">Db</option><option value="2">D</option>
-                    <option value="3">Eb</option><option value="4">E</option><option value="5">F</option>
-                    <option value="6">Gb</option><option value="7">G</option><option value="8">Ab</option>
-                    <option value="9">A</option><option value="10">Bb</option><option value="11">B</option>
+                    <option value="0">C</option><option value="1">D</option><option value="2">E</option>
+                    <option value="3">F</option><option value="4">G</option><option value="5">A</option>
+                    <option value="6">B</option>
+                    <option value="7" title="5th string open (A)">5A</option>
+                    <option value="8" title="5th string down ½ step (A♭)">5A♭</option>
                 </select>
+                <div id="modalTunerAccidental" class="tuner-accidental" style="display: none;">
+                    <button class="btn btn-accidental" data-value="0" title="Flat">♭</button>
+                    <button class="btn btn-accidental" data-value="1" title="Natural (no modification)">♮</button>
+                    <button class="btn btn-accidental" data-value="2" title="Sharp">♯</button>
+                </div>
                 <div id="modalTunerPitchControls" class="tuner-pitch-controls"></div>
             </div>
         </div>

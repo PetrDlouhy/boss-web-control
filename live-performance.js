@@ -17,12 +17,13 @@
  */
 
 import { PedalUtils } from './pedal-utils.js';
-import { INTERACTION } from './constants.js';
+import { INTERACTION, LOOPER_BUTTONS } from './constants.js';
 import { bus } from './event-bus.js';
 import {
-    createSliderControl, createButtonGroupControl, createLooperControl as createLooperControlFactory,
+    createSliderControl, createButtonGroupControl, createToggleGroupControl,
     getDisplayValue, updateControlDisplay, updateButtonGroupDisplay,
 } from './control-factory.js';
+import { normalizeEffectKey, refreshEffectButtons } from './effect-definitions.js';
 import { LooperTimeline } from './looper-timeline.js';
 
 export class LivePerformance {
@@ -213,6 +214,8 @@ export class LivePerformance {
             
             // Create controls
             await this.createControls();
+            refreshEffectButtons('guitar', this.bossCubeController);
+            refreshEffectButtons('micInst', this.bossCubeController);
             
             // Setup pedal control override
             this.setupPedalControlOverride();
@@ -313,8 +316,16 @@ export class LivePerformance {
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Effect state changes → refresh unified effect controls
+        const handleEffectChanged = () => {
+            if (this.isActive) this.refreshUnifiedEffectControls();
+        };
+        bus.on('effect:changed', handleEffectChanged);
+
         this._cleanupVisibilityHandler = () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            bus.off('effect:changed', handleEffectChanged);
         };
     }
     
@@ -629,18 +640,13 @@ export class LivePerformance {
     async createControl(param, key, label, controlConfig) {
         const isPedalControl = controlConfig && controlConfig.pedalControl;
 
-        // Looper buttons
+        // Looper buttons — uses shared LOOPER_BUTTONS definition
         if (key === 'looperControl') {
-            const looperButtons = [
-                { icon: '🗑️', title: 'Erase Loop', label: 'Erase' },
-                { icon: '⏸️', title: 'Paused', label: 'Paused' },
-                { icon: '🔴', title: 'Recording', label: 'Record' },
-                { icon: '▶️', title: 'Playing', label: 'Play' },
-                { icon: '🔄', title: 'Overdub', label: 'Overdub' },
-                { icon: '⏯️', title: 'Standby', label: 'Standby' },
-            ];
-            const control = createLooperControlFactory(param, key, looperButtons, {
+            const control = createButtonGroupControl(param, key, {
+                buttons: LOOPER_BUTTONS,
                 className: 'live-performance-control looper-control',
+                buttonClass: 'btn-base btn-looper',
+                groupClass: 'btn-group--grid btn-group--grid-6',
                 showPedalIndicator: isPedalControl,
                 onValueChange: (k, v) => {
                     if (this.looperTimeline) this.looperTimeline.onLooperStateChange(v, 'live-ui');
@@ -653,39 +659,22 @@ export class LivePerformance {
                 control.appendChild(timelineEl);
                 this.looperTimeline.addProgressElement(timelineEl);
             }
-        return control;
-    }
-    
-        // Composite toggle row (looper assigns)
-        if (param.isComposite && param.childKeys) {
-            const control = document.createElement('div');
-            control.className = 'live-performance-control looper-assigns-control';
-            control.setAttribute('data-param-key', key);
-
-            const buttonsHTML = param.childKeys.map(childKey => {
-                const childParam = this.bossCubeController.parameters[childKey];
-                if (!childParam) return '';
-                const isActive = childParam.current === 1;
-                const icon = param.childIcons?.[childKey] || '';
-                const lbl = param.childLabels?.[childKey] || childParam.name;
-                return `<button class="toggle-btn-improved ${isActive ? 'active' : ''}" data-param="${childKey}" title="${childParam.name}"><div class="toggle-icon">${icon}</div><div class="toggle-label">${lbl}</div></button>`;
-            }).join('');
-
-            control.innerHTML = `<div class="looper-settings-improved">${buttonsHTML}</div>`;
-
-            control.querySelectorAll('.toggle-btn-improved').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const ck = btn.dataset.param;
-                    const cp = this.bossCubeController.parameters[ck];
-                    if (!cp) return;
-                    const newVal = cp.current === 1 ? 0 : 1;
-                    cp.current = newVal;
-                    btn.classList.toggle('active', newVal === 1);
-                    bus.emit('param:update', ck, newVal);
-                });
-            });
-
             return control;
+        }
+    
+        // Composite toggle row (looper assigns) — uses shared toggle group factory
+        if (param.isComposite && param.childKeys) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'live-performance-control looper-assigns-control';
+            wrapper.setAttribute('data-param-key', key);
+
+            const toggleGroup = createToggleGroupControl(param, this.bossCubeController.parameters, {
+                onToggle: (childKey, newVal) => {
+                    bus.emit('param:update', childKey, newVal);
+                },
+            });
+            wrapper.appendChild(toggleGroup);
+            return wrapper;
         }
 
         // Button groups: amp type, guitar effect type, mic/inst effect type
@@ -695,24 +684,22 @@ export class LivePerformance {
                 className: `live-performance-control ${key.replace(/([A-Z])/g, '-$1').toLowerCase()}-control`,
                 showPedalIndicator: isPedalControl,
                 allowDeselect: isEffectType,
-                onValueChange: (k, v) => bus.emit('param:update', k, v),
-                onButtonClick: isEffectType ? async (k, v, btn) => {
+                skipOptimisticActive: isEffectType,
+                onValueChange: isEffectType ? undefined : (k, v) => bus.emit('param:update', k, v),
+                onButtonClick: isEffectType ? async (k, v) => {
                     const channel = key === 'guitarEffectType' ? 'guitar' : 'micInst';
-                    const effectKey = this.normalizeEffectKey(param.valueLabels[v].toLowerCase());
+                    const effectKey = normalizeEffectKey(param.valueLabels[v].toLowerCase());
                     try {
-                        const result = await this.bossCubeController.toggleEffect(channel, effectKey);
-                        this.log(`${channel} effect ${effectKey}: ${result.active ? 'ON' : 'OFF'}`, 'info');
+                        await this.bossCubeController.toggleEffect(channel, effectKey);
                     } catch (err) { this.log(`❌ Failed to toggle effect: ${err.message}`, 'error'); }
-                    this.refreshLiveEffectButtonStates(channel);
                     this.refreshUnifiedEffectControls();
                 } : undefined,
-                onDeselect: isEffectType ? async (k, v, btn) => {
+                onDeselect: isEffectType ? async (k, v) => {
                     const channel = key === 'guitarEffectType' ? 'guitar' : 'micInst';
-                    const effectKey = this.normalizeEffectKey(param.valueLabels[v].toLowerCase());
+                    const effectKey = normalizeEffectKey(param.valueLabels[v].toLowerCase());
                     try {
                         await this.bossCubeController.toggleEffect(channel, effectKey);
                     } catch (err) { this.log(`❌ Failed to deactivate effect: ${err.message}`, 'error'); }
-                    this.refreshLiveEffectButtonStates(channel);
                     this.refreshUnifiedEffectControls();
                 } : undefined,
             });
@@ -839,14 +826,10 @@ export class LivePerformance {
         return result;
     }
 
-    normalizeEffectKey(key) {
-        return key ? key.replace('.', '') : key;
-    }
-
     resolveVirtualKey(param, controlConfig) {
         if (!param.resolveKey || !param.resolveSource) return null;
         const currentEffect = this.bossCubeController[param.resolveSource];
-        const normalized = this.normalizeEffectKey(currentEffect);
+        const normalized = normalizeEffectKey(currentEffect);
         const overrides = controlConfig?.resolveOverrides || {};
         const mapping = overrides[normalized] ?? overrides[currentEffect]
             ?? param.resolveKey[normalized] ?? param.resolveKey[currentEffect];
@@ -857,7 +840,7 @@ export class LivePerformance {
     resolveAllVirtualKeys(param, controlConfig) {
         if (!param.resolveKey || !param.resolveSource) return [];
         const currentEffect = this.bossCubeController[param.resolveSource];
-        const normalized = this.normalizeEffectKey(currentEffect);
+        const normalized = normalizeEffectKey(currentEffect);
         const overrides = controlConfig?.resolveOverrides || {};
         const mapping = overrides[normalized] ?? overrides[currentEffect]
             ?? param.resolveKey[normalized] ?? param.resolveKey[currentEffect];
@@ -901,26 +884,8 @@ export class LivePerformance {
         }
     }
 
-    refreshLiveEffectButtonStates(channel) {
-        const paramKey = channel === 'guitar' ? 'guitarEffectType' : 'micInstEffectType';
-        const control = document.querySelector(`.live-performance-control[data-param-key="${paramKey}"]`);
-        if (!control) return;
-        const currentEffect = channel === 'guitar'
-            ? this.bossCubeController.currentGuitarEffect
-            : this.bossCubeController.currentMicInstEffect;
-        const isActive = channel === 'guitar'
-            ? this.bossCubeController.guitarEffectActive
-            : this.bossCubeController.micInstEffectActive;
-        const typeParam = this.bossCubeController.parameters[paramKey];
-        if (!typeParam || !typeParam.valueLabels) return;
-        control.querySelectorAll('[data-value]').forEach(btn => {
-            const idx = parseInt(btn.getAttribute('data-value'));
-            const effectKey = this.normalizeEffectKey(typeParam.valueLabels[idx].toLowerCase());
-            const isSelected = effectKey === currentEffect;
-            btn.classList.toggle('active', isSelected);
-            btn.classList.toggle('effect-on', isSelected && isActive);
-        });
-    }
+    // refreshLiveEffectButtonStates removed — shared refreshEffectButtons() from
+    // effect-definitions.js now handles all effect button state via bus 'effect:changed' event
     
     /**
      * Select parameter for pedal control in Live Performance mode
@@ -2012,8 +1977,7 @@ export class LivePerformance {
             const isButtonControl = ['looperControl', 'guitarAmpType', 'guitarEffectType', 'micInstEffectType'].includes(parameterKey);
             if (isButtonControl) {
                 updateButtonGroupDisplay(control, value);
-                if (parameterKey === 'guitarEffectType') this.refreshLiveEffectButtonStates('guitar');
-                if (parameterKey === 'micInstEffectType') this.refreshLiveEffectButtonStates('micInst');
+                // Effect button state refresh is handled by bus 'effect:changed' event
             } else {
                 updateControlDisplay(control, displayParam, parameterKey, value);
             }
@@ -2031,7 +1995,9 @@ export class LivePerformance {
 
             const cc = this.getControlConfig(virtualKey);
             const allKeys = this.resolveAllVirtualKeys(vParam, cc);
-            if (allKeys.includes(parameterKey)) {
+            // Only update from the primary (first) resolved key to avoid
+            // oscillation when multiple real params have different values
+            if (allKeys.length > 0 && allKeys[0] === parameterKey) {
                 const resolvedParam = this.bossCubeController.parameters[parameterKey];
                 if (resolvedParam) resolvedParam.current = value;
                 updateControlDisplay(uc, resolvedParam || vParam, virtualKey, value);

@@ -25,6 +25,7 @@ const urlsToCache = [
     '/pedal-utils.js',
     '/effect-definitions.js',
     '/version-switcher.js',
+    '/discovery-dashboard.js',
     '/manifest.json',
     '/templates/effects-interface.html',
     '/templates/live-performance.html',

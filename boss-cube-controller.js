@@ -5,7 +5,7 @@
  */
 
 import { BOSS_CUBE_PARAMETERS } from './parameters.js';
-import { EFFECT_SWITCH_COMMANDS, GUITAR_EFFECT_ONOFF, MIC_INST_EFFECT_ONOFF } from './effect-definitions.js';
+import { EFFECT_SWITCH_COMMANDS, GUITAR_EFFECT_ONOFF, MIC_INST_EFFECT_ONOFF, EFFECT_SWITCH_MAP, normalizeEffectKey } from './effect-definitions.js';
 import { BossCubeCommunication } from './boss-cube-communication.js';
 import { PedalCommunication } from './pedal-communication.js';
 
@@ -60,29 +60,18 @@ class BossCubeController {
         this.currentMicInstEffect = 'harmony'; // harmony, chorus, phaser, flanger, tremolo, twah
         this.guitarEffectActive = true;
         this.micInstEffectActive = true;
+        this._effectToggleBusy = false;
+        this.discoveryMode = false;
 
-        this._effectSwitchToInfo = {
-            guitarChorusSwitch: { channel: 'guitar', effect: 'chorus' },
-            guitarPhaserSwitch: { channel: 'guitar', effect: 'phaser' },
-            guitarFlangerSwitch: { channel: 'guitar', effect: 'flanger' },
-            guitarTremoloSwitch: { channel: 'guitar', effect: 'tremolo' },
-            guitarTWahSwitch: { channel: 'guitar', effect: 'twah' },
-            micInstHarmonySwitch: { channel: 'micInst', effect: 'harmony' },
-            micInstChorusSwitch: { channel: 'micInst', effect: 'chorus' },
-            micInstPhaserSwitch: { channel: 'micInst', effect: 'phaser' },
-            micInstFlangerSwitch: { channel: 'micInst', effect: 'flanger' },
-            micInstTremoloSwitch: { channel: 'micInst', effect: 'tremolo' },
-            micInstTWahSwitch: { channel: 'micInst', effect: 'twah' },
-        };
-        
-        // Use imported effect switching commands
         this.effectSwitchCommands = EFFECT_SWITCH_COMMANDS;
 
         // Event callbacks
         this.onLog = null;
         this.onStatusChange = null;
-        this.onParameterUpdate = null; // Callback for when Boss Cube sends parameter updates
-        this.onPhysicalKnobChange = null; // Callback specifically for physical knob changes
+        this.onParameterUpdate = null;
+        this.onPhysicalKnobChange = null;
+        this.onEffectStateChanged = null; // (channel) => void — fired after effect type/active changes
+        this.onRawSysEx = null; // (addressBytes, value, paramDef) => void — every incoming SysEx
         
         // Master Out binding - callbacks
         this.checkMasterBindEnabled = null;
@@ -699,26 +688,63 @@ class BossCubeController {
         }
     }
 
+    static BLOCK_READS = [
+        { address: [0x00, 0x00, 0x00, 0x00], size: [0x00, 0x00, 0x00, 0x1b], label: 'System' },
+        { address: [0x10, 0x00, 0x00, 0x00], size: [0x00, 0x00, 0x00, 0x6d], label: 'Effects' },
+        { address: [0x20, 0x00, 0x00, 0x00], size: [0x00, 0x00, 0x00, 0x05], label: 'Mixer' },
+        { address: [0x20, 0x00, 0x10, 0x00], size: [0x00, 0x00, 0x00, 0x03], label: 'Looper' },
+        { address: [0x20, 0x00, 0x20, 0x00], size: [0x00, 0x00, 0x00, 0x13], label: 'Panel' },
+        { address: [0x20, 0x00, 0x30, 0x00], size: [0x00, 0x00, 0x00, 0x03], label: 'Tuner Cfg' },
+    ];
+
+    // Params not covered by any block (sparse 7f xx addresses)
+    static INDIVIDUAL_READ_PARAMS = ['reverbPreDelay', 'guitarDelayTime', 'batteryLevel'];
+
     /**
-     * Read all parameter values from Boss Cube (all categories)
+     * Read all parameter values from Boss Cube via block reads
      */
     async readAllValues() {
         if (!this.isCubeConnected) {
             throw new Error('Not connected to Boss Cube');
         }
-        
-        this.log('📖 Reading ALL parameter values from Boss Cube...', 'info');
-        
-        // Read all parameters regardless of category
-        for (const [key, param] of Object.entries(this.parameters)) {
+
+        this.log('📖 Reading all values via block reads...', 'info');
+
+        for (const block of BossCubeController.BLOCK_READS) {
             try {
-                await this.readParameter(key);
+                await this.bossCubeComm.sendBlockReadRequest(block.address, block.size);
+                const sizeBytes = block.size[2] * 128 + block.size[3];
+                const waitMs = Math.max(300, sizeBytes * 5);
+                await new Promise(r => setTimeout(r, waitMs));
             } catch (error) {
-                this.log(`⚠️ Failed to read ${param.name}: ${error.message}`, 'warning');
+                this.log(`⚠️ Block read ${block.label} failed: ${error.message}`, 'warning');
             }
         }
-        
-        this.log('✅ All parameter read requests sent', 'success');
+
+        for (const key of BossCubeController.INDIVIDUAL_READ_PARAMS) {
+            try {
+                await this.readParameter(key);
+            } catch (_) { /* non-critical */ }
+        }
+
+        this.log('✅ All block read requests sent', 'success');
+    }
+
+    async probeAddresses(addresses) {
+        if (!this.isCubeConnected) {
+            throw new Error('Not connected to Boss Cube');
+        }
+        for (const addr of addresses) {
+            const label = addr.map(b => b.toString(16).padStart(2, '0')).join(' ');
+            this.log(`🔬 Probing [${label}]...`, 'info');
+            try {
+                await this.bossCubeComm.sendParameterReadRequest(addr);
+            } catch (error) {
+                this.log(`🔬 Probe [${label}] failed: ${error.message}`, 'warning');
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        this.log('🔬 Probe complete — check log for responses', 'info');
     }
 
     /**
@@ -740,34 +766,29 @@ class BossCubeController {
         // Look up parameter definition
         const paramDef = this.findParameterByAddress(addressBytes);
 
+        if (this.onRawSysEx) {
+            this.onRawSysEx(addressBytes, value, paramDef || null);
+        }
+
         if (paramDef) {
+            if (this.discoveryMode) {
+                const isTuner = paramDef.name === 'Tuner Pitch Data';
+                if (!isTuner) {
+                    this.log(`🔍 [${paramAddress}] ${paramDef.id} (${paramDef.name}) = ${value}`, 'info');
+                }
+            }
+
             // Handle structured tuner data specially
             if (paramDef.name === 'Tuner Pitch Data' && typeof value === 'object' && value.hasSignal !== undefined) {
-                // Store structured tuner data
                 this.cubeState[paramDef.id] = value;
-                
-                // Update tuner display with structured data
                 this.updateTunerDisplay(value);
-                
-                // Log structured tuner data (detailed logging already done in communication module)
-                // Skipping additional logging to avoid duplication
             } else {
-                // Handle normal numeric parameters
                 this.cubeState[paramDef.id] = value;
-                
-                // Update UI for this parameter
                 this.updateUIFromParameter(paramDef.id, value, isPhysicalKnobChange);
-                
-        
             }
         } else {
-            // Log unknown parameter with improved formatting
-            if (typeof value === 'object' && value.hasSignal !== undefined) {
-                // Unknown tuner-like data
-                this.log(`❓ Unknown tuner parameter at ${paramAddress} = [structured data]`, 'warning');
-            } else {
-                this.log(`❓ Unknown parameter address: ${paramAddress} = ${value}`, 'warning');
-            }
+            const valueStr = (typeof value === 'object' && value.hasSignal !== undefined) ? '[structured data]' : String(value);
+            this.log(`❓ UNKNOWN [${paramAddress}] = ${valueStr}`, 'warning');
         }
     }
 
@@ -881,13 +902,14 @@ class BossCubeController {
         param.current = uiValue;
 
         // Track effect on/off state from hardware feedback
-        const switchInfo = this._effectSwitchToInfo[parameterId];
+        const switchInfo = EFFECT_SWITCH_MAP[parameterId];
         if (switchInfo) {
             if (switchInfo.channel === 'guitar' && switchInfo.effect === this.currentGuitarEffect) {
                 this.guitarEffectActive = uiValue === 1;
             } else if (switchInfo.channel === 'micInst' && switchInfo.effect === this.currentMicInstEffect) {
                 this.micInstEffectActive = uiValue === 1;
             }
+            if (this.onEffectStateChanged) this.onEffectStateChanged(switchInfo.channel);
         }
         
         // Notify parameter update callback
@@ -942,30 +964,44 @@ class BossCubeController {
      * @returns {{ switched: boolean, active: boolean }}
      */
     async toggleEffect(channel, effectType) {
+        if (this._effectToggleBusy) {
+            this.log(`⏳ Effect toggle dropped (busy): ${channel} ${effectType}`, 'warning');
+            return null;
+        }
+        this._effectToggleBusy = true;
+
         const isGuitar = channel === 'guitar';
         const current = isGuitar ? this.currentGuitarEffect : this.currentMicInstEffect;
         const isActive = isGuitar ? this.guitarEffectActive : this.micInstEffectActive;
+        this.log(`🔀 toggleEffect: ${channel} ${effectType} (current=${current}, active=${isActive})`, 'info');
+        let result;
 
-        if (effectType === current && isActive) {
-            if (isGuitar) await this.deactivateGuitarEffect(effectType);
-            else await this.deactivateMicInstEffect(effectType);
-            return { switched: false, active: false };
+        try {
+            if (effectType === current && isActive) {
+                if (isGuitar) await this.deactivateGuitarEffect(effectType);
+                else await this.deactivateMicInstEffect(effectType);
+                result = { switched: false, active: false };
+            } else if (effectType === current) {
+                if (isGuitar) await this.activateGuitarEffect(effectType);
+                else await this.activateMicInstEffect(effectType);
+                result = { switched: false, active: true };
+            } else {
+                if (isGuitar) await this.switchGuitarEffect(effectType);
+                else await this.switchMicInstEffect(effectType);
+                result = { switched: true, active: true };
+            }
+        } finally {
+            this._effectToggleBusy = false;
         }
 
-        if (effectType === current) {
-            if (isGuitar) await this.activateGuitarEffect(effectType);
-            else await this.activateMicInstEffect(effectType);
-            return { switched: false, active: true };
-        }
-
-        if (isGuitar) await this.switchGuitarEffect(effectType);
-        else await this.switchMicInstEffect(effectType);
-        return { switched: true, active: true };
+        if (this.onEffectStateChanged) this.onEffectStateChanged(channel);
+        return result;
     }
 
     async switchGuitarEffect(effectType) {
         this.currentGuitarEffect = effectType;
         this.guitarEffectActive = true;
+        this._syncEffectTypeParam('guitarEffectType', effectType);
         if (this.effectSwitchCommands.guitar[effectType]) {
             const commands = [this.effectSwitchCommands.guitar[effectType]];
             await this.sendEffectSwitchCommands(commands);
@@ -996,6 +1032,7 @@ class BossCubeController {
     async switchMicInstEffect(effectType) {
         this.currentMicInstEffect = effectType;
         this.micInstEffectActive = true;
+        this._syncEffectTypeParam('micInstEffectType', effectType);
         if (this.effectSwitchCommands.micInst[effectType]) {
             const commands = [this.effectSwitchCommands.micInst[effectType]];
             await this.sendEffectSwitchCommands(commands);
@@ -1021,6 +1058,13 @@ class BossCubeController {
             this.micInstEffectActive = true;
             this.log(`🎤 Mic/inst effect ${effectKey} activated`, 'info');
         }
+    }
+
+    _syncEffectTypeParam(paramKey, effectType) {
+        const p = this.parameters[paramKey];
+        if (!p?.valueLabels) return;
+        const idx = p.valueLabels.findIndex(l => normalizeEffectKey(l.toLowerCase()) === effectType);
+        if (idx >= 0) p.current = idx;
     }
 
     /**

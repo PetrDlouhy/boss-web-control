@@ -183,14 +183,13 @@ export const BOSS_CUBE_PARAMETERS = {
         category: 'guitarEQ'
     },
 
-    // Guitar Effect Type Selector (virtual parameter for Live Performance mode)
     guitarEffectType: { 
         name: 'Guitar Effect Type', 
-        address: null,
+        address: [0x10, 0x00, 0x00, 0x39],
         min: 0, max: 4, current: 0,
-        valueLabels: ['Phaser', 'Chorus', 'Tremolo', 'T.WAH', 'Flanger'],
+        valueLabels: ['Chorus', 'Phaser', 'Flanger', 'Tremolo', 'T.WAH'],
         category: 'guitarEffects',
-        isVirtual: true
+        hidden: true
     },
 
     // Unified guitar effect controls — resolve to whichever effect is active
@@ -265,17 +264,82 @@ export const BOSS_CUBE_PARAMETERS = {
     micInstReverbSwitch:  { name: 'Mic/Inst Reverb On/Off', address: [0x10, 0x00, 0x00, 0x2c], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
 
     // Harmony operational params (separate from config params at 0x0B-0x0E)
-    harmonyVoiceZone: { name: 'Harmony Voice Zone', address: [0x10, 0x00, 0x00, 0x6a], min: 0, max: 5, current: 0, category: 'micInstEffects', hidden: true },
+    harmonyActiveVoice: { name: 'Harmony Active Voice', address: [0x10, 0x00, 0x00, 0x6a], min: 0, max: 5, current: 0, valueLabels: { 0: 'High', 1: 'Higher', 5: 'Unison' }, category: 'micInstEffects', hidden: true },
     harmonyLevel:     { name: 'Harmony Level',      address: [0x10, 0x00, 0x00, 0x6b], min: 0, max: 100, current: 0, category: 'micInstEffects', effectType: 'harmony', effectIndex: 0 },
 
     // Guitar reverb on/off (fires when guitar [REVERB] knob crosses zero)
     guitarReverbSwitch: { name: 'Guitar Reverb On/Off', address: [0x10, 0x00, 0x00, 0x69], min: 0, max: 1, current: 0, category: 'guitarEffects', hidden: true },
 
+    // Guitar delay on/off (confirmed via probe: address 0x5f, follows switch pattern)
+    guitarDelaySwitch: { name: 'Guitar Delay On/Off', address: [0x10, 0x00, 0x00, 0x5f], min: 0, max: 1, current: 0, category: 'guitarEffects', hidden: true },
+
+    // Harmony dedicated storage (separate from shared 0x0D/0x0E used by Chorus)
+    harmonyVoiceAssign:    { name: 'Harmony Voice Assign', address: [0x10, 0x00, 0x00, 0x03], min: 0, max: 3, current: 0, valueLabels: ['Default', 'Uni/Low/High', 'Uni/Low/Higher', 'Low/High/Higher'], category: 'micInstEffects', effectType: 'harmony', effectIndex: 1 },
+    harmonyKeyMirror:      { name: 'Harmony Key (mirror)', address: [0x10, 0x00, 0x00, 0x04], min: 0, max: 1, current: 0, category: 'micInstEffects', hidden: true },
+    harmonyKeySetupMirror: { name: 'Harmony Key Setup (mirror)', address: [0x10, 0x00, 0x00, 0x05], min: 0, max: 16, current: 0, category: 'micInstEffects', hidden: true },
+    harmonyAccurate:       { name: 'Harmony Accurate',     address: [0x10, 0x00, 0x00, 0x06], min: 0, max: 9, current: 0, displayValue: (v) => `${v + 1}/10`, category: 'micInstEffects', effectType: 'harmony', effectIndex: 2 },
+    phonesJackDetect:      { name: 'Phones/Rec Out Jack', address: [0x20, 0x00, 0x20, 0x00], min: 0, max: 1, current: 0, valueLabels: ['Unplugged', 'Inserted'], category: 'system', hidden: true },
+    audioOutputMute:       { name: 'Audio Output',        address: [0x20, 0x00, 0x20, 0x0c], min: 0, max: 1, current: 1, valueLabels: ['Muted', 'On'], category: 'system', hidden: true },
+    stereoLinkMode:        { name: 'Stereo Link Mode',    address: [0x00, 0x00, 0x00, 0x08], min: 0, max: 2, current: 0, valueLabels: ['OFF', 'HOST', 'REMOTE'], category: 'system', hidden: true },
+    stereoInputMode:       { name: 'Stereo Input Mode',   address: [0x00, 0x00, 0x00, 0x09], min: 0, max: 1, current: 0, valueLabels: ['OFF', 'ON'], category: 'system', hidden: true },
+
+    // Foot switch assigns (documented in sysex doc + README, values 0-5)
+    footSW1Tip:  { name: 'SW1 Tip',  address: [0x00, 0x00, 0x00, 0x04], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
+    footSW1Ring: { name: 'SW1 Ring', address: [0x00, 0x00, 0x00, 0x05], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
+    footSW2Tip:  { name: 'SW2 Tip',  address: [0x00, 0x00, 0x00, 0x06], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
+    footSW2Ring: { name: 'SW2 Ring', address: [0x00, 0x00, 0x00, 0x07], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
+
+    // Connectivity settings (documented in sysex doc)
+    iCubeLinkLoopback: { name: 'i-CUBE LINK Loopback', address: [0x00, 0x00, 0x00, 0x10], min: 0, max: 1, current: 0, valueLabels: ['Off', 'On'], category: 'system', hidden: true },
+    usbAudioLoopback:  { name: 'USB Audio Loopback',   address: [0x00, 0x00, 0x00, 0x17], min: 0, max: 1, current: 0, valueLabels: ['Off', 'On'], category: 'system', hidden: true },
+
+    // AUX IN Ducking (confirmed)
+    auxInDucking:      { name: 'AUX IN Ducking',       address: [0x00, 0x00, 0x00, 0x11], min: 0, max: 1, current: 0, valueLabels: ['Off', 'On'], category: 'system', hidden: true },
+    auxInDuckingLevel: { name: 'AUX IN Ducking Level', address: [0x00, 0x00, 0x00, 0x12], min: 0, max: 100, current: 0, category: 'system', hidden: true },
+
+    // Noise Suppressor per-channel ON/OFF (inferred, default=ON, flipped in Boss app)
+    noiseSuppMicInst:  { name: 'Noise Supp. Mic/Inst',       address: [0x00, 0x00, 0x00, 0x13], min: 0, max: 1, current: 1, valueLabels: ['Off', 'On'], category: 'system', hidden: true },
+    noiseSuppGuitarMic: { name: 'Noise Supp. Guitar/Mic',    address: [0x00, 0x00, 0x00, 0x14], min: 0, max: 1, current: 1, valueLabels: ['Off', 'On'], category: 'system', hidden: true },
+    noiseSuppAuxBt:    { name: 'Noise Supp. i-CUBE/AUX/BT', address: [0x00, 0x00, 0x00, 0x15], min: 0, max: 1, current: 1, valueLabels: ['Off', 'On'], category: 'system', hidden: true },
+
+    // USB Audio levels (block-read only — no response to individual RQ1)
+    usbMixLevelByte0:       { name: 'USB Mix Level (B0)',       address: [0x00, 0x00, 0x00, 0x00], min: 0, max: 0, current: 0, category: 'system', hidden: true },
+    usbMixLevel:            { name: 'USB Mix Level',            address: [0x00, 0x00, 0x00, 0x01], min: 0, max: 100, current: 50, displayValue: (v) => `${v * 2}%`, category: 'mixer' },
+    usbMasterOutLevelByte0: { name: 'USB Master Out Level (B0)', address: [0x00, 0x00, 0x00, 0x02], min: 0, max: 0, current: 0, category: 'system', hidden: true },
+    usbMasterOutLevel:      { name: 'USB Master Out Level',     address: [0x00, 0x00, 0x00, 0x03], min: 0, max: 100, current: 50, displayValue: (v) => `${v * 2}%`, category: 'mixer' },
+
+    // BLE device ID (suffix on Bluetooth device name, 0-2)
+    bleDeviceId: { name: 'BLE Device ID', address: [0x00, 0x00, 0x00, 0x16], min: 0, max: 2, current: 0, valueLabels: ['0', '1', '2'], category: 'system', hidden: true },
+
+    applyPanelCondition: { name: 'Apply Panel Condition', address: [0x00, 0x00, 0x00, 0x18], min: 0, max: 1, current: 1, valueLabels: ['Off', 'On'], category: 'system' },
+    guitarChorusDelaySel: { name: 'Guitar Chorus/Delay Sel', address: [0x10, 0x00, 0x00, 0x6C], min: 0, max: 2, current: 0, category: 'guitarEffects', hidden: true },
+
+    // Harmony Key controls — use system addresses (0x19/0x1A) which receive hardware feedback.
+    // Key mode must be defined before Key Setup for correct UI ordering.
+    harmonyKeyMode:       { name: 'Key', address: [0x00, 0x00, 0x00, 0x19], min: 0, max: 1, current: 0, valueLabels: ['Auto', 'Set'], category: 'micInstEffects', effectType: 'harmony', effectIndex: 3 },
+    harmonyDirectKey: {
+        name: 'Key Setup',
+        address: [0x00, 0x00, 0x00, 0x1A],
+        min: 0, max: 16, current: 0,
+        valueLabels: ['C', 'C♯', 'D♭', 'D', 'D♯', 'E♭', 'E', 'F', 'F♯', 'G♭', 'G', 'G♯', 'A♭', 'A', 'A♯', 'B♭', 'B'],
+        category: 'micInstEffects',
+        effectType: 'harmony',
+        effectIndex: 4,
+        disabledWhen: { paramKey: 'harmonyKeyMode', value: 0 }
+    },
+
     // System signals (registered to suppress warnings)
-    systemSignal7f0005:   { name: 'System Signal 7f0005',   address: [0x7f, 0x00, 0x05, 0x02], min: 0, max: 127, current: 0, category: 'system', hidden: true },
-    systemSignal000019:   { name: 'System Signal 000019',   address: [0x00, 0x00, 0x00, 0x19], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+    batteryLevel:         { name: 'Battery Level',           address: [0x7f, 0x00, 0x05, 0x02], min: 0, max: 3, current: 0, valueLabels: { 1: '1 bar', 2: '2 bars', 3: '3 bars' }, category: 'system', hidden: true },
+    batteryLowIndicator:  { name: 'Battery Low',             address: [0x20, 0x00, 0x10, 0x02], min: 0, max: 1, current: 0, valueLabels: ['OK', 'Low'], category: 'system', hidden: true },
     manualTunerMode:   { name: 'Manual Tuner Mode',   address: [0x20, 0x00, 0x30, 0x00], min: 0, max: 1, current: 0, category: 'system', hidden: true },
-    manualTunerParam:  { name: 'Manual Tuner Param',  address: [0x20, 0x00, 0x30, 0x02], min: 0, max: 1, current: 0, category: 'system', hidden: true },
+    tunerAccidental: {
+        name: 'Accidental',
+        address: [0x20, 0x00, 0x30, 0x02],
+        min: 0, max: 2, current: 0,
+        valueLabels: ['♭', '♮', '♯'],
+        valueTitles: ['Flat', 'Natural (no modification)', 'Sharp'],
+        category: 'tuner'
+    },
 
     guitarPhaserRate: { 
         name: 'Phaser Rate', 
@@ -544,6 +608,7 @@ export const BOSS_CUBE_PARAMETERS = {
         category: 'reverb',
         is16Bit: true
     },
+    reverbPreDelayByte1: { name: 'Reverb Pre-Delay (B1)', address: [0x10, 0x00, 0x00, 0x30], min: 0, max: 127, current: 0, category: 'reverb', hidden: true },
     reverbLowCut: { 
         name: 'Low Cut', 
         address: [0x10, 0x00, 0x00, 0x32], 
@@ -598,12 +663,13 @@ export const BOSS_CUBE_PARAMETERS = {
     guitarDelayTime: { 
         name: 'Time', 
         address: [0x10, 0x00, 0x00, 0x61], 
-        min: 1, max: 1000, current: 500,
+        min: 0, max: 999, current: 500,
         unit: 'ms',
         displayValue: (value) => `${value}ms`,
         category: 'guitarDelay',
         is16Bit: true
     },
+    guitarDelayTimeByte1: { name: 'Delay Time (B1)', address: [0x10, 0x00, 0x00, 0x62], min: 0, max: 127, current: 0, category: 'guitarDelay', hidden: true },
     guitarDelayFeedback: { 
         name: 'Feedback', 
         address: [0x10, 0x00, 0x00, 0x63], 
@@ -619,7 +685,7 @@ export const BOSS_CUBE_PARAMETERS = {
     guitarDelayLevel: { 
         name: 'Level', 
         address: [0x10, 0x00, 0x00, 0x65], 
-        min: 0, max: 100, current: 25,
+        min: 0, max: 120, current: 25,
         category: 'guitarDelay'
     },
     guitarDelayKnobAssign: { 
@@ -668,10 +734,11 @@ export const BOSS_CUBE_PARAMETERS = {
     tunerManualKey: { 
         name: 'Manual Key', 
         address: [0x20, 0x00, 0x30, 0x01], 
-        min: 0, max: 11, current: 0,
-        valueLabels: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'],
+        min: 0, max: 8, current: 0,
+        valueLabels: ['C', 'D', 'E', 'F', 'G', 'A', 'B', '5A', '5A♭'],
+        valueTitles: [null, null, null, null, null, null, null, '5th string open (A)', '5th string down ½ step (A♭)'],
         displayValue: (value) => {
-            const keys = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+            const keys = ['C', 'D', 'E', 'F', 'G', 'A', 'B', '5A', '5A♭'];
             return keys[value] || 'C';
         },
         category: 'tuner'
@@ -732,41 +799,45 @@ export const BOSS_CUBE_PARAMETERS = {
 
     // Mic/Inst Effects - Harmony (verified addresses from README)
     // NOTE: These addresses are ONLY valid when micInstEffectType = 0 (Harmony)
+    // Effect-block mirrors of system Key params. Don't get hardware feedback → hidden.
+    // The visible controls use harmonyKeyMode (0x19) and harmonyDirectKey (0x1A) instead.
     micInstHarmonyKey: { 
-        name: 'Harmony Key', 
+        name: 'Harmony Key (effect addr)', 
         address: [0x10, 0x00, 0x00, 0x0B], 
         min: 0, max: 1, current: 0,
         valueLabels: ['Auto', 'Set'],
         category: 'micInstEffects',
         effectType: 'harmony',
-        effectIndex: 0
+        hidden: true
     },
     micInstHarmonyKeySetup: { 
-        name: 'Harmony Key Setup', 
+        name: 'Harmony Key Setup (effect addr)', 
         address: [0x10, 0x00, 0x00, 0x0C], 
-        min: 0, max: 11, current: 0,
-        valueLabels: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'],
+        min: 0, max: 8, current: 0,
+        valueLabels: ['C', 'D', 'E', 'F', 'G', 'A', 'B', '5A', '5A♭'],
         category: 'micInstEffects',
         effectType: 'harmony',
-        effectIndex: 0
+        hidden: true
     },
     micInstHarmonyAccurate: { 
-        name: 'Harmony Accurate', 
+        name: 'Harmony Accurate (shared)', 
         address: [0x10, 0x00, 0x00, 0x0D], 
         min: 0, max: 9, current: 5,
         displayValue: (value) => `${value + 1}`,
         category: 'micInstEffects',
         effectType: 'harmony',
-        effectIndex: 0
+        effectIndex: 0,
+        hidden: true
     },
     micInstHarmonyVoiceAssign: { 
-        name: 'Harmony Voice Assign', 
+        name: 'Harmony Voice Assign (shared)', 
         address: [0x10, 0x00, 0x00, 0x0E], 
         min: 0, max: 3, current: 0,
         valueLabels: ['Default', 'Unison/Low/High', 'Unison/Low/Higher', 'Low/High/Higher'],
         category: 'micInstEffects',
         effectType: 'harmony',
-        effectIndex: 0
+        effectIndex: 0,
+        hidden: true
     },
 
     // Mic/Inst Effects - Chorus (verified addresses from README)
@@ -790,7 +861,7 @@ export const BOSS_CUBE_PARAMETERS = {
     micInstChorusLowPreDelay: { 
         name: 'Chorus Low Pre Delay', 
         address: [0x10, 0x00, 0x00, 0x0A], 
-        min: 0, max: 100, current: 50,
+        min: 0, max: 80, current: 50,
         category: 'micInstEffects',
         effectType: 'chorus',
         effectIndex: 1
@@ -830,7 +901,7 @@ export const BOSS_CUBE_PARAMETERS = {
     micInstChorusHighPreDelay: { 
         name: 'Chorus High Pre Delay', 
         address: [0x10, 0x00, 0x00, 0x0F], 
-        min: 0, max: 100, current: 50,
+        min: 0, max: 80, current: 50,
         category: 'micInstEffects',
         effectType: 'chorus',
         effectIndex: 1
@@ -926,7 +997,7 @@ export const BOSS_CUBE_PARAMETERS = {
     micInstFlangerResonance: { 
         name: 'Flanger Resonance', 
         address: [0x10, 0x00, 0x00, 0x1C], 
-        min: 0, max: 100, current: 50,
+        min: 0, max: 110, current: 50,
         category: 'micInstEffects',
         effectType: 'flanger',
         effectIndex: 3

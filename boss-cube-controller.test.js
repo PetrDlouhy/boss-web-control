@@ -58,6 +58,7 @@ class MockBossCubeCommunication {
     constructor() {
         this.isConnected = false;
         this.readRequests = [];
+        this.blockReadRequests = [];
         this.readDelay = 50; // Simulate GATT operation time
         this.failNextRequest = false;
         this.onParameterUpdate = null;
@@ -93,6 +94,12 @@ class MockBossCubeCommunication {
             }, 10);
         }
         
+        return true;
+    }
+
+    async sendBlockReadRequest(address, size) {
+        this.blockReadRequests.push({ address: address.slice(), size: size.slice() });
+        await new Promise(resolve => setTimeout(resolve, this.readDelay));
         return true;
     }
 
@@ -276,26 +283,26 @@ test.test('readAllValues complete integration', async () => {
     const controller = new BossCubeController();
     const mockComm = new MockBossCubeCommunication();
     mockComm.isConnected = true;
-    mockComm.readDelay = 2; // Very fast for testing
+    mockComm.readDelay = 2;
     
     controller.bossCubeComm = mockComm;
     controller.isCubeConnected = true;
     
-    // Capture log messages
     const logMessages = [];
     controller.log = (message, type) => logMessages.push({ message, type });
     
-    const startTime = Date.now();
     await controller.readAllValues();
-    const totalTime = Date.now() - startTime;
     
-    // Should have read many parameters
-    test.assertGreaterThan(mockComm.readRequests.length, 10, 'Should read all parameters');
+    const expectedBlocks = BossCubeController.BLOCK_READS.length;
+    test.assertEqual(mockComm.blockReadRequests.length, expectedBlocks,
+        `Should send ${expectedBlocks} block read requests`);
     
-    // Should log start and completion
-    const startLogs = logMessages.filter(log => log.message.includes('Reading ALL parameter values'));
-    const completeLogs = logMessages.filter(log => log.message.includes('All parameter read requests sent'));
+    const expectedIndividual = BossCubeController.INDIVIDUAL_READ_PARAMS.length;
+    test.assertEqual(mockComm.readRequests.length, expectedIndividual,
+        `Should send ${expectedIndividual} individual read requests`);
     
+    const startLogs = logMessages.filter(log => log.message.includes('block reads'));
+    const completeLogs = logMessages.filter(log => log.message.includes('All block read'));
     test.assertGreaterThan(startLogs.length, 0, 'Should log start of reading');
     test.assertGreaterThan(completeLogs.length, 0, 'Should log completion of reading');
 });

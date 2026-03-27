@@ -99,6 +99,35 @@
     cursor: pointer;
 }
 
+.tuner-accidental {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.btn-accidental {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 2px solid #555;
+    background: #1a2332;
+    color: #bdc3c7;
+    font-size: 1.1em;
+    cursor: pointer;
+    min-width: 36px;
+    transition: all 0.15s;
+}
+
+.btn-accidental:hover {
+    border-color: #3498db;
+    color: #fff;
+}
+
+.btn-accidental.active {
+    background: #2980b9;
+    border-color: #3498db;
+    color: #fff;
+    font-weight: bold;
+}
+
 .tuner-pitch-controls {
     display: flex;
     align-items: center;

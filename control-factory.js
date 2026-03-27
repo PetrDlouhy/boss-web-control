@@ -101,26 +101,35 @@ export function createSliderControl(param, key, opts = {}) {
 // ===== BUTTON GROUP CONTROL =====
 
 /**
- * Create a button-group control (amp type, effect type, etc.)
- * @param {Object} param - Parameter definition
+ * Unified button-group control for discrete value selection.
+ * Handles text buttons (amp type, effect type), icon buttons (looper), or mixed.
+ *
+ * @param {Object} param - Parameter definition (needs .current; .valueLabels used as default buttons)
  * @param {string} key - Parameter key
  * @param {Object} opts
+ * @param {Array}  [opts.buttons] - Custom button data [{icon?, label, title?}]. Overrides param.valueLabels.
  * @param {string} [opts.className='amp-type-control'] - Outer div class
- * @param {string} [opts.label] - Optional tiny label text above buttons
+ * @param {string} [opts.label] - Optional label text above buttons
  * @param {string} [opts.buttonClass='btn-base btn-effect'] - Per-button CSS classes
- * @param {string} [opts.groupClass='btn-group'] - Container CSS classes
+ * @param {string} [opts.groupClass='btn-group'] - Button container CSS classes
  * @param {boolean} [opts.showPedalIndicator=false]
+ * @param {boolean} [opts.allowDeselect=false] - Second click on active button deselects
+ * @param {boolean} [opts.skipOptimisticActive=false] - Don't toggle active class on click;
+ *                  caller is responsible for updating visuals (use for async operations like effect toggle)
  * @param {function} opts.onValueChange - Called with (key, value)
  * @param {function} [opts.onButtonClick] - Extra handler called with (key, value, buttonData)
+ * @param {function} [opts.onDeselect] - Called with (key, value, buttonData) on deselect
  */
 export function createButtonGroupControl(param, key, opts = {}) {
     const {
+        buttons: customButtons,
         className = 'amp-type-control',
         label,
         buttonClass = 'btn-base btn-effect',
         groupClass = 'btn-group',
         showPedalIndicator = false,
         allowDeselect = false,
+        skipOptimisticActive = false,
         onValueChange,
         onButtonClick,
         onDeselect,
@@ -130,21 +139,34 @@ export function createButtonGroupControl(param, key, opts = {}) {
     control.className = className;
     control.setAttribute('data-param-key', key);
 
+    const buttonsData = customButtons
+        ? customButtons.map((btn, index) => ({
+            value: index,
+            label: btn.label,
+            title: btn.title || btn.label,
+            icon: btn.icon || null,
+        }))
+        : param.valueLabels.map((lbl, index) => ({
+            value: index,
+            label: lbl,
+            title: (param.valueTitles && param.valueTitles[index]) || lbl,
+            icon: null,
+        }));
+
     const labelHTML = label ? `<div class="control-label">${label}</div>` : '';
     const pedalHTML = showPedalIndicator ? '<div class="pedal-indicator">🦶</div>' : '';
 
-    const buttonsData = param.valueLabels.map((lbl, index) => ({
-        value: index,
-        label: lbl,
-        shortLabel: lbl.length > 8 ? lbl.substring(0, 8) + '...' : lbl,
-    }));
-
-    const buttonsHTML = buttonsData.map(btn => `
-        <button class="${buttonClass} ${param.current === btn.value ? 'active' : ''}"
-                data-value="${btn.value}" title="${btn.label}">
-            ${btn.shortLabel}
-        </button>
-    `).join('');
+    const buttonsHTML = buttonsData.map(btn => {
+        const shortLabel = btn.label.length > 8 ? btn.label.substring(0, 8) + '...' : btn.label;
+        const content = btn.icon
+            ? `<div class="btn-icon">${btn.icon}</div><div class="btn-label">${shortLabel}</div>`
+            : shortLabel;
+        return `
+            <button class="${buttonClass} ${param.current === btn.value ? 'active' : ''}"
+                    data-value="${btn.value}" title="${btn.title}">
+                ${content}
+            </button>`;
+    }).join('');
 
     control.innerHTML = `
         ${labelHTML}
@@ -154,20 +176,22 @@ export function createButtonGroupControl(param, key, opts = {}) {
         </div>
     `;
 
-    const buttons = control.querySelectorAll(`[data-value]`);
+    const buttons = control.querySelectorAll('[data-value]');
     buttons.forEach(button => {
         button.addEventListener('click', () => {
             const value = parseInt(button.getAttribute('data-value'));
             const isAlreadyActive = button.classList.contains('active');
 
             if (allowDeselect && isAlreadyActive) {
-                button.classList.remove('active');
+                if (!skipOptimisticActive) button.classList.remove('active');
                 if (onDeselect) onDeselect(key, value, buttonsData[value]);
                 return;
             }
 
-            buttons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
+            if (!skipOptimisticActive) {
+                buttons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+            }
             if (onValueChange) onValueChange(key, value);
             if (onButtonClick) onButtonClick(key, value, buttonsData[value]);
         });
@@ -176,47 +200,49 @@ export function createButtonGroupControl(param, key, opts = {}) {
     return control;
 }
 
-// ===== LOOPER BUTTON CONTROL =====
+// ===== TOGGLE GROUP CONTROL =====
 
 /**
- * Create looper-style icon+label button grid.
+ * Independent on/off toggles for composite parameters (e.g. looper assigns).
+ * Each toggle is independent — clicking one does NOT deselect others.
+ *
+ * @param {Object} compositeDef - Composite parameter definition with childKeys, childIcons, childLabels
+ * @param {Object} allParams - Full parameters object to look up child params
+ * @param {Object} opts
+ * @param {string} [opts.className='looper-settings-improved'] - Container class
+ * @param {function} opts.onToggle - Called with (childKey, newValue) when a toggle is clicked
  */
-export function createLooperControl(param, key, looperButtons, opts = {}) {
+export function createToggleGroupControl(compositeDef, allParams, opts = {}) {
     const {
-        className = 'live-performance-control looper-control',
-        showPedalIndicator = false,
-        onValueChange,
+        className = 'looper-settings-improved',
+        onToggle,
     } = opts;
 
     const control = document.createElement('div');
     control.className = className;
-    control.setAttribute('data-param-key', key);
+    control.setAttribute('data-param-key', compositeDef.name || 'composite');
 
-    const pedalHTML = showPedalIndicator ? '<div class="pedal-indicator">🦶</div>' : '';
+    compositeDef.childKeys.forEach(childKey => {
+        const childParam = allParams[childKey];
+        if (!childParam) return;
+        const isActive = childParam.current === 1;
+        const icon = compositeDef.childIcons?.[childKey] || '';
+        const lbl = compositeDef.childLabels?.[childKey] || childParam.name;
 
-    const buttonsHTML = looperButtons.map((btn, index) => `
-        <button class="btn-base btn-looper ${param.current === index ? 'active' : ''}"
-                data-value="${index}" title="${btn.title}">
-            <div class="btn-icon">${btn.icon}</div>
-            <div class="btn-label">${btn.label}</div>
-        </button>
-    `).join('');
+        const btn = document.createElement('button');
+        btn.className = `toggle-btn-improved ${isActive ? 'active' : ''}`;
+        btn.setAttribute('data-param', childKey);
+        btn.title = childParam.name;
+        btn.innerHTML = `<div class="toggle-icon">${icon}</div><div class="toggle-label">${lbl}</div>`;
 
-    control.innerHTML = `
-        ${pedalHTML}
-        <div class="btn-group--grid btn-group--grid-6">
-            ${buttonsHTML}
-        </div>
-    `;
-
-    const buttons = control.querySelectorAll('[data-value]');
-    buttons.forEach(button => {
-        button.addEventListener('click', () => {
-            const value = parseInt(button.getAttribute('data-value'));
-            buttons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            if (onValueChange) onValueChange(key, value);
+        btn.addEventListener('click', () => {
+            const newVal = childParam.current === 1 ? 0 : 1;
+            childParam.current = newVal;
+            btn.classList.toggle('active', newVal === 1);
+            if (onToggle) onToggle(childKey, newVal);
         });
+
+        control.appendChild(btn);
     });
 
     return control;

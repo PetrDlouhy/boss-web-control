@@ -140,9 +140,16 @@ export class BossCubeCommunication {
     }
 
     /**
-     * Connect to Boss Cube via Web Bluetooth (shows device picker)
+     * Connect using cached device if available, otherwise show picker.
      */
     async connect() {
+        try {
+            const cached = await this._connectCached();
+            if (cached) return true;
+        } catch (error) {
+            this.log(`Cached reconnect failed: ${error.message}`, 'info');
+        }
+
         try {
             this.log('🔍 Requesting Boss Cube device...', 'info');
             
@@ -162,6 +169,21 @@ export class BossCubeCommunication {
             this.notifyConnectionStatusChange(false);
             throw error;
         }
+    }
+
+    /**
+     * Try connecting to a previously paired device without showing the picker.
+     */
+    async _connectCached() {
+        if (!navigator.bluetooth?.getDevices) return false;
+
+        const devices = await navigator.bluetooth.getDevices();
+        const cubeDevice = devices.find(d => d.name && d.name.startsWith('CUBE'));
+        if (!cubeDevice) return false;
+
+        this.log('📡 Reconnecting to known Boss Cube...', 'info');
+        await this.waitForDevice(cubeDevice, 4000);
+        return await this.connectToDevice(cubeDevice);
     }
 
     async connectToDevice(device) {
@@ -561,6 +583,29 @@ export class BossCubeCommunication {
 
 
     /**
+     * Send block read request (RQ1 with multi-byte size)
+     */
+    async sendBlockReadRequest(address, size) {
+        if (!this.isConnected || !this.characteristic) {
+            throw new Error('Boss Cube not connected');
+        }
+
+        return this._enqueueGattWrite(async () => {
+            const readHeader = [...BOSS_CUBE_HEADER];
+            readHeader[7] = 0x11;
+            const checksumData = [...address, ...size];
+            const dataBytes = [...readHeader, ...checksumData];
+            const checksum = this.rolandChecksum(checksumData);
+            const sysexData = [...dataBytes, checksum];
+            const command = this.createBLEMidiCommand(sysexData);
+
+            await this.characteristic.writeValue(command);
+            this.lastReadRequestTime = Date.now();
+            await new Promise(resolve => setTimeout(resolve, SYSEX_CONFIG.READ_DELAY));
+        });
+    }
+
+    /**
      * Send special command to Boss Cube
      */
     async sendSpecialCommand(address, data) {
@@ -584,8 +629,7 @@ export class BossCubeCommunication {
      */
     async testConnection() {
         try {
-            // Test by reading master volume
-            await this.sendParameterReadRequest([0x00, 0x00, 0x00, 0x00]);
+            await this.sendParameterReadRequest([0x20, 0x00, 0x00, 0x04]);
             this.log('🔧 Connection test successful', 'info');
             return true;
         } catch (error) {

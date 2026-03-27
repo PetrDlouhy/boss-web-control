@@ -96,6 +96,17 @@ export const MASTER_BIND_CONFIG = {
     REDIRECT_BEHAVIOR: true // Always use redirect behavior
 };
 
+// Looper button definitions — single source for both live and non-live modes.
+// Icon can be overridden per-mode by spreading and replacing.
+export const LOOPER_BUTTONS = [
+    { icon: '⏹️', title: 'Erase Loop', label: 'Erase' },
+    { icon: '⏸️', title: 'Paused', label: 'Paused' },
+    { icon: '🔴', title: 'Recording', label: 'Record' },
+    { icon: '▶️', title: 'Playing', label: 'Play' },
+    { icon: '🔄', title: 'Overdub', label: 'Overdub' },
+    { icon: '⏯️', title: 'Standby', label: 'Standby' },
+];
+
 // Looper Volume binding configuration
 export const LOOPER_VOLUME_CONFIG = {
     ENABLED: true,
