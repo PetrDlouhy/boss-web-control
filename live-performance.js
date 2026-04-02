@@ -682,6 +682,7 @@ export class LivePerformance {
             const isEffectType = key === 'guitarEffectType' || key === 'micInstEffectType';
             const control = createButtonGroupControl(param, key, {
                 className: `live-performance-control ${key.replace(/([A-Z])/g, '-$1').toLowerCase()}-control`,
+                buttonClass: isEffectType ? 'btn-base btn-effect' : 'btn-base btn-effect btn-choice',
                 showPedalIndicator: isPedalControl,
                 allowDeselect: isEffectType,
                 skipOptimisticActive: isEffectType,
@@ -909,6 +910,10 @@ export class LivePerformance {
             
             // Set the parameter in the controller (for pickup mode and hardware updates)
             this.bossCubeController.setCurrentParameter(key);
+            const controlConfig = this.getControlConfig(key);
+            this.bossCubeController.setCurrentParameterOptions({
+                resolveOverrides: controlConfig?.resolveOverrides || null
+            });
             
             // Show temporary pedal position indicator
             const globalPedalPosition = this.bossCubeController.getGlobalPedalPosition(param);
@@ -1866,20 +1871,17 @@ export class LivePerformance {
             return;
         }
 
-        // For virtual unified controls, resolve to real keys and send them
-        // (controller's throttle can't send virtual params)
+        // Keep resolved params in sync for display, but let the controller's
+        // shared pedal throttle perform the actual hardware writes.
         if (isVirtual) {
             const allKeys = this.resolveAllVirtualKeys(virtualParam, cc);
             for (const rk of allKeys) {
                 const rp = this.bossCubeController.parameters[rk];
                 if (rp) {
                     rp.current = value;
-                    bus.emit('param:update', rk, value);
                 }
             }
         }
-        // For non-virtual params, the controller's own pedal throttle
-        // already sends to hardware — don't emit param:update to avoid double writes.
 
         this.updateLivePerformanceDisplay(parameterKey, value);
     }

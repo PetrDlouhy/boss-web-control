@@ -24,6 +24,7 @@ const urlsToCache = [
     '/control-factory.js',
     '/pedal-utils.js',
     '/effect-definitions.js',
+    '/volume-calibration.js',
     '/version-switcher.js',
     '/discovery-dashboard.js',
     '/looper-timeline.js',

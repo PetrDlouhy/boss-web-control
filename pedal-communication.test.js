@@ -4,6 +4,7 @@
  */
 
 import { PedalCommunication } from './pedal-communication.js';
+import { EV1WL_BLOCK_READS, EV1WL_HEADER } from './constants.js';
 
 class TestFramework {
     constructor() {
@@ -70,6 +71,11 @@ function createBLEMIDIPacket(messages) {
         data.push(msg.status, msg.control, msg.value);
     }
     return new Uint8Array(data);
+}
+
+function rolandChecksum(dataBytes) {
+    const total = dataBytes.reduce((sum, byte) => sum + byte, 0);
+    return (128 - (total % 128)) % 128;
 }
 
 // Test suite
@@ -300,11 +306,12 @@ test.test('Configuration management', () => {
     test.assertEqual(config.footswitchPolarity, 'normally_open', 'Should start with normally_open');
     
     // Test setting CC codes
-    pedal.setPedalCCCodes(10, 11, 12);
+    pedal.setPedalCCCodes(10, 11, 12, 13);
     config = pedal.getConfiguration();
     test.assertEqual(config.pedalCCCodes.previousParameter, 10, 'Should update previous CC');
     test.assertEqual(config.pedalCCCodes.nextParameter, 11, 'Should update next CC');
     test.assertEqual(config.pedalCCCodes.pedalControl, 12, 'Should update control CC');
+    test.assertEqual(config.pedalCCCodes.expSw, 13, 'Should update EXP SW CC');
     
     // Test setting polarity
     pedal.setFootswitchPolarity('normally_closed');
@@ -333,6 +340,108 @@ test.test('Connection status management', () => {
     status = pedal.getConnectionStatus();
     test.assertEqual(status.isConnected, false, 'Should be disconnected after cleanup');
     test.assertEqual(status.lastPedalValue, -1, 'Should reset last value after cleanup');
+});
+
+test.test('handleMIDICC - EXP SW button press detection', () => {
+    const pedal = new PedalCommunication();
+    const receivedEvents = [];
+
+    pedal.onButtonPress = (event) => receivedEvents.push(event);
+    pedal.setPedalCCCodes(20, 21, 127, 22);
+
+    pedal.handleMIDICC(22, 127);
+
+    test.assertEqual(receivedEvents.length, 1, 'Should detect EXP SW press');
+    test.assertEqual(receivedEvents[0].button, 'expSw', 'EXP SW event should preserve button name');
+    test.assertEqual(receivedEvents[0].direction, 'expSw', 'EXP SW event should preserve direction');
+});
+
+test.test('sendReadRequest - builds EV-1-WL RQ1 SysEx command', async () => {
+    const pedal = new PedalCommunication();
+    const writes = [];
+
+    pedal.isConnected = true;
+    pedal.characteristic = {
+        writeValue: async (data) => {
+            writes.push(Array.from(data));
+        }
+    };
+
+    const block = EV1WL_BLOCK_READS[0];
+    await pedal.sendReadRequest(block.address, block.size);
+
+    const header = [...EV1WL_HEADER];
+    header[7] = 0x11;
+    const checksumData = [...block.address, ...block.size];
+    const checksum = rolandChecksum(checksumData);
+    const expected = [0x90, 0xb7, 0xf0, ...header, ...checksumData, checksum, 0xb7, 0xf7];
+
+    test.assertEqual(writes.length, 1, 'Should send one read command');
+    test.assertArrayEqual(writes[0], expected, 'Read command should match Roland BLE MIDI framing');
+});
+
+test.test('sendWriteRequest - builds EV-1-WL DT1 SysEx command', async () => {
+    const pedal = new PedalCommunication();
+    const writes = [];
+
+    pedal.isConnected = true;
+    pedal.characteristic = {
+        writeValue: async (data) => {
+            writes.push(Array.from(data));
+        }
+    };
+
+    const address = [0x10, 0x00, 0x00, 0x01];
+    const value = 0x06;
+    const checksumData = [...address, value];
+    const checksum = rolandChecksum(checksumData);
+    const expected = [0x90, 0xb7, 0xf0, ...EV1WL_HEADER, ...checksumData, checksum, 0xb7, 0xf7];
+
+    await pedal.sendWriteRequest(address, value);
+
+    test.assertEqual(writes.length, 1, 'Should send one write command');
+    test.assertArrayEqual(writes[0], expected, 'Write command should match Roland BLE MIDI framing');
+});
+
+test.test('readAllPedalParams - requests all configured blocks', async () => {
+    const pedal = new PedalCommunication();
+    const requests = [];
+
+    pedal.sendReadRequest = async (address, size) => {
+        requests.push({ address: [...address], size: [...size] });
+    };
+
+    await pedal.readAllPedalParams();
+
+    test.assertEqual(requests.length, EV1WL_BLOCK_READS.length, 'Should request all configured EV-1-WL blocks');
+    for (let i = 0; i < EV1WL_BLOCK_READS.length; i++) {
+        test.assertArrayEqual(requests[i].address, EV1WL_BLOCK_READS[i].address, `Block ${i} address should match`);
+        test.assertArrayEqual(requests[i].size, EV1WL_BLOCK_READS[i].size, `Block ${i} size should match`);
+    }
+});
+
+test.test('parsePedalSysEx - emits sequential block parameter updates', () => {
+    const pedal = new PedalCommunication();
+    const received = [];
+    const address = [0x10, 0x00, 0x01, 0x00];
+    const values = [0x15, 0x16, 0x17];
+    const checksum = rolandChecksum([...address, ...values]);
+    const sysexData = [...EV1WL_HEADER, ...address, ...values, checksum];
+
+    pedal.onPedalParamUpdate = (updateAddress, value) => {
+        received.push({ address: updateAddress, value });
+    };
+
+    pedal.parsePedalSysEx(sysexData);
+
+    test.assertEqual(received.length, 3, 'Should emit one update per byte in block response');
+    test.assertArrayEqual(received[0].address, [0x10, 0x00, 0x01, 0x00], 'First address should match block start');
+    test.assertArrayEqual(received[1].address, [0x10, 0x00, 0x01, 0x01], 'Second address should increment low byte');
+    test.assertArrayEqual(received[2].address, [0x10, 0x00, 0x01, 0x02], 'Third address should increment low byte');
+    test.assertEqual(received[0].value, 0x15, 'First value should match response data');
+    test.assertEqual(received[2].value, 0x17, 'Third value should match response data');
+    test.assertEqual(pedal.pedalParams['10000100'], 0x15, 'First parsed value should be cached by address');
+    test.assertEqual(pedal.pedalParams['10000102'], 0x17, 'Last parsed value should be cached by address');
 });
 
 // Regression test for the specific pedal lag issue

@@ -283,11 +283,11 @@ export const BOSS_CUBE_PARAMETERS = {
     stereoLinkMode:        { name: 'Stereo Link Mode',    address: [0x00, 0x00, 0x00, 0x08], min: 0, max: 2, current: 0, valueLabels: ['OFF', 'HOST', 'REMOTE'], category: 'system', hidden: true },
     stereoInputMode:       { name: 'Stereo Input Mode',   address: [0x00, 0x00, 0x00, 0x09], min: 0, max: 1, current: 0, valueLabels: ['OFF', 'ON'], category: 'system', hidden: true },
 
-    // Foot switch assigns (documented in sysex doc + README, values 0-5)
-    footSW1Tip:  { name: 'SW1 Tip',  address: [0x00, 0x00, 0x00, 0x04], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
-    footSW1Ring: { name: 'SW1 Ring', address: [0x00, 0x00, 0x00, 0x05], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
-    footSW2Tip:  { name: 'SW2 Tip',  address: [0x00, 0x00, 0x00, 0x06], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
-    footSW2Ring: { name: 'SW2 Ring', address: [0x00, 0x00, 0x00, 0x07], min: 0, max: 5, current: 0, valueLabels: ['Off', 'Guitar FX', 'Mic/Inst FX', 'Delay', 'Reverb', 'Looper'], category: 'system', hidden: true },
+    // Foot switch assigns (official Cube editor enum, values 0-5)
+    footSW1Tip:  { name: 'SW1 Tip',  address: [0x00, 0x00, 0x00, 0x04], min: 0, max: 5, current: 0, valueLabels: ['None', 'Harmony/FX', 'Mic/Instrument Reverb', 'Looper', 'Chorus/FX/Delay', 'Guitar/Mic Reverb'], category: 'system', hidden: true },
+    footSW1Ring: { name: 'SW1 Ring', address: [0x00, 0x00, 0x00, 0x05], min: 0, max: 5, current: 0, valueLabels: ['None', 'Harmony/FX', 'Mic/Instrument Reverb', 'Looper', 'Chorus/FX/Delay', 'Guitar/Mic Reverb'], category: 'system', hidden: true },
+    footSW2Tip:  { name: 'SW2 Tip',  address: [0x00, 0x00, 0x00, 0x06], min: 0, max: 5, current: 0, valueLabels: ['None', 'Harmony/FX', 'Mic/Instrument Reverb', 'Looper', 'Chorus/FX/Delay', 'Guitar/Mic Reverb'], category: 'system', hidden: true },
+    footSW2Ring: { name: 'SW2 Ring', address: [0x00, 0x00, 0x00, 0x07], min: 0, max: 5, current: 0, valueLabels: ['None', 'Harmony/FX', 'Mic/Instrument Reverb', 'Looper', 'Chorus/FX/Delay', 'Guitar/Mic Reverb'], category: 'system', hidden: true },
 
     // Connectivity settings (documented in sysex doc)
     iCubeLinkLoopback: { name: 'i-CUBE LINK Loopback', address: [0x00, 0x00, 0x00, 0x10], min: 0, max: 1, current: 0, valueLabels: ['Off', 'On'], category: 'system', hidden: true },

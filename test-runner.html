@@ -151,6 +151,14 @@
                     <li><strong>Controller Integration</strong> - Calling readAllValues() method correctly</li>
                     <li><strong>Regression Tests</strong> - Verification that fixes work correctly</li>
                 </ul>
+
+                <strong>🔊 Volume Calibration Tests:</strong>
+                <ul>
+                    <li><strong>Effect Defaults</strong> - All guitar effects start with zero offsets</li>
+                    <li><strong>Calibration Math</strong> - Base and target volumes account for amp and effect offsets</li>
+                    <li><strong>Clamping</strong> - Calculated target volume stays within 0-100</li>
+                    <li><strong>Labels</strong> - Effect and mix labels match calibration UI text</li>
+                </ul>
             </div>
         </div>
 
@@ -169,6 +177,7 @@
         import './boss-cube-communication.test.js';
         import './reload-values.test.js';
         import './tuner-visual.test.js';
+        import './volume-calibration.test.js';
 
         window.runTests = async function() {
             const runButton = document.getElementById('runTests');
@@ -226,8 +235,14 @@
                 // Run Tuner Visual tests
                 const tunerVisualTestsSuccess = await window.runTunerVisualTests();
                 const tunerVisualSuccess = tunerVisualTestsSuccess.failed === 0;
+
+                output += '\n' + '='.repeat(50) + '\n\n';
+                resultsDiv.textContent = output;
+
+                // Run Volume Calibration tests
+                const volumeCalibrationTestsSuccess = await window.runVolumeCalibrationTests();
                 
-                const allTestsSuccess = pedalTestsSuccess && controllerTestsSuccess && communicationSuccess && reloadValuesTestsSuccess && tunerVisualSuccess;
+                const allTestsSuccess = pedalTestsSuccess && controllerTestsSuccess && communicationSuccess && reloadValuesTestsSuccess && tunerVisualSuccess && volumeCalibrationTestsSuccess;
                 
                 if (allTestsSuccess) {
                     statusDiv.textContent = '✅ All tests passed!';

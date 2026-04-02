@@ -33,6 +33,7 @@ export class BossCubeCommunication {
         
         // Notification maintenance
         this.notificationMaintenanceTimer = null;
+        this.maintenanceFailCount = 0;
         
         // GATT write queue — BLE allows only one writeValue() at a time
         this._gattQueue = Promise.resolve();
@@ -172,6 +173,23 @@ export class BossCubeCommunication {
     }
 
     /**
+     * Connect by always showing the BLE device picker (skip cached device).
+     */
+    async connectWithPicker() {
+        this.log('🔍 Requesting Boss Cube device...', 'info');
+
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [
+                { namePrefix: 'CUBE' },
+                { services: [BLE_MIDI_SERVICE] }
+            ],
+            optionalServices: [BLE_MIDI_SERVICE]
+        });
+
+        return await this.connectToDevice(device);
+    }
+
+    /**
      * Try connecting to a previously paired device without showing the picker.
      */
     async _connectCached() {
@@ -196,17 +214,26 @@ export class BossCubeCommunication {
         this.device.removeEventListener('gattserverdisconnected', this._boundDisconnectHandler);
         this.device.addEventListener('gattserverdisconnected', this._boundDisconnectHandler);
 
-        this.log('🔌 Connecting to GATT server...', 'info');
-        this.server = await this.device.gatt.connect();
-        
-        this.log('🎵 Getting MIDI service...', 'info');
-        const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
-        
-        this.log('📡 Getting MIDI characteristic...', 'info');
-        this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
-        
-        this.log('🔔 Starting notifications...', 'info');
-        await this.characteristic.startNotifications();
+        try {
+            this.log('🔌 Connecting to GATT server...', 'info');
+            this.server = await this.device.gatt.connect();
+
+            this.log('🎵 Getting MIDI service...', 'info');
+            const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
+
+            this.log('📡 Getting MIDI characteristic...', 'info');
+            this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
+
+            this.log('🔔 Starting notifications...', 'info');
+            await this.characteristic.startNotifications();
+        } catch (error) {
+            // GATT connected but service/characteristic failed — stale connection
+            if (this.server && this.server.connected) {
+                this.server.disconnect();
+            }
+            this.cleanup();
+            throw error;
+        }
         
         this.characteristic.addEventListener('characteristicvaluechanged', (event) => {
             this.handleMIDIData(event.target.value);
@@ -657,12 +684,19 @@ export class BossCubeCommunication {
     startNotificationMaintenance() {
         this.stopNotificationMaintenance();
         
+        this.maintenanceFailCount = 0;
         this.notificationMaintenanceTimer = setInterval(async () => {
             if (this.isConnected) {
                 try {
                     await this.sendSpecialCommand(SYSTEM_ADDRESSES.KEEP_ALIVE, [0x00]);
+                    this.maintenanceFailCount = 0;
                 } catch (error) {
-                    this.log(`⚠️ Notification maintenance failed: ${error.message}`, 'warning');
+                    this.maintenanceFailCount++;
+                    this.log(`⚠️ Notification maintenance failed (${this.maintenanceFailCount}): ${error.message}`, 'warning');
+                    if (this.maintenanceFailCount >= 2) {
+                        this.log('🔌 Connection appears dead — triggering disconnect', 'error');
+                        this.handleDisconnection();
+                    }
                 }
             }
         }, SYSEX_CONFIG.MAINTENANCE_INTERVAL);

@@ -3,11 +3,14 @@
  * Handles all MIDI communication with EV-1-WL wireless expression pedal via Web Bluetooth
  */
 
-import { 
-    BLE_MIDI_SERVICE, 
+import {
+    BLE_MIDI_SERVICE,
     BLE_MIDI_CHARACTERISTIC,
+    EV1WL_HEADER,
+    EV1WL_BLOCK_READS,
     DEFAULT_PEDAL_CC_CODES,
-    FOOTSWITCH_POLARITIES
+    FOOTSWITCH_POLARITIES,
+    SYSEX_CONFIG
 } from './constants.js';
 
 export class PedalCommunication {
@@ -18,15 +21,22 @@ export class PedalCommunication {
         this.characteristic = null;
         this.isConnected = false;
         this.lastPedalValue = -1;
-        
+
         // Pedal configuration
         this.pedalCCCodes = {
             previousParameter: DEFAULT_PEDAL_CC_CODES.PREVIOUS_PARAMETER,
             nextParameter: DEFAULT_PEDAL_CC_CODES.NEXT_PARAMETER,
             pedalControl: DEFAULT_PEDAL_CC_CODES.PEDAL_CONTROL
         };
-        this.footswitchPolarity = 'normally_open'; // Default to normally open
-        
+        this.footswitchPolarity = 'normally_open';
+
+        // SysEx state
+        this.sysexBuffer = [];
+        this.bufferingActive = false;
+        this._gattQueue = Promise.resolve();
+        this.pedalParams = {};
+        this.onPedalParamUpdate = null;
+
         // Event callbacks
         this.onLog = null;
         this.onVolumeChange = null;
@@ -97,7 +107,7 @@ export class PedalCommunication {
     async connect() {
         try {
             this.log('🔍 Requesting EV-1-WL pedal device...', 'info');
-            
+
             const device = await navigator.bluetooth.requestDevice({
                 filters: [
                     { namePrefix: 'EV-1' },
@@ -108,7 +118,7 @@ export class PedalCommunication {
             });
 
             return await this.connectToDevice(device);
-            
+
         } catch (error) {
             this.log(`❌ Pedal connection failed: ${error.message}`, 'error');
             this.isConnected = false;
@@ -127,27 +137,35 @@ export class PedalCommunication {
         this.device.removeEventListener('gattserverdisconnected', this._boundDisconnectHandler);
         this.device.addEventListener('gattserverdisconnected', this._boundDisconnectHandler);
 
-        this.log('🔌 Connecting to pedal GATT server...', 'info');
-        this.server = await this.device.gatt.connect();
-        
-        this.log('🎵 Getting pedal MIDI service...', 'info');
-        const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
-        
-        this.log('📡 Getting pedal MIDI characteristic...', 'info');
-        this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
-        
-        this.log('🔔 Starting pedal notifications...', 'info');
-        await this.characteristic.startNotifications();
-        
+        try {
+            this.log('🔌 Connecting to pedal GATT server...', 'info');
+            this.server = await this.device.gatt.connect();
+
+            this.log('🎵 Getting pedal MIDI service...', 'info');
+            const service = await this.server.getPrimaryService(BLE_MIDI_SERVICE);
+
+            this.log('📡 Getting pedal MIDI characteristic...', 'info');
+            this.characteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
+
+            this.log('🔔 Starting pedal notifications...', 'info');
+            await this.characteristic.startNotifications();
+        } catch (error) {
+            if (this.server && this.server.connected) {
+                this.server.disconnect();
+            }
+            this.cleanup();
+            throw error;
+        }
+
         this.characteristic.addEventListener('characteristicvaluechanged', (event) => {
             this.handleMIDIData(event.target.value);
         });
 
         this.isConnected = true;
         this.notifyConnectionStatusChange(true);
-        
+
         this.log('✅ EV-1-WL pedal connected successfully!', 'success');
-        
+
         return true;
     }
 
@@ -164,12 +182,12 @@ export class PedalCommunication {
                     this.log(`⚠️ Error stopping pedal notifications: ${error.message}`, 'warning');
                 }
             }
-            
+
             if (this.server && this.server.connected) {
                 await this.server.disconnect();
                 this.log('🔌 Pedal GATT server disconnected', 'info');
             }
-            
+
         } catch (error) {
             this.log(`⚠️ Error during pedal disconnection: ${error.message}`, 'warning');
         } finally {
@@ -194,28 +212,161 @@ export class PedalCommunication {
         this.characteristic = null;
         this.isConnected = false;
         this.lastPedalValue = -1;
+        this.sysexBuffer = [];
+        this.bufferingActive = false;
         this.notifyConnectionStatusChange(false);
     }
 
-    /**
-     * Handle MIDI data from EV-1-WL pedal
-     */
+    // ===== SysEx infrastructure =====
+
+    rolandChecksum(dataBytes) {
+        const total = dataBytes.reduce((sum, byte) => sum + byte, 0);
+        return (128 - (total % 128)) % 128;
+    }
+
+    createBLEMidiCommand(sysexData) {
+        const timestamp = 0xb7;
+        return new Uint8Array([
+            0x90, timestamp, 0xf0,
+            ...sysexData,
+            timestamp, 0xf7
+        ]);
+    }
+
+    _enqueueGattWrite(operation) {
+        let resolve, reject;
+        const result = new Promise((res, rej) => { resolve = res; reject = rej; });
+        this._gattQueue = this._gattQueue.then(async () => {
+            try { resolve(await operation()); }
+            catch (err) { reject(err); }
+        });
+        return result;
+    }
+
+    async sendReadRequest(address, size) {
+        if (!this.isConnected || !this.characteristic) {
+            throw new Error('Pedal not connected');
+        }
+        return this._enqueueGattWrite(async () => {
+            const header = [...EV1WL_HEADER];
+            header[7] = 0x11; // RQ1
+            const checksumData = [...address, ...size];
+            const dataBytes = [...header, ...checksumData];
+            const checksum = this.rolandChecksum(checksumData);
+            const command = this.createBLEMidiCommand([...dataBytes, checksum]);
+            await this.characteristic.writeValue(command);
+            await new Promise(resolve => setTimeout(resolve, SYSEX_CONFIG.READ_DELAY));
+        });
+    }
+
+    async sendWriteRequest(address, value) {
+        if (!this.isConnected || !this.characteristic) {
+            throw new Error('Pedal not connected');
+        }
+        const addrHex = address.map(b => b.toString(16).padStart(2, '0')).join(' ');
+        this.log(`📝 Pedal write: [${addrHex}] = ${value}`, 'info');
+        return this._enqueueGattWrite(async () => {
+            const checksumData = [...address, value];
+            const dataBytes = [...EV1WL_HEADER, ...checksumData];
+            const checksum = this.rolandChecksum(checksumData);
+            const command = this.createBLEMidiCommand([...dataBytes, checksum]);
+            await this.characteristic.writeValue(command);
+            await new Promise(resolve => setTimeout(resolve, SYSEX_CONFIG.COMMAND_DELAY));
+        });
+    }
+
+    async readAllPedalParams() {
+        for (const block of EV1WL_BLOCK_READS) {
+            await this.sendReadRequest(block.address, block.size);
+        }
+    }
+
+    parsePedalSysEx(sysexData) {
+        if (sysexData.length < 10) return;
+
+        const expectedHeader = [0x41, 0x10, 0x00, 0x00, 0x00, 0x00, 0x10];
+        for (let i = 0; i < expectedHeader.length; i++) {
+            if (sysexData[i] !== expectedHeader[i]) return;
+        }
+
+        if (sysexData[7] !== 0x12) return; // DT1 only
+
+        const addressBytes = sysexData.slice(8, 12);
+        const dataStart = 12;
+        const dataEnd = sysexData.length - 1; // exclude checksum
+        const dataByteCount = dataEnd - dataStart;
+
+        if (dataByteCount <= 0) return;
+
+        // Block response: consecutive single-byte parameters
+        const addr = [...addressBytes];
+        for (let i = 0; i < dataByteCount; i++) {
+            const addrKey = addr.map(b => b.toString(16).padStart(2, '0')).join('');
+            const value = sysexData[dataStart + i];
+
+            // Store in local param cache
+            this.pedalParams[addrKey] = value;
+
+            if (this.onPedalParamUpdate) {
+                this.onPedalParamUpdate([...addr], value);
+            }
+
+            // Advance address (7-bit per byte)
+            addr[3]++;
+            if (addr[3] > 0x7F) { addr[3] = 0; addr[2]++; }
+            if (addr[2] > 0x7F) { addr[2] = 0; addr[1]++; }
+        }
+    }
+
+    clearSysExBuffer() {
+        this.sysexBuffer = [];
+        this.bufferingActive = false;
+    }
+
+    // ===== MIDI data handling =====
+
     handleMIDIData(value) {
         const data = new Uint8Array(value.buffer);
-        
-        // Parse BLE MIDI format - look for Control Change messages
-        // BLE MIDI format includes timestamps (bytes >= 0x80) that need to be skipped
+
+        // First pass: extract SysEx if present
+        let sysexData = [];
+        let foundStart = false;
+        let foundEnd = false;
+
+        for (let i = 0; i < data.length; i++) {
+            if (data[i] === 0xF0) {
+                foundStart = true;
+                this.clearSysExBuffer();
+                this.bufferingActive = true;
+                continue;
+            } else if (data[i] === 0xF7) {
+                foundEnd = true;
+                break;
+            } else if (this.bufferingActive && data[i] < 0x80) {
+                sysexData.push(data[i]);
+            }
+        }
+
+        if (foundStart || this.bufferingActive) {
+            if (sysexData.length > 0) {
+                this.sysexBuffer.push(...sysexData);
+            }
+            if (foundEnd) {
+                this.parsePedalSysEx(this.sysexBuffer);
+                this.clearSysExBuffer();
+            }
+            if (foundStart || foundEnd) return; // SysEx packet, don't parse as CC
+        }
+
+        // Second pass: CC messages (only if no SysEx)
         for (let i = 0; i < data.length - 2; i++) {
             const status = data[i];
             const control = data[i + 1];
             const ccValue = data[i + 2];
-            
-            // Check if this is a Control Change message (0xB0-0xBF)
-            // and that control and value are valid MIDI data bytes (< 0x80)
+
             if ((status & 0xF0) === 0xB0 && control < 0x80 && ccValue < 0x80) {
                 this.handleMIDICC(control, ccValue);
-                // Don't break - there might be multiple CC messages in one packet
-                i += 2; // Skip the processed bytes
+                i += 2;
             }
         }
     }
@@ -224,22 +375,14 @@ export class PedalCommunication {
      * Handle MIDI CC message from pedal
      */
     handleMIDICC(ccNumber, ccValue) {
-        // Filter out unexpected CC codes
-        if (ccNumber !== this.pedalCCCodes.pedalControl && 
-            ccNumber !== this.pedalCCCodes.previousParameter && 
-            ccNumber !== this.pedalCCCodes.nextParameter) {
-            return;
-        }
-        
         if (ccNumber === this.pedalCCCodes.pedalControl) {
-            // Expression pedal volume change (CC 127, value 0-127)
             this.handleVolumeChange(ccValue);
         } else if (ccNumber === this.pedalCCCodes.previousParameter) {
-            // Previous parameter button (left footswitch)
             this.handleButtonCC(ccValue, 'previous');
         } else if (ccNumber === this.pedalCCCodes.nextParameter) {
-            // Next parameter button (right footswitch)
             this.handleButtonCC(ccValue, 'next');
+        } else if (this.pedalCCCodes.expSw && ccNumber === this.pedalCCCodes.expSw) {
+            this.handleButtonCC(ccValue, 'expSw');
         }
     }
 
@@ -252,12 +395,12 @@ export class PedalCommunication {
             this.log(`⚠️ Invalid pedal value: ${pedalValue}`, 'warning');
             return;
         }
-        
+
         // Skip duplicate values
         if (pedalValue === this.lastPedalValue) return;
-        
+
         this.lastPedalValue = pedalValue;
-        
+
         // Notify volume change
         if (this.onVolumeChange) {
             this.onVolumeChange({
@@ -274,7 +417,7 @@ export class PedalCommunication {
     handleButtonCC(ccValue, direction) {
         // Apply footswitch polarity
         const isPressed = this.footswitchPolarity === 'normally_open' ? ccValue === 127 : ccValue === 0;
-        
+
         if (isPressed) {
             this.handleButtonPress(direction);
         }
@@ -284,12 +427,12 @@ export class PedalCommunication {
      * Handle pedal button press
      */
     handleButtonPress(button) {
-        // Notify button press
         if (this.onButtonPress) {
+            const directionMap = { next: 'right', previous: 'left', expSw: 'expSw' };
             this.onButtonPress({
                 type: 'button',
-                button: button, // 'previous' or 'next'
-                direction: button === 'next' ? 'right' : 'left'
+                button,
+                direction: directionMap[button] || button
             });
         }
     }
@@ -297,14 +440,15 @@ export class PedalCommunication {
     /**
      * Set pedal CC codes configuration
      */
-    setPedalCCCodes(previousParameter, nextParameter, pedalControl) {
+    setPedalCCCodes(previousParameter, nextParameter, pedalControl, expSw) {
         this.pedalCCCodes = {
             previousParameter: previousParameter || DEFAULT_PEDAL_CC_CODES.PREVIOUS_PARAMETER,
             nextParameter: nextParameter || DEFAULT_PEDAL_CC_CODES.NEXT_PARAMETER,
-            pedalControl: pedalControl || DEFAULT_PEDAL_CC_CODES.PEDAL_CONTROL
+            pedalControl: pedalControl || DEFAULT_PEDAL_CC_CODES.PEDAL_CONTROL,
+            expSw: expSw || null,
         };
-        
-        this.log(`🎛️ Updated pedal CC codes: Previous=${this.pedalCCCodes.previousParameter}, Next=${this.pedalCCCodes.nextParameter}, Control=${this.pedalCCCodes.pedalControl}`, 'info');
+
+        this.log(`🎛️ Updated pedal CC codes: Previous=${this.pedalCCCodes.previousParameter}, Next=${this.pedalCCCodes.nextParameter}, Control=${this.pedalCCCodes.pedalControl}, ExpSw=${this.pedalCCCodes.expSw ?? 'none'}`, 'info');
     }
 
     /**
@@ -361,16 +505,16 @@ export class PedalCommunication {
     static isSupported() {
         const userAgent = navigator.userAgent || '';
         const isHTTPS = window.location.protocol === 'https:';
-        const isLocalhost = window.location.hostname === 'localhost' || 
+        const isLocalhost = window.location.hostname === 'localhost' ||
                            window.location.hostname === '127.0.0.1';
         const isSecureContext = window.isSecureContext;
         const hasNavigatorBluetooth = 'bluetooth' in navigator;
-        
+
         // Browser detection
         const isChrome = /Chrome/.test(userAgent) && !/Edge/.test(userAgent);
         const isEdge = /Edge/.test(userAgent);
         const isOpera = /OPR/.test(userAgent);
-        
+
         return hasNavigatorBluetooth && isSecureContext && (isChrome || isEdge || isOpera);
     }
-} 
+}

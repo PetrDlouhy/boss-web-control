@@ -117,12 +117,12 @@ async function runTests() {
         const testResult = await page.evaluate(async () => {
             // Wait for test runners to be available
             let attempts = 0;
-            while ((!window.runPedalCommunicationTests || !window.runBossCubeControllerTests || !window.BossCubeCommunicationTests || !window.runReloadValuesTests) && attempts < 50) {
+            while ((!window.runPedalCommunicationTests || !window.runBossCubeControllerTests || !window.BossCubeCommunicationTests || !window.runReloadValuesTests || !window.runVolumeCalibrationTests) && attempts < 50) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
             
-            if (!window.runPedalCommunicationTests || !window.runBossCubeControllerTests || !window.BossCubeCommunicationTests || !window.runReloadValuesTests) {
+            if (!window.runPedalCommunicationTests || !window.runBossCubeControllerTests || !window.BossCubeCommunicationTests || !window.runReloadValuesTests || !window.runVolumeCalibrationTests) {
                 throw new Error('Test runners not available after 5 seconds');
             }
             
@@ -146,8 +146,13 @@ async function runTests() {
                 
                 console.log('🧪 Running Reload Values Tests...');
                 const reloadValuesSuccess = await window.runReloadValuesTests();
+
+                console.log('\n' + '='.repeat(50) + '\n');
+
+                console.log('🧪 Running Volume Calibration Tests...');
+                const volumeCalibrationSuccess = await window.runVolumeCalibrationTests();
                 
-                const allSuccess = pedalSuccess && controllerSuccess && communicationSuccess && reloadValuesSuccess;
+                const allSuccess = pedalSuccess && controllerSuccess && communicationSuccess && reloadValuesSuccess && volumeCalibrationSuccess;
                 return { success: allSuccess, error: null };
             } catch (error) {
                 return { success: false, error: error.message };

@@ -59,6 +59,8 @@ class MockBossCubeCommunication {
         this.isConnected = false;
         this.readRequests = [];
         this.blockReadRequests = [];
+        this.sentCommands = [];
+        this.specialCommands = [];
         this.readDelay = 50; // Simulate GATT operation time
         this.failNextRequest = false;
         this.onParameterUpdate = null;
@@ -100,6 +102,18 @@ class MockBossCubeCommunication {
     async sendBlockReadRequest(address, size) {
         this.blockReadRequests.push({ address: address.slice(), size: size.slice() });
         await new Promise(resolve => setTimeout(resolve, this.readDelay));
+        return true;
+    }
+
+    async sendParameterCommand(address, value) {
+        this.sentCommands.push({ address: address.slice(), value });
+        await new Promise(resolve => setTimeout(resolve, 1));
+        return true;
+    }
+
+    async sendSpecialCommand(address, data) {
+        this.specialCommands.push({ address: address.slice(), data: data.slice() });
+        await new Promise(resolve => setTimeout(resolve, 1));
         return true;
     }
 
@@ -380,15 +394,121 @@ test.test('Virtual parameter handling', async () => {
     const value = await controller.readParameter('looperVolume');
     test.assertEqual(value, looperVolumeParam.current, 'Should return current value for virtual parameters');
     
-    // Test virtual parameter setting (should not send to hardware)
+    // Test virtual parameter setting (non-resolvable virtual should not send to hardware)
     const mockComm = new MockBossCubeCommunication();
-    mockComm.sentCommands = []; // Initialize the array
     controller.bossCubeComm = mockComm;
     controller.isCubeConnected = true;
     
     await controller.setParameter('looperVolume', 75);
     test.assertEqual(mockComm.sentCommands.length, 0, 'Virtual parameters should not send commands to hardware');
     test.assertEqual(looperVolumeParam.current, 75, 'Virtual parameter current value should be updated');
+});
+
+test.test('Virtual effect parameter resolves to hardware targets', async () => {
+    const controller = new BossCubeController();
+    const mockComm = new MockBossCubeCommunication();
+    mockComm.isConnected = true;
+
+    controller.bossCubeComm = mockComm;
+    controller.isCubeConnected = true;
+    controller.currentGuitarEffect = 'chorus';
+
+    await controller.setParameter('guitarEffectRate', 64);
+
+    test.assertEqual(mockComm.sentCommands.length, 2, 'Chorus rate should send to two hardware params');
+    test.assertEqual(mockComm.sentCommands[0].address.join(','), '16,0,0,59', 'Should send to chorus low rate first');
+    test.assertEqual(mockComm.sentCommands[1].address.join(','), '16,0,0,64', 'Should send to chorus high rate second');
+    test.assertEqual(mockComm.sentCommands[0].value, 64, 'Low rate value should match');
+    test.assertEqual(mockComm.sentCommands[1].value, 64, 'High rate value should match');
+});
+
+test.test('Selected parameter overrides resolve virtual pedal target', async () => {
+    const controller = new BossCubeController();
+    const mockComm = new MockBossCubeCommunication();
+    mockComm.isConnected = true;
+
+    controller.bossCubeComm = mockComm;
+    controller.isCubeConnected = true;
+    controller.currentGuitarEffect = 'chorus';
+    controller.setCurrentParameter('guitarEffectRate');
+    controller.setCurrentParameterOptions({
+        resolveOverrides: { chorus: 'guitarChorusHighRate' }
+    });
+
+    await controller.setParameter('guitarEffectRate', 72);
+
+    test.assertEqual(mockComm.sentCommands.length, 1, 'Override should reduce virtual target to one hardware param');
+    test.assertEqual(mockComm.sentCommands[0].address.join(','), '16,0,0,64', 'Override should target chorus high rate');
+    test.assertEqual(mockComm.sentCommands[0].value, 72, 'Override target value should match');
+});
+
+test.test('Switching guitar effect explicitly activates selected effect', async () => {
+    const controller = new BossCubeController();
+    const mockComm = new MockBossCubeCommunication();
+    mockComm.isConnected = true;
+
+    controller.bossCubeComm = mockComm;
+    controller.isCubeConnected = true;
+
+    await controller.switchGuitarEffect('chorus');
+
+    const lastSend = mockComm.sentCommands[mockComm.sentCommands.length - 1];
+    test.assertGreaterThan(mockComm.specialCommands.length, 0, 'Should send special switch commands');
+    test.assert(lastSend !== undefined, 'Should send an explicit hardware activate command');
+    test.assertEqual(lastSend.address.join(','), '16,0,0,58', 'Should activate chorus on/off parameter');
+    test.assertEqual(lastSend.value, 1, 'Selected effect should be explicitly activated');
+    test.assertEqual(controller.guitarEffectActive, true, 'Controller active state should be true after switch');
+});
+
+test.test('Hardware effect type update syncs active state from matching switch', () => {
+    const controller = new BossCubeController();
+
+    controller.parameters.guitarChorusSwitch.current = 0;
+    controller.parameters.guitarTWahSwitch.current = 1;
+    controller.currentGuitarEffect = 'phaser';
+    controller.guitarEffectActive = true;
+
+    controller.updateUIFromParameter('guitarEffectType', 0, false); // Chorus
+    test.assertEqual(controller.currentGuitarEffect, 'chorus', 'Current effect should follow hardware type update');
+    test.assertEqual(controller.guitarEffectActive, false, 'Active state should be recomputed from chorus switch');
+
+    controller.parameters.guitarChorusSwitch.current = 1;
+    controller.updateUIFromParameter('guitarEffectType', 0, false); // Chorus
+    test.assertEqual(controller.guitarEffectActive, true, 'Active state should reflect chorus switch when on');
+});
+
+test.test('Pedal throttle preserves newer value arriving during send', async () => {
+    const controller = new BossCubeController();
+    const mockComm = new MockBossCubeCommunication();
+    mockComm.isConnected = true;
+
+    // Slow writes enough that a newer pending value can arrive mid-send.
+    mockComm.sendParameterCommand = async function(address, value) {
+        this.sentCommands.push({ address: address.slice(), value });
+        await new Promise(resolve => setTimeout(resolve, 20));
+        return true;
+    };
+
+    controller.bossCubeComm = mockComm;
+    controller.isCubeConnected = true;
+    controller.currentGuitarEffect = 'chorus';
+    controller.setCurrentParameter('guitarEffectRate');
+
+    controller.pedalThrottle.pendingValue = { paramKey: 'guitarEffectRate', value: 10 };
+    const firstSend = controller.sendPendingValueToHardware();
+
+    // Simulate continued pedal movement while the first hardware send is still in flight.
+    await new Promise(resolve => setTimeout(resolve, 5));
+    controller.pedalThrottle.pendingValue = { paramKey: 'guitarEffectRate', value: 20 };
+    controller.throttledSendToHardware();
+
+    await firstSend;
+    await new Promise(resolve => setTimeout(resolve, 80));
+
+    const sentValues = mockComm.sentCommands.map(cmd => cmd.value);
+    test.assert(sentValues.includes(10), 'Should send initial value');
+    test.assert(sentValues.includes(20), 'Should also send newer value that arrived during send');
+    test.assertEqual(sentValues.filter(v => v === 20).length, 2, 'Newer chorus value should reach both target params');
 });
 
 test.test('readAllMixerValues skips virtual parameters', async () => {

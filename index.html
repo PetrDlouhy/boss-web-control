@@ -25,35 +25,35 @@
             <select id="versionSwitcher" class="version-switcher" style="display: none;" title="Switch version"></select>
             <button id="refreshBtn" class="btn-small" style="display: none;">🔄 Update Available</button>
         </div>
-        
+
         <div class="header-right">
             <button id="themeToggleBtn" class="theme-toggle" title="Toggle dark/light mode">🌙</button>
             <button id="settingsBtn" class="btn-secondary">⚙️ Settings</button>
         </div>
-        
-        <div class="status-section">
-            <div id="status" class="status error">
-                Disconnected
-            </div>
-            
-            <div id="pedalStatus" class="pedal-status">
-                🎹 Pedal: Not connected
-            </div>
-            
-            <div id="hardwareBadges" class="hardware-badges" style="display: none;">
-                <span id="powerBadge" class="hw-badge"></span>
-                <span id="inputBadge" class="hw-badge"></span>
-                <span id="batteryBadge" class="hw-badge" style="display: none;"></span>
-            </div>
+
+        <div id="hardwareBadges" class="hardware-badges" style="display: none;">
+            <span id="powerBadge" class="hw-badge"></span>
+            <span id="inputBadge" class="hw-badge"></span>
+            <span id="batteryBadge" class="hw-badge" style="display: none;"></span>
         </div>
-        
+        <div class="device-row" id="cubeDeviceRow">
+            <span class="device-status neutral" id="status">🔊 Not connected</span>
+            <span class="device-actions" id="cubeActions">
+                <button id="connectBtn" class="btn-device primary">Connect</button>
+            </span>
+        </div>
+        <div class="device-row" id="pedalDeviceRow">
+            <span class="device-status" id="pedalStatus">🦶 Not connected</span>
+            <span class="device-actions" id="pedalActions">
+                <button id="connectPedalBtn" class="btn-device primary" disabled>Connect</button>
+            </span>
+        </div>
+
         <div class="controls-section">
-            <button id="connectBtn" class="btn">Connect Boss Cube</button>
-            <button id="connectPedalBtn" class="btn" disabled>Connect Pedal (EV-1-WL)</button>
             <button id="readValuesBtn" class="btn" disabled>🔄 Reload Values</button>
             <button id="livePerformanceBtn" class="btn warning">🎭 Live Performance</button>
         </div>
-        
+
         <div class="mixer-container">
             <div class="mixer-section">
                 <h3>🎛️ Mixer Controls</h3>
@@ -61,7 +61,7 @@
                     <!-- Mixer controls will be populated by JavaScript -->
                 </div>
             </div>
-            
+
             <div class="mixer-section">
                 <h3>🎸 Effects Controls</h3>
                 <div id="effectsControls" class="parameter-grid">
@@ -69,12 +69,12 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="debug-section">
             <p><strong>🔧 Controls:</strong> Hold and drag to adjust values • Long hold (0.8s) without movement to select for pedal control • Expression pedal controls selected parameter • Right footswitch = Next • Left footswitch = Previous</p>
 
         </div>
-        
+
         <div class="log-panel">
             <div class="log-panel-controls">
                 <label>Log: </label>
@@ -102,39 +102,85 @@
                 <h3>Settings</h3>
                 <button id="closeSettingsBtn" class="close-btn">&times;</button>
             </div>
-            
+
             <div class="modal-body">
                 <div class="settings-section">
-                    <h4>Pedal CC Codes</h4>
-                    <p class="settings-description">Configure MIDI CC codes for pedal functions</p>
-                    
+                    <h4>Pedal CC Mapping</h4>
+                    <p class="settings-description">Map pedal controls to app functions. Auto-reads CC codes from pedal when connected.</p>
+
                     <div class="setting-row">
-                        <label for="prevParamCC">Previous Parameter CC:</label>
-                        <input type="number" id="prevParamCC" min="0" max="127" value="80">
+                        <label>Previous Parameter:</label>
+                        <select id="prevParamSource" class="cc-source-select">
+                            <option value="ctl1">CTL1</option>
+                            <option value="ctl2">CTL2</option>
+                            <option value="expSw">EXP SW</option>
+                            <option value="override">Override</option>
+                        </select>
+                        <input type="number" id="prevParamCC" class="cc-override-input" min="0" max="127" value="80" style="display:none">
                     </div>
-                    
+
                     <div class="setting-row">
-                        <label for="nextParamCC">Next Parameter CC:</label>
-                        <input type="number" id="nextParamCC" min="0" max="127" value="81">
+                        <label>Next Parameter:</label>
+                        <select id="nextParamSource" class="cc-source-select">
+                            <option value="ctl1">CTL1</option>
+                            <option value="ctl2" selected>CTL2</option>
+                            <option value="expSw">EXP SW</option>
+                            <option value="override">Override</option>
+                        </select>
+                        <input type="number" id="nextParamCC" class="cc-override-input" min="0" max="127" value="81" style="display:none">
                     </div>
-                    
+
                     <div class="setting-row">
-                        <label for="pedalControlCC">Pedal Control CC:</label>
-                        <input type="number" id="pedalControlCC" min="0" max="127" value="127">
+                        <label>Pedal Control:</label>
+                        <select id="pedalControlSource" class="cc-source-select">
+                            <option value="expOff">EXP (off)</option>
+                            <option value="expOn">EXP (on)</option>
+                            <option value="override">Override</option>
+                        </select>
+                        <input type="number" id="pedalControlCC" class="cc-override-input" min="0" max="127" value="127" style="display:none">
+                    </div>
+
+                    <div class="setting-row">
+                        <label>EXP SW Action:</label>
+                        <select id="expSwAction">
+                            <option value="none">None</option>
+                            <option value="toggleTuner">Toggle Tuner</option>
+                            <option value="toggleGuitarEffect">Toggle Guitar Effect</option>
+                            <option value="toggleMicEffect">Toggle Mic/Inst Effect</option>
+                        </select>
                     </div>
                 </div>
-                
+
+                <div class="settings-section">
+                    <h4>Volume Calibration</h4>
+                    <p class="settings-description">Compensate volume differences between amp types and guitar effects</p>
+
+                    <div class="setting-row">
+                        <label>
+                            <input type="checkbox" id="volumeCalEnabled">
+                            Enable auto-adjust on amp type change
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <button id="openCalibrationBtn" class="btn-base btn-primary" style="flex:1">Calibrate…</button>
+                        <button id="resetCalibrationBtn" class="btn-base btn-secondary" style="flex:0">Reset</button>
+                    </div>
+
+                    <div id="calibrationOffsetSummary" class="settings-description" style="margin-top:5px"></div>
+                </div>
+
                 <div class="settings-section">
                     <h4>Footswitch Polarity</h4>
                     <p class="settings-description">Configure how footswitch signals are interpreted</p>
-                    
+
                     <div class="setting-row">
                         <label>
                             <input type="radio" name="footswitchPolarity" value="normally_open" checked>
                             Normally Open (Boss footswitches)
                         </label>
                     </div>
-                    
+
                     <div class="setting-row">
                         <label>
                             <input type="radio" name="footswitchPolarity" value="normally_closed">
@@ -143,7 +189,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="modal-body device-settings" id="deviceSettingsSection" style="display: none;">
                 <p class="settings-description device-settings-note">These settings are stored on the amplifier. Changes apply immediately.</p>
 
@@ -176,6 +222,90 @@
             <div class="modal-footer">
                 <button id="resetSettingsBtn" class="btn-secondary">Reset to Defaults</button>
                 <button id="saveSettingsBtn" class="btn-primary">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pedal Settings Modal -->
+    <div id="pedalSettingsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🦶 Pedal Settings</h3>
+                <button id="closePedalSettingsBtn" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body device-settings" id="pedalSettingsSection">
+                <p class="settings-description device-settings-note">These settings are stored on the EV-1-WL pedal. Changes apply immediately.</p>
+
+                <div class="settings-section">
+                    <h4>🎛️ General</h4>
+                    <div id="pedalGeneralControls" class="settings-param-grid"></div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>📡 Bluetooth MIDI</h4>
+                    <div id="pedalBtMidiControls" class="settings-param-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Volume Calibration Modal -->
+    <div id="calibrationModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3>Volume Calibration</h3>
+                <button id="closeCalibrationBtn" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <p class="settings-description">Switch amp types and guitar effects here, then adjust their volume compensation until they sound equally loud.</p>
+
+                <div id="calAmpTypeButtons" class="calibration-amp-buttons"></div>
+                <div id="calEffectButtons" class="calibration-amp-buttons"></div>
+
+                <div class="calibration-status">
+                    <div class="calibration-amp-type">
+                        <span class="calibration-label">Base Volume:</span>
+                        <span id="calBaseVolume" class="calibration-value">--</span>
+                    </div>
+                    <div class="calibration-amp-type">
+                        <span class="calibration-label">Current Volume:</span>
+                        <span id="calGuitarVolume" class="calibration-value">--</span>
+                    </div>
+                    <div class="calibration-amp-type">
+                        <span class="calibration-label">Current Mix:</span>
+                        <span id="calCurrentMix" class="calibration-value">Amp only</span>
+                    </div>
+                    <div class="calibration-amp-type">
+                        <span class="calibration-label">Effect Adjust:</span>
+                        <span id="calEffectOffset" class="calibration-value">--</span>
+                    </div>
+                </div>
+
+                <div class="calibration-controls">
+                    <div class="calibration-control-title">Amp Type</div>
+                    <div class="calibration-adjust-row">
+                        <button class="btn-base btn-cal" data-cal-step="-5">−5%</button>
+                        <button class="btn-base btn-cal" data-cal-step="-1">−1%</button>
+                        <button class="btn-base btn-cal btn-cal-ok" data-cal-step="0">OK</button>
+                        <button class="btn-base btn-cal" data-cal-step="1">+1%</button>
+                        <button class="btn-base btn-cal" data-cal-step="5">+5%</button>
+                    </div>
+                </div>
+
+                <div class="calibration-controls">
+                    <div class="calibration-control-title">Selected Effect</div>
+                    <div class="calibration-adjust-row">
+                        <button class="btn-base btn-cal" data-cal-target="effect" data-cal-step="-5">−5%</button>
+                        <button class="btn-base btn-cal" data-cal-target="effect" data-cal-step="-1">−1%</button>
+                        <button class="btn-base btn-cal" data-cal-target="effect" data-cal-step="0">0%</button>
+                        <button class="btn-base btn-cal" data-cal-target="effect" data-cal-step="1">+1%</button>
+                        <button class="btn-base btn-cal" data-cal-target="effect" data-cal-step="5">+5%</button>
+                    </div>
+                </div>
+
+                <div id="calOffsetsTable" class="calibration-offsets-table"></div>
             </div>
         </div>
     </div>
@@ -234,4 +364,4 @@
     <script type="module" src="boss-cube-controller.js"></script>
     <script type="module" src="app.js"></script>
 </body>
-</html> 
+</html>

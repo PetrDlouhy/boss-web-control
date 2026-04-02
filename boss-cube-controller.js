@@ -37,12 +37,16 @@ class BossCubeController {
         // Pedal throttling and debouncing for smooth performance
         this.pedalThrottle = {
             lastSentTime: 0,
-            lastSentValue: -1,
+            lastSentSignature: null,
             sendInterval: 30, // Send to Boss Cube max every 30ms (33 FPS)
             finalValueTimer: null,
             finalValueDelay: 150, // Send final value 150ms after movement stops
             isSending: false,
             pendingValue: null
+        };
+        this.pedalSendLog = {
+            lastLogTime: 0,
+            logInterval: 60
         };
         
         // Parameters from imported definitions
@@ -53,6 +57,7 @@ class BossCubeController {
         
         // Current parameter selection for pedal control
         this.currentParameterKey = 'masterVolume';
+        this.currentParameterResolveOverrides = null;
         this.parameterKeys = Object.keys(this.parameters);
 
         // Effect state management
@@ -108,6 +113,13 @@ class BossCubeController {
         };
         this.pedalComm.onButtonPress = (event) => {
             this.handlePedalButton(event.direction);
+        };
+        this.pedalComm.onPedalParamUpdate = (address, value) => {
+            this.pedalCallbacks.forEach(cb => {
+                try {
+                    cb({ type: 'paramUpdate', address, value });
+                } catch (e) { /* ignore */ }
+            });
         };
     }
 
@@ -169,6 +181,13 @@ class BossCubeController {
         return await this.bossCubeComm.connect();
     }
 
+    async connectToBossCubeWithPicker() {
+        if (!BossCubeController.isSupported()) {
+            throw new Error('Web Bluetooth not supported');
+        }
+        return await this.bossCubeComm.connectWithPicker();
+    }
+
     async tryAutoReconnectCube() {
         if (!BossCubeController.isSupported()) return false;
         return await this.bossCubeComm.tryAutoReconnect();
@@ -176,7 +195,11 @@ class BossCubeController {
 
     async tryAutoReconnectPedal() {
         if (!BossCubeController.isSupported()) return false;
-        return await this.pedalComm.tryAutoReconnect();
+        const result = await this.pedalComm.tryAutoReconnect();
+        if (result) {
+            this.readPedalParams();
+        }
+        return result;
     }
 
     /**
@@ -188,7 +211,29 @@ class BossCubeController {
             return false;
         }
 
-        return await this.pedalComm.connect();
+        const result = await this.pedalComm.connect();
+        if (result) {
+            this.readPedalParams();
+        }
+        return result;
+    }
+
+    async readPedalParams() {
+        try {
+            this.log('📖 Reading pedal settings...', 'info');
+            await this.pedalComm.readAllPedalParams();
+            this.log('✅ Pedal settings read', 'success');
+        } catch (error) {
+            this.log(`⚠️ Failed to read pedal settings: ${error.message}`, 'warning');
+        }
+    }
+
+    async writePedalParam(address, value) {
+        if (!this.isPedalConnected) {
+            this.log('⚠️ Cannot write pedal param — pedal not connected', 'warning');
+            return;
+        }
+        await this.pedalComm.sendWriteRequest(address, value);
     }
 
     /**
@@ -244,7 +289,7 @@ class BossCubeController {
         // Reset pedal throttle state
         this.pedalThrottle.pendingValue = null;
         this.pedalThrottle.isSending = false;
-        this.pedalThrottle.lastSentValue = -1;
+        this.pedalThrottle.lastSentSignature = null;
         
         return await this.pedalComm.disconnect();
     }
@@ -351,11 +396,7 @@ class BossCubeController {
         }
         
         // Always set up final value timer to ensure the last value is sent
-        this.pedalThrottle.finalValueTimer = setTimeout(() => {
-            if (this.pedalThrottle.pendingValue && !this.pedalThrottle.isSending) {
-                this.sendPendingValueToHardware();
-            }
-        }, this.pedalThrottle.finalValueDelay);
+        this.schedulePedalSend(this.pedalThrottle.finalValueDelay);
     }
 
     /**
@@ -367,9 +408,11 @@ class BossCubeController {
         }
         
         const { paramKey, value } = this.pedalThrottle.pendingValue;
+        const signature = this.getPedalPendingSignature(paramKey, value);
+        const targetKeys = this.resolvePedalTargetKeys(paramKey);
         
         // Skip if this value was already sent
-        if (value === this.pedalThrottle.lastSentValue) {
+        if (signature === this.pedalThrottle.lastSentSignature) {
             this.pedalThrottle.pendingValue = null;
             return;
         }
@@ -380,15 +423,60 @@ class BossCubeController {
             // Only send to Boss Cube if connected
             if (this.isCubeConnected) {
                 await this.setParameter(paramKey, value);
-                this.pedalThrottle.lastSentValue = value;
+                this.pedalThrottle.lastSentSignature = signature;
                 this.pedalThrottle.lastSentTime = Date.now();
+                this.logPedalHardwareSend(paramKey, value, targetKeys);
             }
         } catch (error) {
             console.error('Error sending parameter to hardware:', error);
         } finally {
             this.pedalThrottle.isSending = false;
-            this.pedalThrottle.pendingValue = null;
+
+            const pending = this.pedalThrottle.pendingValue;
+            if (!pending) {
+                return;
+            }
+
+            const pendingSignature = this.getPedalPendingSignature(pending.paramKey, pending.value);
+            if (pendingSignature === signature) {
+                this.pedalThrottle.pendingValue = null;
+                return;
+            }
+
+            // A newer value arrived while we were sending. Keep it and send it
+            // after the normal throttle interval, not after the long final-value delay.
+            const elapsed = Date.now() - this.pedalThrottle.lastSentTime;
+            const delay = Math.max(0, this.pedalThrottle.sendInterval - elapsed);
+            this.schedulePedalSend(delay);
         }
+    }
+
+    schedulePedalSend(delay) {
+        if (this.pedalThrottle.finalValueTimer) {
+            clearTimeout(this.pedalThrottle.finalValueTimer);
+        }
+
+        this.pedalThrottle.finalValueTimer = setTimeout(() => {
+            if (this.pedalThrottle.pendingValue && !this.pedalThrottle.isSending) {
+                this.sendPendingValueToHardware();
+            }
+        }, delay);
+    }
+
+    logPedalHardwareSend(paramKey, value, targetKeys) {
+        const now = Date.now();
+        if (now - this.pedalSendLog.lastLogTime < this.pedalSendLog.logInterval) {
+            return;
+        }
+
+        const param = this.parameters[paramKey];
+        const paramName = param?.name || paramKey;
+        const targetNames = targetKeys.length > 0
+            ? targetKeys.map(key => this.parameters[key]?.name || key).join(', ')
+            : 'no targets';
+
+        this.log(`🎚️ Pedal send: ${paramName} -> ${targetNames} = ${value}`, 'info');
+        this.pedalSendLog.lastLogTime = now;
     }
 
     /**
@@ -400,8 +488,8 @@ class BossCubeController {
         } else if (button === 'left') {
             this.previousParameter();
         }
+        // 'expSw' is handled by app.js via the callback
         
-        // Notify callbacks
         this.pedalCallbacks.forEach(callback => {
             try {
                 callback({ type: 'button', button, currentParameter: this.getCurrentParameter() });
@@ -466,6 +554,7 @@ class BossCubeController {
     setCurrentParameter(paramKey) {
         if (this.parameters[paramKey]) {
             this.currentParameterKey = paramKey;
+            this.currentParameterResolveOverrides = null;
             const param = this.getCurrentParameter();
             
             // Send effect switch commands if this parameter has them
@@ -473,6 +562,45 @@ class BossCubeController {
                 this.sendEffectSwitchCommands(param.effectSwitchCommands);
             }
         }
+    }
+
+    setCurrentParameterOptions(options = {}) {
+        this.currentParameterResolveOverrides = options.resolveOverrides || null;
+    }
+
+    resolvePedalTargetKeys(paramKey) {
+        return this.resolveParameterTargetKeys(
+            paramKey,
+            paramKey === this.currentParameterKey ? this.currentParameterResolveOverrides : null
+        );
+    }
+
+    getPedalPendingSignature(paramKey, value) {
+        const targetKeys = this.resolvePedalTargetKeys(paramKey);
+        return `${paramKey}:${value}:${targetKeys.join(',')}`;
+    }
+
+    resolveParameterTargetKeys(paramKey, resolveOverrides = null) {
+        const param = this.parameters[paramKey];
+        if (!param) return [];
+        if (!param.resolveKey || !param.resolveSource) {
+            return param.isVirtual ? [] : [paramKey];
+        }
+
+        const currentEffect = this[param.resolveSource];
+        const normalized = normalizeEffectKey(currentEffect);
+        const mapping = resolveOverrides?.[normalized]
+            ?? resolveOverrides?.[currentEffect]
+            ?? param.resolveKey[normalized]
+            ?? param.resolveKey[currentEffect];
+
+        if (!mapping) {
+            this.log(`⚠️ No hardware mapping resolved for ${paramKey} (${currentEffect || 'unknown effect'})`, 'warning');
+            return [];
+        }
+
+        const keys = Array.isArray(mapping) ? mapping : [mapping];
+        return keys.filter(key => this.parameters[key] && !this.parameters[key].isVirtual);
     }
 
     // ===== PICKUP MODE METHODS =====
@@ -591,7 +719,7 @@ class BossCubeController {
     /**
      * Set parameter value on Boss Cube
      */
-    async setParameter(paramKey, value) {
+    async setParameter(paramKey, value, options = {}) {
         const param = this.parameters[paramKey];
         if (!param) {
             throw new Error(`Unknown parameter: ${paramKey}`);
@@ -603,8 +731,16 @@ class BossCubeController {
         // Update internal parameter value
         param.current = clampedValue;
         
-        // Skip sending virtual parameters to hardware
+        const resolveOverrides = options.resolveOverrides
+            ?? (paramKey === this.currentParameterKey ? this.currentParameterResolveOverrides : null);
+
         if (param.isVirtual) {
+            const targetKeys = this.resolveParameterTargetKeys(paramKey, resolveOverrides);
+            for (const targetKey of targetKeys) {
+                const targetParam = this.parameters[targetKey];
+                targetParam.current = clampedValue;
+                await this.sendParameterCommand(targetParam.address, clampedValue);
+            }
             return Promise.resolve();
         }
         
@@ -901,6 +1037,17 @@ class BossCubeController {
         // Update parameter current value
         param.current = uiValue;
 
+        // Keep effect selection/active state coherent inside the controller.
+        if (parameterId === 'guitarEffectType' && param.valueLabels?.[uiValue]) {
+            this.currentGuitarEffect = normalizeEffectKey(param.valueLabels[uiValue].toLowerCase());
+            this.syncCurrentEffectActiveState('guitar');
+            if (this.onEffectStateChanged) this.onEffectStateChanged('guitar');
+        } else if (parameterId === 'micInstEffectType' && param.valueLabels?.[uiValue]) {
+            this.currentMicInstEffect = normalizeEffectKey(param.valueLabels[uiValue].toLowerCase());
+            this.syncCurrentEffectActiveState('micInst');
+            if (this.onEffectStateChanged) this.onEffectStateChanged('micInst');
+        }
+
         // Track effect on/off state from hardware feedback
         const switchInfo = EFFECT_SWITCH_MAP[parameterId];
         if (switchInfo) {
@@ -945,8 +1092,8 @@ class BossCubeController {
     /**
      * Set pedal CC codes configuration
      */
-    setPedalCCCodes(previousParameter, nextParameter, pedalControl) {
-        this.pedalComm.setPedalCCCodes(previousParameter, nextParameter, pedalControl);
+    setPedalCCCodes(previousParameter, nextParameter, pedalControl, expSw) {
+        this.pedalComm.setPedalCCCodes(previousParameter, nextParameter, pedalControl, expSw);
     }
 
     /**
@@ -1000,11 +1147,15 @@ class BossCubeController {
 
     async switchGuitarEffect(effectType) {
         this.currentGuitarEffect = effectType;
-        this.guitarEffectActive = true;
         this._syncEffectTypeParam('guitarEffectType', effectType);
         if (this.effectSwitchCommands.guitar[effectType]) {
             const commands = [this.effectSwitchCommands.guitar[effectType]];
             await this.sendEffectSwitchCommands(commands);
+            const address = GUITAR_EFFECT_ONOFF[effectType];
+            if (address) {
+                await this.bossCubeComm.sendParameterCommand(address, 1);
+                this.guitarEffectActive = true;
+            }
             this.log(`🎸 Switched to guitar ${effectType} effect`, 'info');
         }
     }
@@ -1031,11 +1182,15 @@ class BossCubeController {
 
     async switchMicInstEffect(effectType) {
         this.currentMicInstEffect = effectType;
-        this.micInstEffectActive = true;
         this._syncEffectTypeParam('micInstEffectType', effectType);
         if (this.effectSwitchCommands.micInst[effectType]) {
             const commands = [this.effectSwitchCommands.micInst[effectType]];
             await this.sendEffectSwitchCommands(commands);
+            const address = MIC_INST_EFFECT_ONOFF[effectType];
+            if (address) {
+                await this.bossCubeComm.sendParameterCommand(address, 1);
+                this.micInstEffectActive = true;
+            }
             this.log(`🎤 Switched to mic/inst ${effectType} effect`, 'info');
         }
     }
@@ -1065,6 +1220,27 @@ class BossCubeController {
         if (!p?.valueLabels) return;
         const idx = p.valueLabels.findIndex(l => normalizeEffectKey(l.toLowerCase()) === effectType);
         if (idx >= 0) p.current = idx;
+    }
+
+    getEffectSwitchParamKey(channel, effectType) {
+        for (const [paramKey, info] of Object.entries(EFFECT_SWITCH_MAP)) {
+            if (info.channel === channel && info.effect === effectType) {
+                return paramKey;
+            }
+        }
+        return null;
+    }
+
+    syncCurrentEffectActiveState(channel) {
+        if (channel === 'guitar') {
+            const switchKey = this.getEffectSwitchParamKey('guitar', this.currentGuitarEffect);
+            const switchParam = switchKey ? this.parameters[switchKey] : null;
+            if (switchParam) this.guitarEffectActive = switchParam.current === 1;
+        } else {
+            const switchKey = this.getEffectSwitchParamKey('micInst', this.currentMicInstEffect);
+            const switchParam = switchKey ? this.parameters[switchKey] : null;
+            if (switchParam) this.micInstEffectActive = switchParam.current === 1;
+        }
     }
 
     /**
