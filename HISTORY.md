@@ -1,5 +1,43 @@
 # Boss Cube Web Control - Version History
 
+## Version 2.29.0 (2026-04-02)
+
+### 🦶 **Pedal Settings, Smarter Connection UX & Volume Calibration**
+
+This release adds full EV-1-WL settings integration, cleaner connection handling for both devices, and practical volume calibration for amp types and guitar effects.
+
+### ✨ **What's New**
+
+- **EV-1-WL settings support**: Read and edit pedal settings directly from the app, including Bluetooth MIDI CC mapping, LED color, switch modes, and expression curve
+- **Flexible pedal mapping**: Previous, next, pedal control, and EXP SW action can now use pedal-defined CCs or manual overrides
+- **Connection UX redesign**: Cube and pedal now each have a dedicated status row with clearer reconnect/connect/disconnect actions and better Bluetooth-off feedback
+- **Persistent log controls**: Log verbosity, discovery mode, and log panel visibility survive page reloads
+- **Global volume calibration**: Calibrate per-amp-type compensation plus per-guitar-effect offsets from a dedicated calibration modal
+- **Calibration effect switching**: Turn guitar effects on/off directly in the calibration modal to compare `Off` vs active effect levels
+
+### 🎛️ **Behavior & UI Improvements**
+
+- **Amp type buttons**: Selected switch-style buttons now use the same green active state as other on-style controls
+- **Dark mode polish**: Pure black background and corrected label contrast for pedal-controlled sliders
+- **Pedal settings modal safety**: Opening pedal settings no longer accidentally changes the control underneath the click
+- **Import/export icons corrected** in Live Performance preset settings
+
+### 🐛 **Bug Fixes**
+
+- **Boss Cube import check**: `app.js` now imports cleanly in Node-based GitHub build checks
+- **BLE reconnect robustness**: Better handling of stale GATT connections, Bluetooth adapter loss, and repeated reconnect attempts
+- **Pedal writes and labels**: Fixed EV-1-WL SysEx write handling, corrected LED color labels, and removed double-click behavior in pedal settings
+- **Effect switching in live mode**: Switching effects now explicitly activates the selected hardware effect and keeps effect state in sync with hardware updates
+- **Virtual pedal targets**: Shared resolution/throttling fixes make live pedal control more responsive for effect parameters like chorus rate
+
+### 🧪 **Testing & Maintainability**
+
+- **Pedal SysEx tests**: Added automated coverage for EV-1-WL SysEx read/write framing and block response parsing
+- **Calibration math tests**: Extracted shared volume calibration math into a dedicated module with focused unit tests
+- **Build-readiness fix verified**: Local Node import check, syntax lint, and headless browser tests all pass
+
+---
+
 ## Version 2.28.0 (2026-03-25)
 
 ### 🔬 **Discovery Tools, Complete SysEx Coverage & DRY Refactors**
@@ -332,6 +370,7 @@ Based on the [Boss Cube Street II SysEx project](https://github.com/PetrDlouhy/s
 | **2.24.0** | Jan 17, 2025 | Tuner | Professional tuner with real-time pitch detection |
 | **2.26.0** | Jan 9, 2025 | Looper & Amp | Looper volume control, amp type buttons |
 | **2.26.1** | Mar 25, 2025 | Version Switcher | Backported version switcher to v2.26.x |
+| **2.29.0** | Apr 2, 2026 | Pedal & Calibration | EV-1-WL settings, connection UX, amp/effect volume calibration |
 | **2.28.0** | Mar 25, 2026 | Discovery & SysEx | Discovery dashboard, block reads, complete param coverage, DRY refactors |
 | **2.27.0** | Mar 25, 2025 | Architecture | Refactor, versioned deployment, dark mode, bug fixes |
 
