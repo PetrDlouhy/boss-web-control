@@ -1662,7 +1662,9 @@ async function handleBossCubeButton({ skipReadValues = false } = {}) {
         await connectToBossCube({ skipReadValues });
     }
 }
-window.handleBossCubeButton = handleBossCubeButton;
+if (typeof window !== 'undefined') {
+    window.handleBossCubeButton = handleBossCubeButton;
+}
 
 async function reconnectCube() {
     if (cubeConnecting) return;
