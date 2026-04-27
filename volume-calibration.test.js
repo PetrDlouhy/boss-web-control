@@ -6,6 +6,7 @@ import {
     formatPct,
     calculateBaseVolume,
     calculateTargetVolume,
+    shouldRefreshCalibrationBase,
 } from './volume-calibration.js';
 
 class TestFramework {
@@ -112,6 +113,17 @@ test.test('Target volume calculation includes both amp and selected effect offse
     test.assertEqual(target, 33, 'Target volume should reflect amp and effect scaling');
 });
 
+test.test('Floating calibration base preserves manual volume across amp round-trips', () => {
+    const offsets = { 4: 0, 6: -65 };
+    const baseVolume = calculateBaseVolume(17, 4, offsets, null, {});
+
+    const leadVolume = calculateTargetVolume(baseVolume, 6, offsets, null, {});
+    const cleanVolume = calculateTargetVolume(baseVolume, 4, offsets, null, {});
+
+    test.assertEqual(leadVolume, 6, 'Lead target should round to the expected quieter level');
+    test.assertEqual(cleanVolume, 17, 'Returning to clean should preserve the manually chosen volume');
+});
+
 test.test('Target volume clamps to valid range', () => {
     const high = calculateTargetVolume(90, 6, { 6: 30 }, 'twah', { twah: 20 });
     const low = calculateTargetVolume(5, 6, { 6: -80 }, 'chorus', { chorus: -80 });
@@ -124,6 +136,44 @@ test.test('Base and target calculations handle missing values safely', () => {
     test.assertEqual(calculateBaseVolume(null, 0, {}, null, {}), null, 'Missing current volume should return null');
     test.assertEqual(calculateBaseVolume(40, null, {}, null, {}), null, 'Missing amp type should return null');
     test.assertEqual(calculateTargetVolume(null, 0, {}, null, {}), null, 'Missing base volume should return null');
+});
+
+test.test('Calibration base refresh waits for known startup state but reacts to knob changes', () => {
+    test.assertEqual(shouldRefreshCalibrationBase({
+        calibrationActive: false,
+        calibrationEnabled: true,
+        calibrationBaseVolume: null,
+        hasKnownAmpType: false,
+        hasKnownVolume: true,
+        isPhysicalKnobChange: false,
+    }), false, 'Should not initialize without a known amp type');
+
+    test.assertEqual(shouldRefreshCalibrationBase({
+        calibrationActive: false,
+        calibrationEnabled: true,
+        calibrationBaseVolume: null,
+        hasKnownAmpType: true,
+        hasKnownVolume: true,
+        isPhysicalKnobChange: false,
+    }), true, 'Should initialize once startup amp and volume are both known');
+
+    test.assertEqual(shouldRefreshCalibrationBase({
+        calibrationActive: false,
+        calibrationEnabled: true,
+        calibrationBaseVolume: 40,
+        hasKnownAmpType: true,
+        hasKnownVolume: true,
+        isPhysicalKnobChange: false,
+    }), false, 'Should keep existing baseline on passive updates');
+
+    test.assertEqual(shouldRefreshCalibrationBase({
+        calibrationActive: false,
+        calibrationEnabled: true,
+        calibrationBaseVolume: 40,
+        hasKnownAmpType: true,
+        hasKnownVolume: true,
+        isPhysicalKnobChange: true,
+    }), true, 'Should refresh baseline on real physical volume knob changes');
 });
 
 if (typeof window !== 'undefined') {

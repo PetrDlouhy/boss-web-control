@@ -52,3 +52,18 @@ export function calculateTargetVolume(baseVolume, ampType, ampOffsets, effectKey
     const raw = baseVolume * getAmpFactor(ampOffsets, ampType) * getEffectFactor(effectOffsets, effectKey);
     return Math.max(0, Math.min(100, Math.round(raw)));
 }
+
+export function shouldRefreshCalibrationBase({
+    calibrationActive,
+    calibrationEnabled,
+    calibrationBaseVolume,
+    hasKnownAmpType,
+    hasKnownVolume,
+    isPhysicalKnobChange = false,
+}) {
+    if ((!calibrationActive && !calibrationEnabled) || !hasKnownAmpType || !hasKnownVolume) {
+        return false;
+    }
+
+    return calibrationBaseVolume === null || isPhysicalKnobChange;
+}

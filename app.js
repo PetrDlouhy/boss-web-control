@@ -25,6 +25,7 @@ import {
     getEffectFactor,
     calculateBaseVolume,
     calculateTargetVolume,
+    shouldRefreshCalibrationBase,
 } from './volume-calibration.js';
 
 const VERSION = '2.29.0';
@@ -55,7 +56,7 @@ let readValuesBtn, livePerformanceBtn;
 let cubeConnecting = false;
 let pedalConnecting = false;
 let mixerControlsEl, effectsControlsEl;
-let versionTextEl, refreshBtn;
+let versionTextEl, refreshBtn, installBtn;
 
 // Tuner state
 let tunerEnabled = false;
@@ -92,6 +93,7 @@ let looperVolumeThrottle = {
 
 // Live performance mode
 let livePerformance = null;
+let deferredInstallPrompt = null;
 
 function createDefaultEffectOffsets() {
     return createVolumeDefaultEffectOffsets();
@@ -119,6 +121,7 @@ let settings = {
 // Volume calibration state
 let calibrationActive = false;
 let lastKnownAmpType = null;
+let lastKnownGuitarVolume = null;
 let calibrationBaseVolume = null;
 
 // Initialize when page loads
@@ -134,6 +137,7 @@ if (typeof document !== 'undefined') {
     effectsControlsEl = document.getElementById('effectsControls');
     versionTextEl = document.getElementById('versionText');
     refreshBtn = document.getElementById('refreshBtn');
+    installBtn = document.getElementById('installBtn');
 
     // Master bind elements - will be created dynamically
     masterBindControl = null;
@@ -150,6 +154,7 @@ if (typeof document !== 'undefined') {
     initCalibrationModal();
     initializeThemeToggle();
     setupLogPanel();
+    initializeInstallPrompt();
 
     // Auto-detect dev server log endpoint
     fetch('/api/log', { method: 'POST', body: '--- client connected ---' })
@@ -327,6 +332,55 @@ function initializeVersioning() {
             console.warn('Service Worker registration failed:', error.message);
             log('⚠️ Service Worker unavailable — app works without offline support', 'warning');
         });
+}
+
+function isStandaloneMode() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function updateInstallButton() {
+    if (!installBtn) return;
+    installBtn.style.display = (!isStandaloneMode() && deferredInstallPrompt) ? 'inline-block' : 'none';
+}
+
+function initializeInstallPrompt() {
+    if (typeof window === 'undefined' || !installBtn) return;
+
+    installBtn.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) {
+            log('📲 Install prompt is not available yet in this browser', 'warning');
+            return;
+        }
+
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        updateInstallButton();
+
+        if (choice.outcome === 'accepted') {
+            log('📲 Install prompt accepted', 'success');
+        } else {
+            log('📲 Install prompt dismissed', 'info');
+        }
+    });
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        updateInstallButton();
+        log('📲 This app can be installed from the browser', 'info');
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        updateInstallButton();
+        log('✅ App installed', 'success');
+    });
+
+    const standaloneMedia = window.matchMedia('(display-mode: standalone)');
+    standaloneMedia.addEventListener?.('change', updateInstallButton);
+    updateInstallButton();
 }
 
 function setupEventListeners() {
@@ -1445,6 +1499,11 @@ function updateParameterValue(key, value) {
         }
     } else if (bossCubeController.isCubeConnected) {
         bossCubeController.setParameter(key, value);
+        if (key === 'guitarMicVolume' && (calibrationActive || settings.volumeCalibration.enabled)) {
+            lastKnownGuitarVolume = value;
+            updateBaseVolume(value, getAmpType());
+            if (calibrationActive) refreshCalibrationDisplay();
+        }
     } else {
         param.current = value;
         log(`UI only: ${param.name} = ${value} (Boss Cube not connected)`, 'warning');
@@ -1759,6 +1818,7 @@ async function onCubeConnected({ skipReadValues = false } = {}) {
     statusEl.textContent = `🔊 ${name}`;
     statusEl.className = 'device-status success';
     setCubeButtonState('connected');
+    resetCalibrationTracking();
 
     readValuesBtn.disabled = false;
     const tunerToggleBtn = document.getElementById('tunerToggleBtn');
@@ -1827,6 +1887,7 @@ async function disconnectBossCube() {
         if (masterBindControl) {
             masterBindControl.classList.remove('enabled');
         }
+        resetCalibrationTracking();
 
         log('Disconnected from Boss Cube II', 'info');
         if (discoveryDashboard) discoveryDashboard._updateConnectBtn();
@@ -2190,18 +2251,21 @@ function updateParameterDisplayFromCube(paramKey, value, isPhysicalKnobChange = 
     // Volume calibration: detect amp type changes
     if (paramKey === 'guitarAmpType') {
         const oldAmpType = lastKnownAmpType;
+        lastKnownAmpType = value;
+        maybeRefreshCalibrationBase();
         if (oldAmpType !== null && oldAmpType !== value) {
             onAmpTypeChanged(value, oldAmpType);
         } else {
-            lastKnownAmpType = value;
             if (calibrationActive) refreshCalibrationDisplay();
         }
     }
-    if (paramKey === 'guitarVolumeKnob') {
-        if (isPhysicalKnobChange && (calibrationActive || settings.volumeCalibration.enabled)) {
-            updateBaseVolume();
-        }
+    if (paramKey === 'guitarMicVolume') {
+        lastKnownGuitarVolume = value;
+        maybeRefreshCalibrationBase({ isPhysicalKnobChange });
         if (calibrationActive) refreshCalibrationDisplay();
+    }
+    if (paramKey === 'guitarVolumeKnob' && calibrationActive) {
+        refreshCalibrationDisplay();
     }
 
     // Tuner hardware switch → show/hide modal
@@ -2917,11 +2981,17 @@ function applySettingsToController() {
 const AMP_TYPE_LABELS = ['Normal', 'Bright', 'Wide', 'Instrument', 'Clean', 'Crunch', 'Lead', 'Acoustic Sim', 'Mic'];
 
 function getGuitarVolume() {
-    return bossCubeController?.parameters?.guitarVolumeKnob?.current ?? null;
+    return bossCubeController?.parameters?.guitarMicVolume?.current ?? null;
 }
 
 function getAmpType() {
     return bossCubeController?.parameters?.guitarAmpType?.current ?? null;
+}
+
+function resetCalibrationTracking() {
+    lastKnownAmpType = null;
+    lastKnownGuitarVolume = null;
+    calibrationBaseVolume = null;
 }
 
 function initCalibrationModal() {
@@ -2968,6 +3038,8 @@ function initCalibrationModal() {
 
     document.getElementById('volumeCalEnabled').addEventListener('change', (e) => {
         settings.volumeCalibration.enabled = e.target.checked;
+        calibrationBaseVolume = null;
+        maybeRefreshCalibrationBase();
         saveSettings();
     });
 }
@@ -3080,9 +3152,7 @@ function getCurrentMixLabel() {
     return getMixLabel(getActiveCalibrationEffectKey());
 }
 
-function updateBaseVolume() {
-    const vol = getGuitarVolume();
-    const ampType = getAmpType();
+function updateBaseVolume(vol = lastKnownGuitarVolume, ampType = lastKnownAmpType) {
     if (vol === null || ampType === null) return;
     calibrationBaseVolume = calculateBaseVolume(
         vol,
@@ -3091,6 +3161,22 @@ function updateBaseVolume() {
         getActiveCalibrationEffectKey(),
         settings.volumeCalibration.effectOffsets
     );
+}
+
+function maybeRefreshCalibrationBase({ isPhysicalKnobChange = false } = {}) {
+    if (!shouldRefreshCalibrationBase({
+        calibrationActive,
+        calibrationEnabled: settings.volumeCalibration.enabled,
+        calibrationBaseVolume,
+        hasKnownAmpType: lastKnownAmpType !== null,
+        hasKnownVolume: lastKnownGuitarVolume !== null,
+        isPhysicalKnobChange,
+    })) {
+        return false;
+    }
+
+    updateBaseVolume();
+    return calibrationBaseVolume !== null;
 }
 
 function targetVolume(ampType) {
@@ -3117,7 +3203,7 @@ function syncCurrentCalibratedVolume(logPrefix) {
     const ampType = getAmpType();
     if (ampType === null) return;
     if (!calibrationActive && !settings.volumeCalibration.enabled) return;
-    if (calibrationBaseVolume === null) updateBaseVolume();
+    if (calibrationBaseVolume === null) maybeRefreshCalibrationBase();
 
     const newVol = targetVolume(ampType);
     const currentVol = getGuitarVolume();
@@ -3227,14 +3313,18 @@ function markCalibrated() {
 
 function setGuitarVolume(vol) {
     bossCubeController.sendParameterCommand(
-        bossCubeController.parameters.guitarVolumeKnob.address, vol
+        bossCubeController.parameters.guitarMicVolume.address, vol
     );
-    bossCubeController.parameters.guitarVolumeKnob.current = vol;
-    updateParameterDisplay('guitarVolumeKnob', vol);
+    lastKnownGuitarVolume = vol;
+    bossCubeController.parameters.guitarMicVolume.current = vol;
+    updateParameterDisplay('guitarMicVolume', vol);
+    if (livePerformance && livePerformance.isActive) {
+        livePerformance.updateLivePerformanceDisplay('guitarMicVolume', vol);
+    }
 }
 
 async function applyAmpTypeChangeFromUI(oldAmpType, newAmpType) {
-    if (calibrationBaseVolume === null) updateBaseVolume();
+    if (calibrationBaseVolume === null) maybeRefreshCalibrationBase();
 
     const newVol = targetVolume(newAmpType);
     const currentVol = getGuitarVolume();
@@ -3248,6 +3338,7 @@ async function applyAmpTypeChangeFromUI(oldAmpType, newAmpType) {
     }
 
     await bossCubeController.setParameter('guitarAmpType', newAmpType);
+    lastKnownAmpType = newAmpType;
 
     if (newVol !== null && currentVol !== null && newVol > currentVol) {
         await new Promise(resolve => setTimeout(resolve, 120));
