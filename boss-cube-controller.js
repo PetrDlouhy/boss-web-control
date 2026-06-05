@@ -990,7 +990,10 @@ class BossCubeController {
             return;
         }
 
-        const noteDisplay = `${tunerData.note}${tunerData.octave}`;
+        // Octave from the hardware tuner is not reliable (low and high E both report
+        // the same note byte), so show only the pitch class until the octave encoding
+        // is confirmed. The decoded octave is still kept on tunerData for debugging.
+        const noteDisplay = tunerData.note;
         const centsDisplay = tunerData.centsDeviation > 0 ? `+${tunerData.centsDeviation}¢` : `${tunerData.centsDeviation}¢`;
         const freqText = `${tunerData.frequency}Hz (${centsDisplay})`;
         const inTune = tunerData.status === 'In Tune';
