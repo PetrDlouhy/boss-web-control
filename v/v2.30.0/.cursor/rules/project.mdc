@@ -1,0 +1,49 @@
+---
+description: Boss Cube Web Control project conventions and architecture
+alwaysApply: true
+---
+
+# Boss Cube Web Control
+
+Pure JavaScript PWA for controlling Boss Cube Street II via Web Bluetooth.
+
+## Key Documentation
+
+- **SysEx protocol**: `../street-cube-II-sysex/README.md`
+- **Pickup mode**: `PICKUP_MODE.md`
+- **Release process**: `RELEASE_PROCESS.md`
+
+## Architecture
+
+- **`event-bus.js`**: Pub/sub for inter-module communication. Use `bus.emit()` / `bus.on()` — never `window.*` globals.
+- **`control-factory.js`**: All UI control creation (sliders, button groups, looper). Change control behavior here, not in `app.js` or `live-performance.js`.
+- **`constants.js`**: Shared constants (interaction thresholds, version). No magic numbers in modules.
+- **CSS**: Split into `styles/styles.css` (base + theming), `styles/live-performance.css`, `styles/tuner.css`. Uses CSS custom properties for dark/light theming.
+
+## Development Workflow
+
+1. Make changes
+2. Reload in browser — SW uses network-first, so changes appear immediately (no version bump needed)
+3. Bump version only for actual releases: update `VERSION` in `app.js`, `constants.js`, `sw.js`
+
+## Logging
+
+Use in-app logging, not `console.log()` (invisible on mobile):
+- `log(message, 'info')` — from top-level functions
+- `this.log(message, 'info')` — from within class methods
+
+## Releases
+
+- Tag with `git tag -a vX.Y.Z` → push tag → GitHub Actions deploys to `gh-pages/v/vX.Y.Z/`
+- Update `HISTORY.md` for every release
+- `release/v2.26.x` branch exists for backports to the v2.26 line
+
+## Service Worker
+
+Network-first strategy: always fetches from network when online, falls back to cache when offline. No version bumping needed during development. The `urlsToCache` list in `sw.js` is pre-cached on install for offline support.
+
+## Gotchas
+
+- Live Performance pickup mode behaves differently from main app
+- Mobile touch: always use `touch-action: none` and proper event prevention
+- When adding new files: update `sw.js` `urlsToCache` array
