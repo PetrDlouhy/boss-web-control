@@ -1,5 +1,28 @@
 # Boss Cube Web Control - Version History
 
+## Version 2.30.0 (2026-06-05)
+
+### 📲 **Installable App, Calibration Fixes & Tuner Cleanup**
+
+This release makes the app installable as a PWA, fixes volume calibration so it works without touching the physical knob, and removes the misleading tuner octave.
+
+### ✨ **What's New**
+
+- **Installable PWA**: Proper manifest scope/icons plus an in-app Install button (shown when the browser offers it) so the app can be added to the home screen and run offline after first load
+
+### 🐛 **Bug Fixes**
+
+- **Volume calibration activates on connect**: Calibration now establishes its baseline from the first amp type and guitar volume read from the Cube, instead of doing nothing until the physical volume knob is moved
+- **Calibration targets the right control**: Normalization now reads and writes the actual Guitar/Mic Volume instead of the read-only physical knob position
+- **Manual volume becomes the new baseline**: Setting Guitar/Mic Volume by hand while calibration is on is preserved across amp switches (no more drifting from 17 → 14)
+- **Tuner octave hidden**: The hardware tuner reports the same note byte for every octave, so low and high E both showed "E4"; the tuner now shows just the pitch class
+
+### 🧪 **Testing & Maintainability**
+
+- **Calibration baseline tests**: Added unit coverage for baseline initialization timing and manual-volume round-trips
+
+---
+
 ## Version 2.29.0 (2026-04-02)
 
 ### 🦶 **Pedal Settings, Smarter Connection UX & Volume Calibration**
@@ -370,6 +393,7 @@ Based on the [Boss Cube Street II SysEx project](https://github.com/PetrDlouhy/s
 | **2.24.0** | Jan 17, 2025 | Tuner | Professional tuner with real-time pitch detection |
 | **2.26.0** | Jan 9, 2025 | Looper & Amp | Looper volume control, amp type buttons |
 | **2.26.1** | Mar 25, 2025 | Version Switcher | Backported version switcher to v2.26.x |
+| **2.30.0** | Jun 5, 2026 | Install & Fixes | Installable PWA, calibration baseline fixes, tuner octave cleanup |
 | **2.29.0** | Apr 2, 2026 | Pedal & Calibration | EV-1-WL settings, connection UX, amp/effect volume calibration |
 | **2.28.0** | Mar 25, 2026 | Discovery & SysEx | Discovery dashboard, block reads, complete param coverage, DRY refactors |
 | **2.27.0** | Mar 25, 2025 | Architecture | Refactor, versioned deployment, dark mode, bug fixes |

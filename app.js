@@ -28,7 +28,7 @@ import {
     shouldRefreshCalibrationBase,
 } from './volume-calibration.js';
 
-const VERSION = '2.29.0';
+const VERSION = '2.30.0';
 
 let bossCubeController = null;
 let templateLoader = null;
