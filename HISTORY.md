@@ -1,5 +1,18 @@
 # Boss Cube Web Control - Version History
 
+## Version 2.30.1 (2026-06-08)
+
+### 📴 **Reliable Offline Support for the Installed App**
+
+This patch fixes the installed PWA so it launches and runs fully offline (no internet). Bluetooth control is unaffected and works without any network connection.
+
+### 🐛 **Bug Fixes**
+
+- **Offline cache no longer wiped**: Each deployed version now uses its own version-scoped cache, and the deploy-time root cleanup worker no longer deletes other versions' caches — previously, opening the root version picker could wipe the cache the installed app relied on, breaking offline launch
+- **Sturdier service worker fetch handling**: Skips non-GET and cross-origin requests and falls back to the cached app shell for navigations, so the installed app boots offline even on a deep-linked URL
+
+---
+
 ## Version 2.30.0 (2026-06-05)
 
 ### 📲 **Installable App, Calibration Fixes & Tuner Cleanup**
@@ -393,6 +406,7 @@ Based on the [Boss Cube Street II SysEx project](https://github.com/PetrDlouhy/s
 | **2.24.0** | Jan 17, 2025 | Tuner | Professional tuner with real-time pitch detection |
 | **2.26.0** | Jan 9, 2025 | Looper & Amp | Looper volume control, amp type buttons |
 | **2.26.1** | Mar 25, 2025 | Version Switcher | Backported version switcher to v2.26.x |
+| **2.30.1** | Jun 8, 2026 | Offline Fix | Reliable offline launch for the installed PWA (version-scoped cache) |
 | **2.30.0** | Jun 5, 2026 | Install & Fixes | Installable PWA, calibration baseline fixes, tuner octave cleanup |
 | **2.29.0** | Apr 2, 2026 | Pedal & Calibration | EV-1-WL settings, connection UX, amp/effect volume calibration |
 | **2.28.0** | Mar 25, 2026 | Discovery & SysEx | Discovery dashboard, block reads, complete param coverage, DRY refactors |

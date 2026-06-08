@@ -1,7 +1,7 @@
 // Boss Cube Web Control - Service Worker
 // Network-first strategy: always fresh when online, cached fallback when offline
 
-const VERSION = '2.30.0';
+const VERSION = '2.30.1';
 // Version-scoped cache so each deployed version keeps its own offline copy and
 // versions never overwrite each other's assets in the shared per-origin store.
 const CACHE_PREFIX = 'boss-cube-control';
