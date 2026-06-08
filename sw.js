@@ -2,7 +2,13 @@ self.addEventListener('install', function() { self.skipWaiting(); });
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(names) {
-      return Promise.all(names.map(function(n) { return caches.delete(n); }));
+      // Keep version-scoped app caches (boss-cube-control-v*) so installed
+      // versioned PWAs keep working offline; only clear legacy/root caches.
+      return Promise.all(
+        names
+          .filter(function(n) { return n.indexOf('boss-cube-control-v') !== 0; })
+          .map(function(n) { return caches.delete(n); })
+      );
     }).then(function() { return self.clients.claim(); })
   );
 });

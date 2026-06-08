@@ -1,0 +1,30 @@
+<div class="looper-settings-improved">
+    {{LOOPER_SETTING_BUTTONS}}
+</div>
+
+<!-- Looper Settings Modal -->
+<div id="looperSettingsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⚙️ Looper Settings</h3>
+            <button class="modal-close" id="closeLooperSettings">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="setting-item">
+                <label>📅 Recording Time:</label>
+                <div class="rec-time-options">
+                    <button id="recTimeNormal" class="rec-time-btn" data-value="0">
+                        Normal<br><small>45s / Stereo</small>
+                    </button>
+                    <button id="recTimeLong" class="rec-time-btn" data-value="1">
+                        Long<br><small>90s / Mono</small>
+                    </button>
+                </div>
+                <p class="setting-description">
+                    Normal mode provides 45 seconds of stereo recording. 
+                    Long mode provides 90 seconds but in mono only.
+                </p>
+            </div>
+        </div>
+    </div>
+</div> 
